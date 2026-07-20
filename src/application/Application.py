@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report
 from sklearn.preprocessing import LabelEncoder
 
-from application.components import FileSelector, DatasetHandler, TextOutputView, AlgorithmSelector
+from application.components import FileSelector, DatasetHandler, TextOutputView, AlgorithmSelector, HyperParamForm
 
 class Application(tk.Tk):
   def __init__(self):
@@ -24,8 +24,13 @@ class Application(tk.Tk):
     self.dataset_handler = DatasetHandler(self)
     self.dataset_handler.pack(fill=tk.X)
 
-    self.algorithm_selector = AlgorithmSelector(self)
+    self.hyperparam_form = HyperParamForm(self)
+    self.hyperparam_form.pack(fill=tk.X, padx=10, pady=5)
+
+    self.algorithm_selector = AlgorithmSelector(self, on_change=self.on_algorithm_changed)
     self.algorithm_selector.pack(fill=tk.X)
+    
+    self.on_algorithm_changed()
 
     self.text_output_view = TextOutputView(self)
     self.text_output_view.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
@@ -35,6 +40,9 @@ class Application(tk.Tk):
 
     self.run_btn = ttk.Button(self, text="Run Simple Pipeline", command=self.run_pipeline)
     self.run_btn.pack(fill=tk.X, padx=10, pady=(0, 15))
+  
+  def on_algorithm_changed(self):
+    self.hyperparam_form.render_form(self.algorithm_selector.get_params_structure())
 
   def on_file_selected(self, filepath):
     self.dataset_handler.load_columns(filepath)

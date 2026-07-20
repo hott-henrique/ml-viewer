@@ -11,26 +11,34 @@ class SklearnClassifierAPI(Protocol):
 
 class AlgorithmRegistry:
   BASE_ALGORITHM_REGISTRY = {
-      "Random Forest": {
-          "module": "sklearn.ensemble",
-          "class": "RandomForestClassifier",
-          "kwargs": {"random_state": 42}
-      },
-      "Logistic Regression": {
-          "module": "sklearn.linear_model",
-          "class": "LogisticRegression",
-          "kwargs": {"random_state": 42, "max_iter": 1000}
-      },
-      "Decision Tree": {
-          "module": "sklearn.tree",
-          "class": "DecisionTreeClassifier",
-          "kwargs": {"random_state": 42}
-      },
-      "Support Vector Machine (SVM)": {
-          "module": "sklearn.svm",
-          "class": "SVC",
-          "kwargs": {"random_state": 42}
-      },
+    "Random Forest": {
+        "module": "sklearn.ensemble",
+        "class": "RandomForestClassifier",
+        "params": [
+          {"name": "n_estimators", "type": "int", "default": 100, "label": "Number of Trees"},
+          {"name": "criterion", "type": "categorical", "options": ["gini", "entropy", "log_loss"], "default": "gini", "label": "Criterion"}
+        ]
+        # "kwargs": {"random_state": 42}
+    },
+    "Logistic Regression": {
+        "module": "sklearn.linear_model",
+        "class": "LogisticRegression",
+        "params": [
+          {"name": "C", "type": "float", "default": 1.0, "label": "Inverse Regularization (C)"},
+          {"name": "max_iter", "type": "int", "default": 100, "label": "Max Iterations"}
+        ]
+        # "kwargs": {"random_state": 42, "max_iter": 1000}
+    },
+    # "Decision Tree": {
+    #     "module": "sklearn.tree",
+    #     "class": "DecisionTreeClassifier",
+    #     "kwargs": {"random_state": 42}
+    # },
+    # "Support Vector Machine (SVM)": {
+    #     "module": "sklearn.svm",
+    #     "class": "SVC",
+    #     "kwargs": {"random_state": 42}
+    # },
   }
 
   @staticmethod
