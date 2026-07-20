@@ -5,11 +5,10 @@ import pandas as pd
 from tkinter import ttk, messagebox
 
 from sklearn.model_selection import train_test_split
-from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import accuracy_score, classification_report
 from sklearn.preprocessing import LabelEncoder
 
-from application.components import FileSelector, DatasetHandler, TextOutputView
+from application.components import FileSelector, DatasetHandler, TextOutputView, AlgorithmSelector
 
 class Application(tk.Tk):
   def __init__(self):
@@ -23,6 +22,9 @@ class Application(tk.Tk):
 
     self.dataset_handler = DatasetHandler(self)
     self.dataset_handler.pack(fill=tk.X)
+
+    self.algorithm_selector = AlgorithmSelector(self)
+    self.algorithm_selector.pack(fill=tk.X)
 
     self.run_btn = ttk.Button(self, text="Run Simple Pipeline", command=self.run_pipeline)
     self.run_btn.pack(pady=15)
@@ -80,7 +82,7 @@ class Application(tk.Tk):
         X, y, train_size=train_size, random_state=42
       )
 
-      model = DecisionTreeClassifier(random_state=42)
+      model = self.algorithm_selector.get_instance()
 
       model.fit(X_train, y_train)
 
