@@ -1,6 +1,38 @@
 import tkinter as tk
 from tkinter import ttk
 
+def create_tooltip(widget: tk.Widget, text: str):
+    tooltip_window = None
+
+    def on_enter(event: tk.Event):
+      nonlocal tooltip_window
+
+      tooltip_window = tk.Toplevel(widget)
+      tooltip_window.wm_overrideredirect(True)
+
+      x = widget.winfo_rootx() + 20
+      y = widget.winfo_rooty() + 15
+      tooltip_window.wm_geometry(f"+{x}+{y}")
+
+      label = tk.Label(
+        tooltip_window, 
+        text=text, 
+        justify=tk.LEFT,
+        background="#ffffe0", 
+        relief=tk.SOLID, 
+        borderwidth=1,
+        wraplength=250
+      )
+      label.pack(ipadx=4, ipady=4)
+
+    def on_leave(event):
+      nonlocal tooltip_window
+      if tooltip_window:
+        tooltip_window.destroy()
+        tooltip_window = None
+
+    widget.bind("<Enter>", on_enter)
+    widget.bind("<Leave>", on_leave)
 class HyperParamForm(ttk.LabelFrame):
 
   def __init__(self, master=None, on_change=None):
@@ -45,13 +77,22 @@ class HyperParamForm(ttk.LabelFrame):
       row = ttk.Frame(self.inner_frame)
       row.pack(fill=tk.X, padx=10, pady=5)
 
+      # 1. Label principal (Nome do parâmetro)
       ttk.Label(row, text=param["label"] + ":").pack(side=tk.LEFT)
 
+      # 3. Input Widget
       var = tk.StringVar(value=str(param.get("default", "")))
-      
       var.trace_add("write", self._trigger_change)
-      
+
       self.param_vars[param["name"]] = var
+
+      # 2. Ícone de Informação (Tooltip)
+      # Empacotamos ele PRIMEIRO à direita para garantir que ele fique no final
+      desc = param.get("description", "No description available.")
+      info_icon = tk.Label(row, text="ⓘ", foreground="#0055cc", cursor="question_arrow", font=("", 10))
+      info_icon.pack(side=tk.RIGHT, padx=(5, 0)) # padx=(5, 0) dá um espacinho entre o input e o ícone
+
+      create_tooltip(info_icon, desc)
 
       if param["type"] == "categorical":
         input_widget = ttk.Combobox(row, textvariable=var, values=param.get("options", []), state="readonly", width=15)
