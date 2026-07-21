@@ -3,11 +3,17 @@ from tkinter import ttk
 import pandas as pd
 
 class DatasetHandler(ttk.LabelFrame):
-  def __init__(self, master=None):
+  def __init__(self, master=None, on_target_change=None, on_split_change=None):
     super().__init__(master, text="Dataset Configuration", padding=(10, 10))
+
+    self.on_target_change = on_target_change
+    self.on_split_change = on_split_change
 
     self.target_var = tk.StringVar()
     self.split_var = tk.StringVar(value="0.8") 
+
+    self.target_var.trace_add("write", self._handle_target_update)
+    self.split_var.trace_add("write", self._handle_split_update)
 
     top_row = ttk.Frame(self)
     top_row.pack(fill=tk.X)
@@ -36,8 +42,15 @@ class DatasetHandler(ttk.LabelFrame):
       validate="key", 
       validatecommand=vcmd
     )
-
     self.split_input.pack(side=tk.LEFT, padx=10, pady=10)
+
+  def _handle_target_update(self, var_name, index, mode):
+    if self.on_target_change:
+      self.on_target_change(self.target_var.get())
+
+  def _handle_split_update(self, var_name, index, mode):
+    if self.on_split_change:
+      self.on_split_change(self.split_var.get())
 
   def validate_split(self, typed_value):
     if typed_value == "":

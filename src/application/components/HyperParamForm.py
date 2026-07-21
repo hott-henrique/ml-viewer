@@ -2,8 +2,10 @@ import tkinter as tk
 from tkinter import ttk
 
 class HyperParamForm(ttk.LabelFrame):
-  def __init__(self, master=None):
+
+  def __init__(self, master=None, on_change=None):
     super().__init__(master, text="Hyperparameters")
+    self.on_change = on_change 
     self.param_vars: dict[str, tk.StringVar] = {}
     self.param_definitions = []
 
@@ -36,6 +38,7 @@ class HyperParamForm(ttk.LabelFrame):
 
     if not params_config:
       ttk.Label(self.inner_frame, text="No hyperparameters available.", foreground="gray").pack(padx=10, pady=10)
+      self._trigger_change()
       return
 
     for param in params_config:
@@ -45,6 +48,9 @@ class HyperParamForm(ttk.LabelFrame):
       ttk.Label(row, text=param["label"] + ":").pack(side=tk.LEFT)
 
       var = tk.StringVar(value=str(param.get("default", "")))
+      
+      var.trace_add("write", self._trigger_change)
+      
       self.param_vars[param["name"]] = var
 
       if param["type"] == "categorical":
@@ -53,6 +59,16 @@ class HyperParamForm(ttk.LabelFrame):
         input_widget = ttk.Entry(row, textvariable=var, width=15)
 
       input_widget.pack(side=tk.RIGHT)
+
+    self._trigger_change()
+
+  def _trigger_change(self, *args):
+    if self.on_change:
+      try:
+        parsed_vals = self.get_parsed_values()
+        self.on_change(parsed_vals)
+      except ValueError:
+        pass
 
   def get_parsed_values(self):
     parsed_kwargs = {}

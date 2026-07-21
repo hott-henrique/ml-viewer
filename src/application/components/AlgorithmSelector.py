@@ -29,8 +29,8 @@ class AlgorithmSelector(ttk.LabelFrame):
 
     self.algo_selector.bind("<<ComboboxSelected>>", self._handle_selection)
 
-  def get_instance(self):
-    return AlgorithmRegistry.instantiate(self.algo_var.get())
+  def get_name(self):
+    return self.algo_var.get()
 
   def get_params_structure(self):
     return AlgorithmRegistry.registry().get(self.algo_var.get())['params']
