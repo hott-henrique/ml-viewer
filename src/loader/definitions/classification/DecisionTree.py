@@ -1,6 +1,7 @@
 DECISION_TREE_REGISTRY_INSTANCE =  {
   "module": "sklearn.tree",
   "class": "DecisionTreeClassifier",
+  "description": "A flowchart-like model that makes predictions by continuously splitting data into smaller groups based on a series of yes/no questions about its features.",
   "params": [
     {
       "name": "criterion",
