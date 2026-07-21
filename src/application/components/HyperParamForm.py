@@ -21,7 +21,7 @@ class HyperParamForm(ttk.LabelFrame):
 
     for param in params_config:
       row = ttk.Frame(self)
-      row.pack(fill=tk.X, padx=10, pady=5)
+      row.pack(fill=tk.X, padx=10, pady=10)
 
       ttk.Label(row, text=param["label"] + ":").pack(side=tk.LEFT)
 

@@ -16,19 +16,19 @@ class Application(tk.Tk):
     super().__init__()
 
     self.title('Machine Learning Classification App')
-    self.geometry('550x750')
+    self.geometry('600x850')
 
     self.file_selector = FileSelector(self, on_file_selected=self.on_file_selected)
-    self.file_selector.pack(fill=tk.X)
+    self.file_selector.pack(fill=tk.X, padx=10, pady=5)
 
     self.dataset_handler = DatasetHandler(self)
-    self.dataset_handler.pack(fill=tk.X)
+    self.dataset_handler.pack(fill=tk.X, padx=10, pady=5)
+
+    self.algorithm_selector = AlgorithmSelector(self, on_change=self.on_algorithm_changed)
+    self.algorithm_selector.pack(fill=tk.X, padx=10, pady=5)
 
     self.hyperparam_form = HyperParamForm(self)
     self.hyperparam_form.pack(fill=tk.X, padx=10, pady=5)
-
-    self.algorithm_selector = AlgorithmSelector(self, on_change=self.on_algorithm_changed)
-    self.algorithm_selector.pack(fill=tk.X)
     
     self.on_algorithm_changed()
 
@@ -36,10 +36,10 @@ class Application(tk.Tk):
     self.text_output_view.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
     self.progress_bar = ttk.Progressbar(self, mode='determinate', value=0)
-    self.progress_bar.pack(fill=tk.X, padx=10, pady=(10, 5))
+    self.progress_bar.pack(fill=tk.X, padx=10, pady=5)
 
     self.run_btn = ttk.Button(self, text="Run Simple Pipeline", command=self.run_pipeline)
-    self.run_btn.pack(fill=tk.X, padx=10, pady=(0, 15))
+    self.run_btn.pack(fill=tk.X, padx=10, pady=5)
   
   def on_algorithm_changed(self):
     self.hyperparam_form.render_form(self.algorithm_selector.get_params_structure())
