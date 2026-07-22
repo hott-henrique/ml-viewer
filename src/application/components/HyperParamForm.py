@@ -36,9 +36,11 @@ def create_tooltip(widget: tk.Widget, text: str):
 
 class HyperParamForm(ttk.LabelFrame):
 
-  def __init__(self, master=None, on_change=None):
+  # ADICIONADO: parâmetro is_readonly com valor padrão False
+  def __init__(self, master=None, on_change=None, is_readonly=False):
     super().__init__(master, text="Hyperparameters")
     self.on_change = on_change 
+    self.is_readonly = is_readonly
     self.param_vars: dict[str, tk.StringVar] = {}
     self.param_definitions = []
 
@@ -84,7 +86,10 @@ class HyperParamForm(ttk.LabelFrame):
       ttk.Label(row, text=param["label"] + ":").pack(side=tk.LEFT)
 
       var = tk.StringVar(value=str(param.get("default", "")))
-      var.trace_add("write", self._trigger_change)
+      
+      # Só ativamos o gatilho de mudança se NÃO for readonly
+      if not self.is_readonly:
+        var.trace_add("write", self._trigger_change)
 
       self.param_vars[param["name"]] = var
 
@@ -94,16 +99,23 @@ class HyperParamForm(ttk.LabelFrame):
 
       create_tooltip(info_icon, desc)
 
+      # --- LÓGICA DE READONLY APLICADA AQUI ---
       if param["type"] == "categorical":
-        input_widget = ttk.Combobox(row, textvariable=var, values=param.get("options", []), state="readonly", width=15)
+        # Se for readonly, aplicamos "disabled" para travar o clique. Se não, mantemos "readonly" normal do combobox
+        cbox_state = "disabled" if self.is_readonly else "readonly"
+        input_widget = ttk.Combobox(row, textvariable=var, values=param.get("options", []), state=cbox_state, width=15)
       elif param["type"] == "bool":
-        input_widget = ttk.Combobox(row, textvariable=var, values=["True", "False"], state="readonly", width=15)
+        cbox_state = "disabled" if self.is_readonly else "readonly"
+        input_widget = ttk.Combobox(row, textvariable=var, values=["True", "False"], state=cbox_state, width=15)
       else:
-        input_widget = ttk.Entry(row, textvariable=var, width=15)
+        # Para entradas de texto usamos "readonly", assim o usuário ainda consegue selecionar e copiar o texto se quiser
+        entry_state = "readonly" if self.is_readonly else "normal"
+        input_widget = ttk.Entry(row, textvariable=var, state=entry_state, width=15)
 
       input_widget.pack(side=tk.RIGHT)
 
-    self._trigger_change()
+    if not self.is_readonly:
+      self._trigger_change()
 
   def _trigger_change(self, *args):
     if self.on_change:

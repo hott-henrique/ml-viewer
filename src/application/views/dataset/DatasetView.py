@@ -44,8 +44,6 @@ class DatasetView(ttk.Frame):
     scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
     self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-    self.tree.bind("<<TreeviewSelect>>", self.on_dataset_selected)
-
     self.load_table_data()
 
   def load_table_data(self):
@@ -57,19 +55,6 @@ class DatasetView(ttk.Frame):
     for ds in datasets:
       target_val = ds.get("target", "N/A") 
       self.tree.insert("", tk.END, values=(ds.get("id", ""), ds["name"], ds["type"], target_val, ds["date"], ds["path"]))
-
-  def on_dataset_selected(self, event):
-    selected_item = self.tree.selection()
-
-    if not selected_item:
-      return
-
-    values = self.tree.item(selected_item[0])["values"]
-    _, name, prob_type, target, date, filepath = values
-
-    store.filepath = filepath
-    store.problem_type = prob_type
-    store.target_col = target
 
   def open_add_modal(self):
     DatasetFormModal(self, on_save=self._on_dataset_saved)

@@ -105,15 +105,36 @@ class AlgorithmRegistry:
     for algo_name, algo_data in custom_config.items():
       if 'module' not in algo_data:
         algo_data['custom_module'] = module
-        
+
+      algo_data['plugin_path'] = filepath
+
       prob_type = algo_data.get('type')
-      
+
       if prob_type not in cls.BASE_ALGORITHM_REGISTRY:
-          cls.BASE_ALGORITHM_REGISTRY[prob_type] = {}
-          
+        cls.BASE_ALGORITHM_REGISTRY[prob_type] = {}
+
       cls.BASE_ALGORITHM_REGISTRY[prob_type][algo_name] = algo_data
+
       added_algos.append(algo_name)
 
     return added_algos
+
+  @classmethod
+  def delete_algorithm(cls, problem_type: str, name: str):
+    registry = cls.BASE_ALGORITHM_REGISTRY.get(problem_type, {})
+
+    if name not in registry:
+      return
+
+    algo_data = registry[name]
+    filepath = algo_data.get('plugin_path')
+
+    del registry[name]
+
+    if filepath and os.path.exists(filepath):
+      try:
+        os.remove(filepath)
+      except Exception as e:
+        print(f"Error deleting file {filepath}: {e}")
 
 AlgorithmRegistry.boot_plugins()
