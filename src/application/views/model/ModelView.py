@@ -39,7 +39,10 @@ class ModelView(ttk.Frame):
 
     self.tree.bind("<<TreeviewSelect>>", self.on_model_selected)
 
-    self.hyperparam_form = HyperParamForm(self, is_readonly=True)
+    param_frame = ttk.LabelFrame(self, text="Hyperparameters (Read-Only)")
+    param_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=15)
+
+    self.hyperparam_form = HyperParamForm(param_frame, is_readonly=True)
     self.hyperparam_form.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
     self.load_table_data()

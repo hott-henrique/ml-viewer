@@ -34,11 +34,11 @@ def create_tooltip(widget: tk.Widget, text: str):
   widget.bind("<Enter>", on_enter)
   widget.bind("<Leave>", on_leave)
 
-class HyperParamForm(ttk.LabelFrame):
+class HyperParamForm(ttk.Frame):
 
-  # ADICIONADO: parâmetro is_readonly com valor padrão False
   def __init__(self, master=None, on_change=None, is_readonly=False):
-    super().__init__(master, text="Hyperparameters")
+    super().__init__(master)
+
     self.on_change = on_change 
     self.is_readonly = is_readonly
     self.param_vars: dict[str, tk.StringVar] = {}
@@ -87,7 +87,6 @@ class HyperParamForm(ttk.LabelFrame):
 
       var = tk.StringVar(value=str(param.get("default", "")))
       
-      # Só ativamos o gatilho de mudança se NÃO for readonly
       if not self.is_readonly:
         var.trace_add("write", self._trigger_change)
 
@@ -99,16 +98,13 @@ class HyperParamForm(ttk.LabelFrame):
 
       create_tooltip(info_icon, desc)
 
-      # --- LÓGICA DE READONLY APLICADA AQUI ---
       if param["type"] == "categorical":
-        # Se for readonly, aplicamos "disabled" para travar o clique. Se não, mantemos "readonly" normal do combobox
         cbox_state = "disabled" if self.is_readonly else "readonly"
         input_widget = ttk.Combobox(row, textvariable=var, values=param.get("options", []), state=cbox_state, width=15)
       elif param["type"] == "bool":
         cbox_state = "disabled" if self.is_readonly else "readonly"
         input_widget = ttk.Combobox(row, textvariable=var, values=["True", "False"], state=cbox_state, width=15)
       else:
-        # Para entradas de texto usamos "readonly", assim o usuário ainda consegue selecionar e copiar o texto se quiser
         entry_state = "readonly" if self.is_readonly else "normal"
         input_widget = ttk.Entry(row, textvariable=var, state=entry_state, width=15)
 
