@@ -4,12 +4,18 @@ from tkinter import ttk
 from loader import AlgorithmRegistry
 
 class AlgorithmSelector(ttk.LabelFrame):
-  def __init__(self, master=None, on_change: t.Optional[t.Callable]=None):
+  def __init__(self,
+               master=None,
+               on_change: t.Optional[t.Callable]=None,
+               on_no_algorithm_available: t.Optional[t.Callable]=None):
     super().__init__(master, text="Model Configuration")
     
     self.on_change = on_change
+    self.on_no_algorithm_available = on_no_algorithm_available
     self.algo_var = tk.StringVar()
     self.dropdown_window = None
+
+    self.current_problem_type = "Classification"
 
     container = ttk.Frame(self)
     container.pack(fill=tk.X, padx=10, pady=10)
@@ -44,11 +50,26 @@ class AlgorithmSelector(ttk.LabelFrame):
 
     self.bind_all("<Button-1>", self._check_click_outside, add="+")
 
-    registry = AlgorithmRegistry.registry()
+    registry = AlgorithmRegistry.registry(self.current_problem_type)
 
     if registry:
       first_key = list(registry.keys())[0]
       self.algo_var.set(first_key)
+
+  def set_problem_type(self, problem_type: str):
+    self.current_problem_type = problem_type
+
+    algos = AlgorithmRegistry.registry(problem_type)
+
+    if algos:
+      self.algo_var.set(list(algos.keys())[0])
+    else:
+      self.algo_var.set("No algorithms found")
+
+    if self.on_change and algos and len(algos) > 0:
+      self.on_change()
+    elif self.on_no_algorithm_available:
+      self.on_no_algorithm_available()
 
   def _check_click_outside(self, event: tk.Event):
     if not self.dropdown_window or not self.dropdown_window.winfo_exists():
@@ -97,7 +118,10 @@ class AlgorithmSelector(ttk.LabelFrame):
     self._populate_dropdown(inner_frame, width)
 
   def _populate_dropdown(self, parent_frame, box_width):
-    registry = AlgorithmRegistry.registry()
+    registry = AlgorithmRegistry.registry(self.current_problem_type)
+
+    if not registry or len(registry) <= 0:
+      return
 
     for key, data in registry.items():
       desc = data.get("description", "No description available.")
@@ -157,4 +181,4 @@ class AlgorithmSelector(ttk.LabelFrame):
     if not actual_name:
       return []
 
-    return AlgorithmRegistry.registry().get(actual_name, {}).get('params', [])
+    return AlgorithmRegistry.registry(self.current_problem_type).get(actual_name, {}).get('params', [])

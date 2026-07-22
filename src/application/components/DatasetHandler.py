@@ -3,40 +3,60 @@ from tkinter import ttk
 import pandas as pd
 
 class DatasetHandler(ttk.LabelFrame):
-  def __init__(self, master=None, on_target_change=None, on_split_change=None):
+
+  def __init__(self, master=None, on_target_change=None, on_split_change=None, on_type_change=None):
     super().__init__(master, text="Dataset Configuration", padding=(10, 10))
 
     self.on_target_change = on_target_change
     self.on_split_change = on_split_change
+    self.on_type_change = on_type_change
 
+    self.type_var = tk.StringVar(value="Classification")
     self.target_var = tk.StringVar()
     self.split_var = tk.StringVar(value="0.8") 
 
+    self.type_var.trace_add("write", self._handle_type_update)
     self.target_var.trace_add("write", self._handle_target_update)
     self.split_var.trace_add("write", self._handle_split_update)
 
-    top_row = ttk.Frame(self)
-    top_row.pack(fill=tk.X)
+    type_row = ttk.Frame(self)
+    type_row.pack(fill=tk.X)
 
-    bottom_row = ttk.Frame(self)
-    bottom_row.pack(fill=tk.X)
+    target_row = ttk.Frame(self)
+    target_row.pack(fill=tk.X)
 
-    ttk.Label(top_row, text="Target Variable:").pack(side=tk.LEFT, padx=10, pady=10)
+    split_row = ttk.Frame(self)
+    split_row.pack(fill=tk.X)
+
+    ttk.Label(type_row, text="Problem Type:").pack(side=tk.LEFT, padx=10, pady=10)
+
+    self.type_selector = ttk.Combobox(
+      type_row, 
+      textvariable=self.type_var, 
+      values=["Classification", "Regression"], 
+      state="readonly",
+      width=20
+    )
+
+    self.type_selector.pack(side=tk.LEFT, padx=10, pady=10)
+
+    ttk.Label(target_row, text="Target Variable:").pack(side=tk.LEFT, padx=10, pady=10)
 
     self.target_selector = ttk.Combobox(
-      top_row, 
+      target_row, 
       textvariable=self.target_var, 
       state="readonly",
       width=20
     )
+
     self.target_selector.pack(side=tk.LEFT, padx=10, pady=10)
 
     vcmd = (self.register(self.validate_split), '%P')
 
-    ttk.Label(bottom_row, text="Train Size (0 to 1):").pack(side=tk.LEFT, padx=10, pady=10)
+    ttk.Label(split_row, text="Train Size (0 to 1):").pack(side=tk.LEFT, padx=10, pady=10)
 
     self.split_input = ttk.Entry(
-      bottom_row, 
+      split_row, 
       textvariable=self.split_var,
       width=10,
       validate="key", 
@@ -44,11 +64,17 @@ class DatasetHandler(ttk.LabelFrame):
     )
     self.split_input.pack(side=tk.LEFT, padx=10, pady=10)
 
-  def _handle_target_update(self, var_name, index, mode):
+    self._handle_type_update()
+
+  def _handle_type_update(self, *args):
+    if self.on_type_change:
+      self.on_type_change(self.type_var.get())
+
+  def _handle_target_update(self, *args):
     if self.on_target_change:
       self.on_target_change(self.target_var.get())
 
-  def _handle_split_update(self, var_name, index, mode):
+  def _handle_split_update(self, *args):
     if self.on_split_change:
       self.on_split_change(self.split_var.get())
 

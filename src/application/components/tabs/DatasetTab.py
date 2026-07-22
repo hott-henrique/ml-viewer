@@ -15,20 +15,24 @@ class DatasetTab(ttk.Frame):
     self.dataset_handler = DatasetHandler(
       self,
       on_target_change=self.on_target_change,
-      on_split_change=self.on_split_change
+      on_split_change=self.on_split_change,
+      on_type_change=self.on_type_change,
     )
 
     self.dataset_handler.pack(fill=tk.X, padx=10, pady=5)
 
-  def on_file_selected(self, filepath):
+  def on_file_selected(self, filepath: str):
     store.filepath = filepath
     self.dataset_handler.load_columns(filepath)
 
-  def on_target_change(self, target_value):
+  def on_target_change(self, target_value: str):
     store.target_col = target_value
 
-  def on_split_change(self, split_value):
+  def on_split_change(self, split_value: str):
     try:
       store.train_size = float(split_value)
     except ValueError:
       pass
+  
+  def on_type_change(self, type_value: str):
+    store.problem_type = type_value

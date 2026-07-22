@@ -2,7 +2,7 @@ import importlib
 
 from typing import Protocol, Any
 
-from loader.definitions.classification import *
+from loader.definitions import *
 
 class ModelAPI(Protocol):
   def fit(self, X: Any, y: Any, **fit_params: Any) -> 'ModelAPI':
@@ -12,23 +12,22 @@ class ModelAPI(Protocol):
     ...
 
 class AlgorithmRegistry:
-  BASE_ALGORITHM_REGISTRY = {
-    "Support Vector Machines (SVM)": SVM_REGISTRY_INSTANCE,
-    "KNN": KNN_REGISTRY_INSTANCE,
-    "Decision Tree": DECISION_TREE_REGISTRY_INSTANCE
+  BASE_ALGORITHM_REGISTRY: dict[str, dict] = {
+    "Classification": CLASSIFICATION_REGISTRY,
+    "Regression": REGRETION_REGISTRY
   }
 
   @staticmethod
-  def registry() -> dict:
-    return AlgorithmRegistry.BASE_ALGORITHM_REGISTRY
+  def registry(problem_type: str) -> dict[str, dict]:
+    return AlgorithmRegistry.BASE_ALGORITHM_REGISTRY.get(problem_type)
 
   @staticmethod
-  def options() -> list[str]:
-    return list(AlgorithmRegistry.registry().keys())
+  def options(problem_type: str) -> list[str]:
+    return list(AlgorithmRegistry.registry(problem_type).keys())
 
   @staticmethod
-  def instantiate(name: str, params: dict) -> ModelAPI:
-    registry = AlgorithmRegistry.registry()
+  def instantiate(problem_type: str, name: str, params: dict) -> ModelAPI:
+    registry = AlgorithmRegistry.registry(problem_type)
 
     if name not in registry:
       raise ValueError('Algorithm not found in registry.', name)

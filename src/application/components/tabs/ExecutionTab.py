@@ -7,7 +7,15 @@ import json
 from tkinter import ttk, messagebox
 
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, classification_report
+
+from sklearn.metrics import (
+  accuracy_score,
+  classification_report,
+  mean_squared_error,
+  mean_absolute_error,
+  r2_score
+)
+
 from sklearn.preprocessing import LabelEncoder
 
 from application.components import TextOutputView
@@ -31,12 +39,16 @@ class ExecutionTab(ttk.Frame):
     self.run_btn.pack(fill=tk.X, padx=10, pady=5)
 
   def run_pipeline(self):
-    if store.filepath == "":
+    if not store.filepath:
       messagebox.showwarning("Warning", "Please select a CSV file first.")
       return
 
     if not store.target_col:
       messagebox.showwarning("Warning", "Please select a valid target variable.")
+      return
+
+    if not store.selected_algorithm:
+      messagebox.showwarning("Warning", "Please select an algorithm.")
       return
 
     self.text_output_view.show("Loading data and running pipeline...\n")
@@ -77,26 +89,41 @@ class ExecutionTab(ttk.Frame):
         X, y, train_size=train_size, random_state=42
       )
 
-      model = AlgorithmRegistry.instantiate(store.selected_algorithm, store.hyperparameters)
+      model = AlgorithmRegistry.instantiate(store.problem_type, store.selected_algorithm, store.hyperparameters)
       model.fit(X_train, y_train)
 
       preds = model.predict(X_test)
-      acc = accuracy_score(y_test, preds)
-      report = classification_report(y_test, preds)
+      if store.problem_type == "Classification":
+        acc = accuracy_score(y_test, preds)
+        report = classification_report(y_test, preds)
+        metrics_msg = (
+            f"Accuracy: {acc:.4f}\n\n"
+            f"Classification Report:\n{report}"
+        )
+      else:
+        mse = mean_squared_error(y_test, preds)
+        rmse = mse ** 0.5
+        mae = mean_absolute_error(y_test, preds)
+        r2 = r2_score(y_test, preds)
+        metrics_msg = (
+            f"R² Score: {r2:.4f} (Closer to 1.0 is better)\n"
+            f"Root Mean Squared Error (RMSE): {rmse:.4f}\n"
+            f"Mean Absolute Error (MAE): {mae:.4f}\n"
+            f"Mean Squared Error (MSE): {mse:.4f}"
+        )
 
       params_dict = model.get_params()
       formatted_params = json.dumps(params_dict, indent=2)
 
       result_msg = (
-        f"Pipeline finished successfully!\n\n"
+        f"Pipeline finished successfully! ({store.problem_type})\n\n"
         f"Model Parameters:\n{formatted_params}\n"
         f"{'-'*40}\n"
         f"Dataset shape after dropna: {df.shape}\n"
         f"Train Size: {len(X_train)} samples\n"
         f"Test Size: {len(X_test)} samples\n"
         f"{'-'*40}\n"
-        f"Accuracy: {acc:.4f}\n\n"
-        f"Classification Report:\n{report}"
+        f"{metrics_msg}"
       )
 
       self.after(0, self._on_pipeline_success, result_msg)
