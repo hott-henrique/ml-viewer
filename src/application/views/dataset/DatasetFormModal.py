@@ -3,6 +3,8 @@ from tkinter import ttk, filedialog, messagebox
 
 import pandas as pd
 
+from application.components import ProblemTypeSelector
+
 class DatasetFormModal(tk.Toplevel):
 
   def __init__(self, parent, on_save, dataset_data=None):
@@ -10,8 +12,7 @@ class DatasetFormModal(tk.Toplevel):
 
     self.is_editing = dataset_data is not None
     self.title("Edit Dataset" if self.is_editing else "Add New Dataset")
-    
-    # Ajustei o tamanho e bloqueei o redimensionamento para não quebrar o layout
+
     self.geometry("400x400")
     self.resizable(False, False)
     self.grab_set()
@@ -44,8 +45,10 @@ class DatasetFormModal(tk.Toplevel):
     ttk.Label(form_frame, text="Dataset Name:", foreground="#333333").grid(row=0, column=0, sticky="w", pady=(0, 2))
     ttk.Entry(form_frame, textvariable=self.name_var).grid(row=1, column=0, sticky="ew", pady=(0, 15))
 
-    ttk.Label(form_frame, text="Problem Type:", foreground="#333333").grid(row=2, column=0, sticky="w", pady=(0, 2))
-    ttk.Combobox(form_frame, textvariable=self.type_var, values=["Classification", "Regression"], state="readonly").grid(row=3, column=0, sticky="ew", pady=(0, 15))
+    ttk.Label(form_frame, text="Paradigm & Problem Type:", foreground="#333333").grid(row=2, column=0, sticky="w", pady=(0, 2))
+
+    selector = ProblemTypeSelector(form_frame, type_var=self.type_var, initial_value=self.type_var.get())
+    selector.grid(row=3, column=0, sticky="ew", pady=(0, 15))
     
     ttk.Label(form_frame, text="File (CSV):", foreground="#333333").grid(row=4, column=0, sticky="w", pady=(0, 2))
     
