@@ -3,7 +3,7 @@ from tkinter import ttk, filedialog, messagebox
 
 from application.components import HyperParamForm
 
-from loader import AlgorithmRegistry
+from loader import ModelsRegistry
 
 class ModelView(ttk.Frame):
   def __init__(self, parent):
@@ -24,7 +24,7 @@ class ModelView(ttk.Frame):
     columns = ("name", "type", "source")
     self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=8)
     
-    self.tree.heading("name", text="Algorithm Name")
+    self.tree.heading("name", text="Model Name")
     self.tree.heading("type", text="Problem Type")
     self.tree.heading("source", text="Source")
 
@@ -51,11 +51,11 @@ class ModelView(ttk.Frame):
     for item in self.tree.get_children():
       self.tree.delete(item)
 
-    for name, data in AlgorithmRegistry.registry("Classification").items():
+    for name, data in ModelsRegistry.registry("Classification").items():
       source = "Custom" if "plugin_path" in data else "Native"
       self.tree.insert("", tk.END, values=(name, "Classification", source))
     
-    for name, data in AlgorithmRegistry.registry("Regression").items():
+    for name, data in ModelsRegistry.registry("Regression").items():
       source = "Custom" if "plugin_path" in data else "Native"
       self.tree.insert("", tk.END, values=(name, "Regression", source))
 
@@ -67,15 +67,15 @@ class ModelView(ttk.Frame):
     values = self.tree.item(selected[0])["values"]
     name, prob_type, source = values
 
-    registry = AlgorithmRegistry.registry(prob_type)
-    algo_data = registry.get(name, {})
-    self.hyperparam_form.render_form(algo_data.get("params", []))
+    registry = ModelsRegistry.registry(prob_type)
+    model_data = registry.get(name, {})
+    self.hyperparam_form.render_form(model_data.get("params", []))
 
   def import_model(self):
     filepath = filedialog.askopenfilename(filetypes=[("Python Files", "*.py")])
     if filepath:
       try:
-        added = AlgorithmRegistry.import_from_file(filepath)
+        added = ModelsRegistry.import_from_file(filepath)
         messagebox.showinfo("Success", f"Successfully imported: {', '.join(added)}")
         self.load_table_data()
       except Exception as e:
@@ -91,14 +91,14 @@ class ModelView(ttk.Frame):
     name, prob_type, source = values
 
     if source == "Native":
-      messagebox.showwarning("Warning", "You cannot update native algorithms.")
+      messagebox.showwarning("Warning", "You cannot update native models.")
       return
 
     filepath = filedialog.askopenfilename(title=f"Select updated .py for {name}", filetypes=[("Python Files", "*.py")])
 
     if filepath:
       try:
-        added = AlgorithmRegistry.import_from_file(filepath)
+        added = ModelsRegistry.import_from_file(filepath)
 
         messagebox.showinfo("Success", f"Successfully updated: {', '.join(added)}")
 
@@ -117,13 +117,13 @@ class ModelView(ttk.Frame):
     name, prob_type, source = values
 
     if source == "Native":
-      messagebox.showerror("Error", "You cannot delete native algorithms.")
+      messagebox.showerror("Error", "You cannot delete native models.")
       return
 
     confirm = messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete '{name}'?\nThis will permanently remove the plugin file.")
 
     if confirm:
-      AlgorithmRegistry.delete_algorithm(prob_type, name)
+      ModelsRegistry.delete_model(prob_type, name)
 
       self.hyperparam_form.render_form([])
 

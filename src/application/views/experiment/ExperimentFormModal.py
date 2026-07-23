@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 
 from application.managers import DatasetManager
-from loader import AlgorithmRegistry
+from loader import ModelsRegistry
 from application.components import HyperParamForm
 
 class ExperimentFormModal(tk.Toplevel):
@@ -47,7 +47,7 @@ class ExperimentFormModal(tk.Toplevel):
     self.ds_combo.pack(fill=tk.X, pady=(0, 15))
     self.ds_combo.bind("<<ComboboxSelected>>", self._on_dataset_selected)
 
-    ttk.Label(main_frame, text="Select Algorithm:", foreground="#333333").pack(anchor=tk.W)
+    ttk.Label(main_frame, text="Select Model:", foreground="#333333").pack(anchor=tk.W)
     self.model_combo = ttk.Combobox(main_frame, textvariable=self.model_var, state="readonly")
     self.model_combo.pack(fill=tk.X, pady=(0, 15))
     self.model_combo.bind("<<ComboboxSelected>>", self._on_model_selected)
@@ -58,7 +58,7 @@ class ExperimentFormModal(tk.Toplevel):
     self.hyperparam_form = HyperParamForm(self.param_frame, is_readonly=False)
     self.hyperparam_form.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-    ttk.Button(main_frame, text="Run & Save Experiment", command=self._handle_save).pack(fill=tk.X, ipady=6)
+    ttk.Button(main_frame, text="Run Experiment", command=self._handle_save).pack(fill=tk.X, ipady=6)
 
   def _apply_autofill(self):
     if not self.initial_data:
@@ -94,7 +94,7 @@ class ExperimentFormModal(tk.Toplevel):
 
     prob_type = self.selected_dataset.get("type", "Classification")
 
-    valid_models = AlgorithmRegistry.options(prob_type)
+    valid_models = ModelsRegistry.options(prob_type)
     self.model_combo['values'] = valid_models
     self.model_combo.set("")
     self.hyperparam_form.render_form([])
@@ -106,13 +106,13 @@ class ExperimentFormModal(tk.Toplevel):
     prob_type = self.selected_dataset.get("type", "Classification")
     model_name = self.model_var.get()
 
-    registry = AlgorithmRegistry.registry(prob_type)
-    algo_data = registry.get(model_name, {})
-    self.hyperparam_form.render_form(algo_data.get("params", []))
+    registry = ModelsRegistry.registry(prob_type)
+    model_data = registry.get(model_name, {})
+    self.hyperparam_form.render_form(model_data.get("params", []))
 
   def _handle_save(self):
     if not self.name_var.get() or not self.selected_dataset or not self.model_var.get():
-      messagebox.showerror("Error", "Name, Dataset, and Algorithm are required.", parent=self)
+      messagebox.showerror("Error", "Name, Dataset, and Model are required.", parent=self)
       return
 
     try:

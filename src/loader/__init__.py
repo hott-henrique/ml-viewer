@@ -1,5 +1,5 @@
-from loader.AlgorithmRegistry import AlgorithmRegistry
+from loader.ModelRegistry import ModelsRegistry
 
 __all__ = [
-  'AlgorithmRegistry',
+  'ModelsRegistry',
 ]

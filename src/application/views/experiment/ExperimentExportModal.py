@@ -4,7 +4,7 @@ import zipfile
 import pickle
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
-from loader import AlgorithmRegistry
+from loader import ModelsRegistry
 
 class ExperimentExportModal(tk.Toplevel):
 
@@ -46,9 +46,9 @@ class ExperimentExportModal(tk.Toplevel):
 
     prob_type = self.experiment_data.get("problem_type") or self.experiment_data.get("dataset", {}).get("type")
     model_name = self.experiment_data.get("model_name")
-    registry = AlgorithmRegistry.registry(prob_type)
-    algo_data = registry.get(model_name, {})
-    self.plugin_path = algo_data.get("plugin_path")
+    registry = ModelsRegistry.registry(prob_type)
+    model_data = registry.get(model_name, {})
+    self.plugin_path = model_data.get("plugin_path")
 
     if not self.plugin_path or not os.path.exists(self.plugin_path):
       self.chk_script.config(text="Include Model Script (.py)  [Native model]")

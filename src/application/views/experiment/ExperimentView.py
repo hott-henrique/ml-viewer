@@ -7,7 +7,7 @@ from sklearn.metrics import accuracy_score, classification_report, mean_squared_
 from application.components import HyperParamForm
 from application.views.experiment import ExperimentFormModal, ExperimentExportModal
 from application.managers import ExperimentManager
-from loader import AlgorithmRegistry
+from loader import ModelsRegistry
 
 class ExperimentView(ttk.Frame):
 
@@ -35,7 +35,7 @@ class ExperimentView(ttk.Frame):
 
     self.tree.heading("name", text="Experiment Name")
     self.tree.heading("dataset", text="Dataset")
-    self.tree.heading("model", text="Algorithm")
+    self.tree.heading("model", text="Model")
     self.tree.heading("status", text="Status")
     self.tree.heading("date", text="Created On")
 
@@ -101,10 +101,10 @@ class ExperimentView(ttk.Frame):
       model_name = experiment.get("model_name")
       saved_hyperparams = experiment.get("hyperparameters", {})
 
-      registry = AlgorithmRegistry.registry(prob_type)
-      algo_data = registry.get(model_name, {})
+      registry = ModelsRegistry.registry(prob_type)
+      model_data = registry.get(model_name, {})
       
-      self.hyperparam_form.render_form(algo_data.get("params", []))
+      self.hyperparam_form.render_form(model_data.get("params", []))
       
       for param_name, param_value in saved_hyperparams.items():
           if param_name in self.hyperparam_form.param_vars:
@@ -144,7 +144,7 @@ class ExperimentView(ttk.Frame):
 
       X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-      model = AlgorithmRegistry.instantiate(prob_type, payload["model_name"], payload["hyperparams"])
+      model = ModelsRegistry.instantiate(prob_type, payload["model_name"], payload["hyperparams"])
 
       model.fit(X_train, y_train)
       trained_model = model

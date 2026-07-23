@@ -1,7 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-from application.state import store
 from application.managers import DatasetManager
 from application.views.dataset import DatasetFormModal
 
@@ -96,11 +95,6 @@ class DatasetView(ttk.Frame):
 
     if confirm:
       DatasetManager.delete_dataset(dataset_id)
-
-      if store.filepath == dataset_path:
-        store.filepath = ""
-        store.problem_type = "Classification"
-        store.target_col = ""
 
       self.load_table_data()
 

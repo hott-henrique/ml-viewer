@@ -1,9 +1,9 @@
 import typing as t
 import tkinter as tk
 from tkinter import ttk
-from loader import AlgorithmRegistry
+from loader import ModelsRegistry
 
-class AlgorithmSelector(ttk.LabelFrame):
+class ModelSelector(ttk.LabelFrame):
   def __init__(self,
                master=None,
                on_change: t.Optional[t.Callable]=None,
@@ -50,7 +50,7 @@ class AlgorithmSelector(ttk.LabelFrame):
 
     self.bind_all("<Button-1>", self._check_click_outside, add="+")
 
-    registry = AlgorithmRegistry.registry(self.current_problem_type)
+    registry = ModelsRegistry.registry(self.current_problem_type)
 
     if registry:
       first_key = list(registry.keys())[0]
@@ -59,7 +59,7 @@ class AlgorithmSelector(ttk.LabelFrame):
   def set_problem_type(self, problem_type: str):
     self.current_problem_type = problem_type
 
-    algos = AlgorithmRegistry.registry(problem_type)
+    algos = ModelsRegistry.registry(problem_type)
 
     if algos:
       self.algo_var.set(list(algos.keys())[0])
@@ -118,7 +118,7 @@ class AlgorithmSelector(ttk.LabelFrame):
     self._populate_dropdown(inner_frame, width)
 
   def _populate_dropdown(self, parent_frame, box_width):
-    registry = AlgorithmRegistry.registry(self.current_problem_type)
+    registry = ModelsRegistry.registry(self.current_problem_type)
 
     if not registry or len(registry) <= 0:
       return
@@ -181,4 +181,4 @@ class AlgorithmSelector(ttk.LabelFrame):
     if not actual_name:
       return []
 
-    return AlgorithmRegistry.registry(self.current_problem_type).get(actual_name, {}).get('params', [])
+    return ModelsRegistry.registry(self.current_problem_type).get(actual_name, {}).get('params', [])
