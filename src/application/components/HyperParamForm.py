@@ -1,6 +1,8 @@
 import tkinter as tk
 from tkinter import ttk
 
+from application.managers.model.ModelManager import HyperParamConfig
+
 def create_tooltip(widget: tk.Widget, text: str):
   tooltip_window = None
 
@@ -38,11 +40,12 @@ class HyperParamForm(ttk.Frame):
 
   def __init__(self, master=None, on_change=None, is_readonly=False):
     super().__init__(master)
-
     self.on_change = on_change 
     self.is_readonly = is_readonly
+
     self.param_vars: dict[str, tk.StringVar] = {}
-    self.param_definitions = []
+    
+    self.param_definitions: list[HyperParamConfig] = []
 
     self.canvas = tk.Canvas(self, height=180, highlightthickness=0)
     self.scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
@@ -52,7 +55,6 @@ class HyperParamForm(ttk.Frame):
     self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
     self.inner_frame = ttk.Frame(self.canvas)
-
     self.canvas_window = self.canvas.create_window((0, 0), window=self.inner_frame, anchor="nw")
 
     self.inner_frame.bind("<Configure>", self._on_frame_configure)
@@ -68,9 +70,8 @@ class HyperParamForm(ttk.Frame):
     for widget in self.inner_frame.winfo_children():
       widget.destroy()
 
-  def render_form(self, params_config):
+  def render_form(self, params_config: list[HyperParamConfig]):
     self.clear_form()
-
     self.param_vars.clear()
     self.param_definitions = params_config
 
@@ -83,25 +84,25 @@ class HyperParamForm(ttk.Frame):
       row = ttk.Frame(self.inner_frame)
       row.pack(fill=tk.X, padx=10, pady=5)
 
-      ttk.Label(row, text=param["label"] + ":").pack(side=tk.LEFT)
+      ttk.Label(row, text=param.label + ":").pack(side=tk.LEFT)
 
-      var = tk.StringVar(value=str(param.get("default", "")))
+      var = tk.StringVar(value=str(param.default if param.default is not None else ""))
       
       if not self.is_readonly:
         var.trace_add("write", self._trigger_change)
 
-      self.param_vars[param["name"]] = var
+      self.param_vars[param.name] = var
 
-      desc = param.get("description", "No description available.")
+      desc = param.description or "No description available."
       info_icon = tk.Label(row, text="ⓘ", foreground="#0055cc", cursor="question_arrow", font=("", 10))
       info_icon.pack(side=tk.RIGHT, padx=(5, 0))
 
       create_tooltip(info_icon, desc)
 
-      if param["type"] == "categorical":
+      if param.type == "categorical":
         cbox_state = "disabled" if self.is_readonly else "readonly"
-        input_widget = ttk.Combobox(row, textvariable=var, values=param.get("options", []), state=cbox_state, width=15)
-      elif param["type"] == "bool":
+        input_widget = ttk.Combobox(row, textvariable=var, values=param.options, state=cbox_state, width=15)
+      elif param.type == "bool":
         cbox_state = "disabled" if self.is_readonly else "readonly"
         input_widget = ttk.Combobox(row, textvariable=var, values=["True", "False"], state=cbox_state, width=15)
       else:
@@ -125,15 +126,11 @@ class HyperParamForm(ttk.Frame):
     parsed_kwargs = {}
 
     for param in self.param_definitions:
-      name = param["name"]
+      name = param.name
       raw_value = self.param_vars[name].get()
-      ptype = param["type"]
+      ptype = param.type
 
-      if raw_value == "None":
-        parsed_kwargs[name] = None
-        continue
-
-      if raw_value == "":
+      if raw_value == "None" or raw_value == "":
         continue
 
       if raw_value == "True":
@@ -153,6 +150,6 @@ class HyperParamForm(ttk.Frame):
         else: # string / categorical
           parsed_kwargs[name] = raw_value
       except ValueError:
-        raise ValueError(f"Invalid value for {param['label']}. Expected {ptype}.")
+        raise ValueError(f"Invalid value for {param.label}. Expected {ptype}.")
 
     return parsed_kwargs

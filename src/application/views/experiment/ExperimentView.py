@@ -100,15 +100,17 @@ class ExperimentView(ttk.Frame):
       model_name = experiment.get("model_name")
       saved_hyperparams = experiment.get("hyperparameters", {})
 
-      registry = ModelManager.registry(prob_type)
-      model_data = registry.get(model_name, {})
-      
-      self.hyperparam_form.render_form(model_data.get("params", []))
-      
-      for param_name, param_value in saved_hyperparams.items():
-          if param_name in self.hyperparam_form.param_vars:
-              self.hyperparam_form.param_vars[param_name].set(str(param_value))
-              
+      model_config = ModelManager.registry(prob_type).get(model_name)
+
+      if model_config:
+        self.hyperparam_form.render_form(model_config.params)
+        
+        for param_name, param_value in saved_hyperparams.items():
+            if param_name in self.hyperparam_form.param_vars:
+                self.hyperparam_form.param_vars[param_name].set(str(param_value))
+      else:
+        print('Failed to find model to show!')
+
       self.result_text.config(state=tk.NORMAL)
       self.result_text.delete(1.0, tk.END)
       self.result_text.insert(tk.END, experiment.get("results", "No results to display."))

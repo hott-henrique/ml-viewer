@@ -51,12 +51,12 @@ class ModelView(ttk.Frame):
     for item in self.tree.get_children():
       self.tree.delete(item)
 
-    for name, data in ModelManager.registry("Classification").items():
-      source = "Custom" if "plugin_path" in data else "Native"
+    for name, model_config in ModelManager.registry("Classification").items():
+      source = "Custom" if model_config.plugin_path else "Native"
       self.tree.insert("", tk.END, values=(name, "Classification", source))
-    
-    for name, data in ModelManager.registry("Regression").items():
-      source = "Custom" if "plugin_path" in data else "Native"
+
+    for name, model_config in ModelManager.registry("Regression").items():
+      source = "Custom" if model_config.plugin_path else "Native"
       self.tree.insert("", tk.END, values=(name, "Regression", source))
 
   def on_model_selected(self, event):
@@ -68,8 +68,11 @@ class ModelView(ttk.Frame):
     name, prob_type, source = values
 
     registry = ModelManager.registry(prob_type)
-    model_data = registry.get(name, {})
-    self.hyperparam_form.render_form(model_data.get("params", []))
+
+    model_config = registry.get(name)
+
+    if model_config:
+      self.hyperparam_form.render_form(model_config.params)
 
   def import_model(self):
     filepath = filedialog.askopenfilename(filetypes=[("Python Files", "*.py")])

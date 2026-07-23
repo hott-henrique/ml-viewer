@@ -47,12 +47,15 @@ class ExperimentExportModal(tk.Toplevel):
 
     prob_type = self.experiment_data.get("problem_type") or self.experiment_data.get("dataset", {}).get("type")
     model_name = self.experiment_data.get("model_name")
+
     registry = ModelManager.registry(prob_type)
-    model_data = registry.get(model_name, {})
-    self.plugin_path = model_data.get("plugin_path")
+
+    model_config = registry.get(model_name)
+
+    self.plugin_path = model_config.plugin_path if model_config else None
 
     if not self.plugin_path or not os.path.exists(self.plugin_path):
-      self.chk_script.config(text="Include Model Script (.py)  [Native model]")
+      self.chk_script.config(text="Include Algorithm Script (.py)  [Native algorithm]")
       self.chk_script.state(['disabled'])
       self.inc_script_var.set(False)
 

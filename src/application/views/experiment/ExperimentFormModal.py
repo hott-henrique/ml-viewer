@@ -10,7 +10,7 @@ class ExperimentFormModal(tk.Toplevel):
   def __init__(self, parent, on_save, initial_data=None):
     super().__init__(parent)
 
-    self.title("Create New Experiment")
+    self.title("New Experiment")
     self.geometry("500x600")
     self.resizable(False, False)
     self.grab_set()
@@ -107,8 +107,10 @@ class ExperimentFormModal(tk.Toplevel):
     model_name = self.model_var.get()
 
     registry = ModelManager.registry(prob_type)
-    model_data = registry.get(model_name, {})
-    self.hyperparam_form.render_form(model_data.get("params", []))
+    model_config = registry.get(model_name)
+
+    if model_config:
+      self.hyperparam_form.render_form(model_config.params)
 
   def _handle_save(self):
     if not self.name_var.get() or not self.selected_dataset or not self.model_var.get():
