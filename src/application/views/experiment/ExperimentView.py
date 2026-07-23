@@ -6,8 +6,7 @@ from sklearn.metrics import accuracy_score, classification_report, mean_squared_
 
 from application.components import HyperParamForm
 from application.views.experiment import ExperimentFormModal, ExperimentExportModal
-from application.managers import ExperimentManager
-from loader import ModelsRegistry
+from application.managers import ExperimentManager, ModelManager
 
 class ExperimentView(ttk.Frame):
 
@@ -101,7 +100,7 @@ class ExperimentView(ttk.Frame):
       model_name = experiment.get("model_name")
       saved_hyperparams = experiment.get("hyperparameters", {})
 
-      registry = ModelsRegistry.registry(prob_type)
+      registry = ModelManager.registry(prob_type)
       model_data = registry.get(model_name, {})
       
       self.hyperparam_form.render_form(model_data.get("params", []))
@@ -144,7 +143,7 @@ class ExperimentView(ttk.Frame):
 
       X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-      model = ModelsRegistry.instantiate(prob_type, payload["model_name"], payload["hyperparams"])
+      model = ModelManager.instantiate(prob_type, payload["model_name"], payload["hyperparams"])
 
       model.fit(X_train, y_train)
       trained_model = model

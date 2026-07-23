@@ -3,7 +3,7 @@ from tkinter import ttk, filedialog, messagebox
 
 from application.components import HyperParamForm
 
-from loader import ModelsRegistry
+from application.managers import ModelManager
 
 class ModelView(ttk.Frame):
   def __init__(self, parent):
@@ -51,11 +51,11 @@ class ModelView(ttk.Frame):
     for item in self.tree.get_children():
       self.tree.delete(item)
 
-    for name, data in ModelsRegistry.registry("Classification").items():
+    for name, data in ModelManager.registry("Classification").items():
       source = "Custom" if "plugin_path" in data else "Native"
       self.tree.insert("", tk.END, values=(name, "Classification", source))
     
-    for name, data in ModelsRegistry.registry("Regression").items():
+    for name, data in ModelManager.registry("Regression").items():
       source = "Custom" if "plugin_path" in data else "Native"
       self.tree.insert("", tk.END, values=(name, "Regression", source))
 
@@ -67,7 +67,7 @@ class ModelView(ttk.Frame):
     values = self.tree.item(selected[0])["values"]
     name, prob_type, source = values
 
-    registry = ModelsRegistry.registry(prob_type)
+    registry = ModelManager.registry(prob_type)
     model_data = registry.get(name, {})
     self.hyperparam_form.render_form(model_data.get("params", []))
 
@@ -75,7 +75,7 @@ class ModelView(ttk.Frame):
     filepath = filedialog.askopenfilename(filetypes=[("Python Files", "*.py")])
     if filepath:
       try:
-        added = ModelsRegistry.import_from_file(filepath)
+        added = ModelManager.import_from_file(filepath)
         messagebox.showinfo("Success", f"Successfully imported: {', '.join(added)}")
         self.load_table_data()
       except Exception as e:
@@ -98,7 +98,7 @@ class ModelView(ttk.Frame):
 
     if filepath:
       try:
-        added = ModelsRegistry.import_from_file(filepath)
+        added = ModelManager.import_from_file(filepath)
 
         messagebox.showinfo("Success", f"Successfully updated: {', '.join(added)}")
 
@@ -123,7 +123,7 @@ class ModelView(ttk.Frame):
     confirm = messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete '{name}'?\nThis will permanently remove the plugin file.")
 
     if confirm:
-      ModelsRegistry.delete_model(prob_type, name)
+      ModelManager.delete_model(prob_type, name)
 
       self.hyperparam_form.render_form([])
 

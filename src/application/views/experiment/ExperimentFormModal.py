@@ -1,8 +1,8 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-from application.managers import DatasetManager
-from loader import ModelsRegistry
+from application.managers import DatasetManager, ModelManager
+
 from application.components import HyperParamForm
 
 class ExperimentFormModal(tk.Toplevel):
@@ -94,7 +94,7 @@ class ExperimentFormModal(tk.Toplevel):
 
     prob_type = self.selected_dataset.get("type", "Classification")
 
-    valid_models = ModelsRegistry.options(prob_type)
+    valid_models = ModelManager.options(prob_type)
     self.model_combo['values'] = valid_models
     self.model_combo.set("")
     self.hyperparam_form.render_form([])
@@ -106,7 +106,7 @@ class ExperimentFormModal(tk.Toplevel):
     prob_type = self.selected_dataset.get("type", "Classification")
     model_name = self.model_var.get()
 
-    registry = ModelsRegistry.registry(prob_type)
+    registry = ModelManager.registry(prob_type)
     model_data = registry.get(model_name, {})
     self.hyperparam_form.render_form(model_data.get("params", []))
 

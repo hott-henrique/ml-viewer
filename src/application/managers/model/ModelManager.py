@@ -5,7 +5,7 @@ import shutil
 import os
 import sys
 
-from loader.definitions import *
+from application.managers.model.definitions import *
 
 class ModelAPI(t.Protocol):
   def fit(self, X: t.Any, y: t.Any, **fit_params: t.Any) -> 'ModelAPI':
@@ -20,7 +20,7 @@ class ModelAPI(t.Protocol):
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODELS_DIR = os.path.join(BASE_DIR, "plugins")
 
-class ModelsRegistry:
+class ModelManager:
   BASE_MODEL_REGISTRY: dict[str, dict] = {
     "Classification": CLASSIFICATION_REGISTRY,
     "Regression": REGRETION_REGISTRY
@@ -28,15 +28,15 @@ class ModelsRegistry:
 
   @staticmethod
   def registry(problem_type: str) -> dict[str, dict]:
-    return ModelsRegistry.BASE_MODEL_REGISTRY.get(problem_type, {})
+    return ModelManager.BASE_MODEL_REGISTRY.get(problem_type, {})
 
   @staticmethod
   def options(problem_type: str) -> list[str]:
-    return list(ModelsRegistry.registry(problem_type).keys())
+    return list(ModelManager.registry(problem_type).keys())
 
   @staticmethod
   def instantiate(problem_type: str, name: str, params: dict) -> ModelAPI:
-    registry = ModelsRegistry.registry(problem_type)
+    registry = ModelManager.registry(problem_type)
 
     if name not in registry:
       raise ValueError('Model not found in registry.', name)
@@ -137,4 +137,4 @@ class ModelsRegistry:
       except Exception as e:
         print(f"Error deleting file {filepath}: {e}")
 
-ModelsRegistry.boot_models()
+ModelManager.boot_models()

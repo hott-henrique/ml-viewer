@@ -4,7 +4,8 @@ import zipfile
 import pickle
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
-from loader import ModelsRegistry
+
+from application.managers import ModelManager
 
 class ExperimentExportModal(tk.Toplevel):
 
@@ -46,7 +47,7 @@ class ExperimentExportModal(tk.Toplevel):
 
     prob_type = self.experiment_data.get("problem_type") or self.experiment_data.get("dataset", {}).get("type")
     model_name = self.experiment_data.get("model_name")
-    registry = ModelsRegistry.registry(prob_type)
+    registry = ModelManager.registry(prob_type)
     model_data = registry.get(model_name, {})
     self.plugin_path = model_data.get("plugin_path")
 
