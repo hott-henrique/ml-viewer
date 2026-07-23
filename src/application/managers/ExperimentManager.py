@@ -2,6 +2,8 @@ import json
 import os
 from datetime import datetime
 
+from application.enums import ExperimentStatus
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXPERIMENTS_FILE = os.path.join(BASE_DIR, "experiments_metadata.json")
 
@@ -17,7 +19,13 @@ class ExperimentManager:
     return []
 
   @classmethod
-  def add_experiment(cls, name: str, dataset: dict, model_name: str, hyperparams: dict, status: str = "Pending", results: str = "") -> dict:
+  def add_experiment(cls,
+                     name: str,
+                     dataset: dict,
+                     model_name: str,
+                     hyperparams: dict,
+                     status: ExperimentStatus = ExperimentStatus.PENDING,
+                     results: str = "") -> dict:
     experiments = cls.get_all()
 
     new_exp = {
@@ -28,7 +36,7 @@ class ExperimentManager:
       "problem_type": dataset.get("type", ""),
       "model_name": model_name,
       "hyperparameters": hyperparams,
-      "status": status,
+      "status": status.value,
       "results": results,
       "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }

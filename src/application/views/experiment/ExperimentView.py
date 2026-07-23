@@ -5,6 +5,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report, mean_squared_error, r2_score
 
 from application.components import HyperParamForm
+from application.enums import ExperimentStatus, ProblemType
 from application.views.experiment import ExperimentFormModal, ExperimentExportModal
 from application.managers import ExperimentManager, ModelManager
 
@@ -128,7 +129,7 @@ class ExperimentView(ttk.Frame):
     target_col = dataset_info.get("target")
     filepath = dataset_info.get("path")
     
-    status = "Pending"
+    status = ExperimentStatus.PENDING
     results_str = ""
     trained_model = None
 
@@ -152,7 +153,7 @@ class ExperimentView(ttk.Frame):
 
       preds = model.predict(X_test)
 
-      if prob_type == "Classification":
+      if prob_type == ProblemType.CLASSIFICATION:
         acc = accuracy_score(y_test, preds)
         report = classification_report(y_test, preds)
         results_str = f"Target Column: {target_col}\nTest Size: 20%\n\nAccuracy: {acc:.4f}\n\nClassification Report:\n{report}"
@@ -161,10 +162,10 @@ class ExperimentView(ttk.Frame):
         r2 = r2_score(y_test, preds)
         results_str = f"Target Column: {target_col}\nTest Size: 20%\n\nMean Squared Error (MSE): {mse:.4f}\nR2 Score: {r2:.4f}"
           
-      status = "OK"
+      status = ExperimentStatus.OK
 
     except Exception as e:
-      status = "NOK"
+      status = ExperimentStatus.NOK
       results_str = f"Error executing pipeline:\n\n{str(e)}\n\nTry checking if your hyperparameters are valid or if the dataset requires specific preprocessing."
     finally:
       self.config(cursor="")
@@ -190,9 +191,9 @@ class ExperimentView(ttk.Frame):
     }
     self._show_results_popup(experiment_data, status, results_str, trained_model)
 
-  # --- NOVA FUNÇÃO: Acionada pelo botão no topo da tabela ---
   def export_selected(self):
     selected = self.tree.selection()
+
     if not selected:
       messagebox.showwarning("Warning", "Select an experiment to export.")
       return

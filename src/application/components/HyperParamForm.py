@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 
+from application.enums import ParamType
 from application.managers.model.ModelManager import HyperParamConfig
 
 def create_tooltip(widget: tk.Widget, text: str):
@@ -29,6 +30,7 @@ def create_tooltip(widget: tk.Widget, text: str):
 
   def on_leave(event):
     nonlocal tooltip_window
+
     if tooltip_window:
       tooltip_window.destroy()
       tooltip_window = None
@@ -99,13 +101,13 @@ class HyperParamForm(ttk.Frame):
 
       create_tooltip(info_icon, desc)
 
-      if param.type == "categorical":
+      if param.type == ParamType.CATEGORICAL.value:
         cbox_state = "disabled" if self.is_readonly else "readonly"
         input_widget = ttk.Combobox(row, textvariable=var, values=param.options, state=cbox_state, width=15)
-      elif param.type == "bool":
+      elif param.type == ParamType.BOOL.value:
         cbox_state = "disabled" if self.is_readonly else "readonly"
         input_widget = ttk.Combobox(row, textvariable=var, values=["True", "False"], state=cbox_state, width=15)
-      else:
+      else: # ParamType.INT | FLOAT | STRING.value
         entry_state = "readonly" if self.is_readonly else "normal"
         input_widget = ttk.Entry(row, textvariable=var, state=entry_state, width=15)
 
@@ -141,13 +143,13 @@ class HyperParamForm(ttk.Frame):
         continue
 
       try:
-        if ptype == "int":
+        if ptype == ParamType.INT.value:
           parsed_kwargs[name] = int(raw_value)
-        elif ptype == "float":
+        elif ptype == ParamType.FLOAT.value:
           parsed_kwargs[name] = float(raw_value)
-        elif ptype == "bool":
+        elif ptype == ParamType.BOOL.value:
           parsed_kwargs[name] = raw_value.lower() in ('true', '1', 't', 'y', 'yes')
-        else: # string / categorical
+        else: # ParamType.CATEGORICAL.value
           parsed_kwargs[name] = raw_value
       except ValueError:
         raise ValueError(f"Invalid value for {param.label}. Expected {ptype}.")

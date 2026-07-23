@@ -7,6 +7,7 @@ import sys
 
 from pydantic import BaseModel, Field, ConfigDict
 
+from application.enums import ParamType, ProblemType
 from application.managers.model.definitions import CLASSIFICATION_REGISTRY, REGRETION_REGISTRY
 
 class ModelAPI(t.Protocol):
@@ -22,7 +23,7 @@ class ModelAPI(t.Protocol):
 class HyperParamConfig(BaseModel):
   name: str
   label: str
-  type: str
+  type: ParamType
   default: t.Any = None
   options: list[t.Any] = Field(default_factory=list)
   description: str = ""
@@ -31,7 +32,7 @@ class ModelConfig(BaseModel):
   model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True)
 
   class_name: str = Field(..., alias="class")
-  type: str
+  type: ProblemType
   params: list[HyperParamConfig] = Field(default_factory=list)
   module: t.Optional[str] = None
   custom_module: t.Optional[t.Any] = None
@@ -44,15 +45,15 @@ class ModelManager:
   BASE_MODEL_REGISTRY: dict[str, dict[str, ModelConfig]] = {}
 
   @staticmethod
-  def registry(problem_type: str) -> dict[str, ModelConfig]:
+  def registry(problem_type: ProblemType) -> dict[str, ModelConfig]:
     return ModelManager.BASE_MODEL_REGISTRY.get(problem_type, {})
 
   @staticmethod
-  def options(problem_type: str) -> list[str]:
+  def options(problem_type: ProblemType) -> list[str]:
     return list(ModelManager.registry(problem_type).keys())
 
   @staticmethod
-  def instantiate(problem_type: str, name: str, params: dict) -> ModelAPI:
+  def instantiate(problem_type: ProblemType, name: str, params: dict) -> ModelAPI:
     registry = ModelManager.registry(problem_type)
 
     if name not in registry:
@@ -71,7 +72,7 @@ class ModelManager:
     return model_class(**params)
 
   @classmethod
-  def _load_native_registry(cls, prob_type: str, raw_registry: dict):
+  def _load_native_registry(cls, prob_type: ProblemType, raw_registry: dict):
     if prob_type not in cls.BASE_MODEL_REGISTRY:
       cls.BASE_MODEL_REGISTRY[prob_type] = {}
       
@@ -88,8 +89,8 @@ class ModelManager:
 
   @classmethod
   def boot_models(cls):
-    cls._load_native_registry("Classification", CLASSIFICATION_REGISTRY)
-    cls._load_native_registry("Regression", REGRETION_REGISTRY)
+    cls._load_native_registry(ProblemType.CLASSIFICATION, CLASSIFICATION_REGISTRY)
+    cls._load_native_registry(ProblemType.REGRESSION, REGRETION_REGISTRY)
 
     if not os.path.exists(MODELS_DIR):
       os.makedirs(MODELS_DIR)
@@ -160,7 +161,7 @@ class ModelManager:
     return added_models
 
   @classmethod
-  def delete_model(cls, problem_type: str, name: str):
+  def delete_model(cls, problem_type: ProblemType, name: str):
     registry = cls.BASE_MODEL_REGISTRY.get(problem_type, {})
 
     if name not in registry:

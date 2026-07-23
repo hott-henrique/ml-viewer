@@ -1,19 +1,20 @@
 import tkinter as tk
 from tkinter import ttk
+from application.enums import LearningParadigm, ProblemType
 
 class ProblemTypeSelector(ttk.Frame):
-
-  def __init__(self, parent, type_var: tk.StringVar, initial_value="Classification", **kwargs):
-    super().__init__(parent, **kwargs)
+  def __init__(self, master, type_var: tk.StringVar, initial_value=ProblemType.CLASSIFICATION, **kwargs):
+    super().__init__(master, **kwargs)
 
     self.type_var = type_var
 
     self.paradigm_map = {
-      "Supervised": ["Classification", "Regression"],
-      "Unsupervised": ["Clustering", "Dimensionality Reduction"]
+        LearningParadigm.SUPERVISED: [ProblemType.CLASSIFICATION, ProblemType.REGRESSION],
+        LearningParadigm.UNSUPERVISED: [ProblemType.CLUSTERING, ProblemType.DIMENSIONALITY_REDUCTION]
     }
 
-    initial_paradigm = "Supervised"
+    initial_paradigm = LearningParadigm.SUPERVISED
+
     for paradigm, tasks in self.paradigm_map.items():
       if initial_value in tasks:
         initial_paradigm = paradigm
@@ -28,29 +29,31 @@ class ProblemTypeSelector(ttk.Frame):
     self.columnconfigure(0, weight=1)
     self.columnconfigure(1, weight=1)
 
+    paradigms = [p.value for p in self.paradigm_map.keys()]
+
     self.paradigm_combo = ttk.Combobox(
       self,
-      textvariable=self.paradigm_var,
-      values=list(self.paradigm_map.keys()),
+      textvariable=self.paradigm_var, 
+      values=paradigms, 
       state="readonly"
     )
     self.paradigm_combo.grid(row=0, column=0, sticky="ew", padx=(0, 5))
     self.paradigm_combo.bind("<<ComboboxSelected>>", self._on_paradigm_change)
 
+    current_tasks = [t.value for t in self.paradigm_map[LearningParadigm(self.paradigm_var.get())]]
+
     self.type_combo = ttk.Combobox(
-      self,
-      textvariable=self.type_var,
-      values=self.paradigm_map[self.paradigm_var.get()],
+      self, 
+      textvariable=self.type_var, 
+      values=current_tasks, 
       state="readonly"
     )
 
     self.type_combo.grid(row=0, column=1, sticky="ew")
 
   def _on_paradigm_change(self, event=None):
-    """Atualiza a lista de tarefas quando o paradigma muda."""
-    paradigm = self.paradigm_var.get()
-    valid_tasks = self.paradigm_map[paradigm]
-
+    paradigm = LearningParadigm(self.paradigm_var.get())
+    valid_tasks = [t.value for t in self.paradigm_map[paradigm]]
+    
     self.type_combo['values'] = valid_tasks
-
     self.type_var.set(valid_tasks[0])
