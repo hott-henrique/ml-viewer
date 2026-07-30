@@ -29,7 +29,7 @@ DECISION_TREE_REGISTRY_INSTANCE =  {
     {
       "name": "min_samples_split",
       "type": "float",
-      "default": 1.9,
+      "default": 0.9,
       "label": "Min Samples Split",
       "description": "The minimum number of samples required to split an internal node. Quality effect: Higher values prevent overfitting by forcing the model to make more generalized splits. Performance effect: Higher values slightly speed up training by stopping tree growth earlier."
     },

@@ -21,12 +21,16 @@ class ModelAPI(t.Protocol):
     ...
 
 class HyperParamConfig(BaseModel):
+  model_config = ConfigDict(arbitrary_types_allowed=True)
+
   name: str
   label: str
   type: ParamType
   default: t.Any = None
   options: list[t.Any] = Field(default_factory=list)
   description: str = ""
+
+  field_validation: t.Optional[t.Callable[[t.Any, dict], t.Optional[str]]] = None
 
 class ModelConfig(BaseModel):
   model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True)

@@ -1,13 +1,15 @@
+import typing as t
 import tkinter as tk
 from tkinter import ttk, messagebox
 
 from application.managers import DatasetManager, ModelManager
 
 from application.components import HyperParamForm
+from application.managers.ExperimentManager import ExperimentMetadata
 
 class ExperimentFormModal(tk.Toplevel):
 
-  def __init__(self, parent, on_save, initial_data=None):
+  def __init__(self, parent, on_save, initial_data: t.Optional[ExperimentMetadata]=None):
     super().__init__(parent)
 
     self.title("New Experiment")
@@ -19,10 +21,10 @@ class ExperimentFormModal(tk.Toplevel):
     self.initial_data = initial_data or {}
     self.datasets = DatasetManager.get_all()
     
-    init_name = self.initial_data.get("name", "")
+    init_name = ""
 
-    if init_name:
-        init_name += " (Copy)"
+    if self.initial_data:
+      init_name += f"{self.initial_data.name} (Copy)"
 
     self.name_var = tk.StringVar(value=init_name)
     self.selected_dataset = None
@@ -64,21 +66,21 @@ class ExperimentFormModal(tk.Toplevel):
     if not self.initial_data:
       return
 
-    saved_ds = self.initial_data.get("dataset", {})
+    saved_ds = self.initial_data.dataset
 
-    ds_str_to_find = f"{saved_ds.get('name')} ({saved_ds.get('type')})"
+    ds_str_to_find = f"{saved_ds.name} ({saved_ds.type})"
 
     if ds_str_to_find in self.ds_combo['values']:
       self.dataset_var.set(ds_str_to_find)
       self._on_dataset_selected(None) 
 
-    saved_model = self.initial_data.get("model_name")
+    saved_model = self.initial_data.model_name
 
     if saved_model in self.model_combo['values']:
       self.model_var.set(saved_model)
       self._on_model_selected(None)
 
-    saved_hyperparams = self.initial_data.get("hyperparameters", {})
+    saved_hyperparams = self.initial_data.hyperparameters
 
     for param_name, param_value in saved_hyperparams.items():
       if param_name in self.hyperparam_form.param_vars:

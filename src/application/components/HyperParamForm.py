@@ -154,4 +154,18 @@ class HyperParamForm(ttk.Frame):
       except ValueError:
         raise ValueError(f"Invalid value for {param.label}. Expected {ptype}.")
 
+    for param in self.param_definitions:
+      if getattr(param, "validate", None) is None:
+        continue
+
+      if param.field_validation is None:
+        continue
+
+      field_value = parsed_kwargs.get(param.name)
+
+      error_msg = param.field_validation(field_value, parsed_kwargs)
+
+      if error_msg:
+        raise ValueError(error_msg)
+
     return parsed_kwargs
