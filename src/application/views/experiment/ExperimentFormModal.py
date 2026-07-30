@@ -41,7 +41,7 @@ class ExperimentFormModal(tk.Toplevel):
     ttk.Entry(main_frame, textvariable=self.name_var).pack(fill=tk.X, pady=(0, 15))
 
     ttk.Label(main_frame, text="Select Dataset:", foreground="#333333").pack(anchor=tk.W)
-    dataset_names = [f"{ds['name']} ({ds['type']})" for ds in self.datasets]
+    dataset_names = [f"{ds.name} ({ds.type})" for ds in self.datasets]
     
     self.ds_combo = ttk.Combobox(main_frame, textvariable=self.dataset_var, values=dataset_names, state="readonly")
     self.ds_combo.pack(fill=tk.X, pady=(0, 15))
@@ -87,12 +87,12 @@ class ExperimentFormModal(tk.Toplevel):
   def _on_dataset_selected(self, event):
     selected_text = self.dataset_var.get()
 
-    self.selected_dataset = next((ds for ds in self.datasets if f"{ds['name']} ({ds['type']})" == selected_text), None)
+    self.selected_dataset = next((ds for ds in self.datasets if f"{ds.name} ({ds.type})" == selected_text), None)
 
     if not self.selected_dataset:
       return
 
-    prob_type = self.selected_dataset.get("type", "Classification")
+    prob_type = self.selected_dataset.type
 
     valid_models = ModelManager.options(prob_type)
     self.model_combo['values'] = valid_models
@@ -103,7 +103,8 @@ class ExperimentFormModal(tk.Toplevel):
     if not self.selected_dataset:
       return
 
-    prob_type = self.selected_dataset.get("type", "Classification")
+    prob_type = self.selected_dataset.type
+
     model_name = self.model_var.get()
 
     registry = ModelManager.registry(prob_type)
