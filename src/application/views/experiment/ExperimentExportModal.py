@@ -2,27 +2,60 @@ import os
 import json
 import zipfile
 import pickle
+import typing as t
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
+from pydantic import BaseModel
+
+from application.enums import ProblemType
 from application.managers import ModelManager
+from application.managers.DatasetManager import DatasetMetadata
+from application.managers.ExperimentManager import ExperimentMetadata
+from application.managers.model.ModelManager import ModelAPI
+from application.managers.results import ExportResult
+
+HyperParamValue = int | float | bool | str
+
+class ExperimentExportData(BaseModel):
+  name: str
+  dataset: DatasetMetadata
+  problem_type: ProblemType
+  model_name: str
+  hyperparameters: dict[str, HyperParamValue]
+
+  @classmethod
+  def from_experiment_metadata(cls, experiment: ExperimentMetadata) -> "ExperimentExportData":
+    return cls(
+      name=experiment.name,
+      dataset=experiment.dataset,
+      problem_type=experiment.problem_type,
+      model_name=experiment.model_name,
+      hyperparameters=experiment.hyperparameters,
+    )
 
 class ExperimentExportModal(tk.Toplevel):
 
-  def __init__(self, parent, experiment_data, results_str, trained_model=None):
+  def __init__(
+    self,
+    parent: tk.Misc,
+    experiment_data: ExperimentExportData,
+    results: list[ExportResult],
+    trained_model: t.Optional[ModelAPI] = None,
+  ) -> None:
     super().__init__(parent)
-    self.title(f"Export: {experiment_data.get('name', 'Experiment')}")
+    self.title(f"Export: {experiment_data.name}")
     self.geometry("420x300")
     self.resizable(False, False)
     self.grab_set()
 
     self.experiment_data = experiment_data
-    self.results_str = results_str
+    self.results = results
     self.trained_model = trained_model
 
     self._build_ui()
 
-  def _build_ui(self):
+  def _build_ui(self) -> None:
     main_frame = ttk.Frame(self, padding=(20, 20))
     main_frame.pack(fill=tk.BOTH, expand=True)
 
@@ -45,8 +78,8 @@ class ExperimentExportModal(tk.Toplevel):
     self.chk_script = ttk.Checkbutton(main_frame, text="Include Model Script (.py)", variable=self.inc_script_var)
     self.chk_script.pack(anchor=tk.W, pady=5)
 
-    prob_type = self.experiment_data.get("problem_type") or self.experiment_data.get("dataset", {}).get("type")
-    model_name = self.experiment_data.get("model_name")
+    prob_type = self.experiment_data.problem_type
+    model_name = self.experiment_data.model_name
 
     registry = ModelManager.registry(prob_type)
 
@@ -65,8 +98,8 @@ class ExperimentExportModal(tk.Toplevel):
     ttk.Button(btn_frame, text="Cancel", command=self.destroy).pack(side=tk.RIGHT, padx=(10, 0), ipady=4, ipadx=10)
     ttk.Button(btn_frame, text="💾 Export as ZIP", command=self._handle_export).pack(side=tk.RIGHT, ipady=4, ipadx=10)
 
-  def _handle_export(self):
-    exp_name = self.experiment_data.get("name", "experiment").replace(' ', '_')
+  def _handle_export(self) -> None:
+    exp_name = self.experiment_data.name.replace(' ', '_')
 
     filepath = filedialog.asksaveasfilename(
       parent=self,
@@ -81,18 +114,20 @@ class ExperimentExportModal(tk.Toplevel):
 
     try:
       with zipfile.ZipFile(filepath, 'w', zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr("metrics_and_logs.txt", self.results_str)
-        zf.writestr("experiment_config.json", json.dumps(self.experiment_data, indent=4))
+        zf.writestr("experiment_config.json", json.dumps(self.experiment_data.model_dump(mode="json"), indent=4))
+
+        for result in self.results:
+          result.include_in_zip(zf)
 
         if self.inc_dataset_var.get():
-          ds_path = self.experiment_data.get("dataset", {}).get("path")
+          ds_path = self.experiment_data.dataset.path
 
           if ds_path and os.path.exists(ds_path):
             zf.write(ds_path, os.path.basename(ds_path))
 
         if self.inc_model_var.get() and self.trained_model is not None:
           model_bytes = pickle.dumps(self.trained_model)
-          model_filename = f"model_{self.experiment_data.get('model_name', 'model').replace(' ', '_')}.pkl"
+          model_filename = f"model_{self.experiment_data.model_name.replace(' ', '_')}.pkl"
           zf.writestr(model_filename, model_bytes)
 
         if self.inc_script_var.get() and self.plugin_path:

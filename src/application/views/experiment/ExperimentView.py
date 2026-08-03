@@ -1,20 +1,22 @@
+import typing as t
 import tkinter as tk
 from tkinter import ttk, messagebox
-from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import ConfusionMatrixDisplay, accuracy_score, classification_report, mean_squared_error, r2_score
 
 from application.components import HyperParamForm
 from application.enums import ExperimentStatus, ProblemType
 from application.managers.DatasetManager import DatasetMetadata
+from application.managers.results import ClassificationAnalyzer, ExportResult, ImageResult, RegressionAnalyzer, ResultAnalyzer, TextResult
 from application.views.experiment import ExperimentFormModal, ExperimentExportModal
+from application.views.experiment.ExperimentExportModal import ExperimentExportData
 from application.managers import ExperimentManager, ModelManager
+from application.managers.model.ModelManager import ModelAPI
 
 class ExperimentView(ttk.Frame):
 
-  def __init__(self, parent):
+  def __init__(self, parent: tk.Misc) -> None:
     super().__init__(parent)
     
     header_frame = ttk.Frame(self)
@@ -76,7 +78,7 @@ class ExperimentView(ttk.Frame):
 
     self.load_table_data()
 
-  def load_table_data(self):
+  def load_table_data(self) -> None:
     for item in self.tree.get_children():
       self.tree.delete(item)
 
@@ -91,7 +93,7 @@ class ExperimentView(ttk.Frame):
         exp.model_name, status_icon, exp.date
       ))
 
-  def on_experiment_selected(self, event):
+  def on_experiment_selected(self, event: t.Optional[tk.Event]) -> None:
     selected = self.tree.selection()
     if not selected:
       return
@@ -121,10 +123,16 @@ class ExperimentView(ttk.Frame):
       self.result_text.insert(tk.END, experiment.results)
       self.result_text.config(state=tk.DISABLED)
 
-  def open_create_modal(self):
+  def open_create_modal(self) -> None:
     ExperimentFormModal(self, on_save=self._on_experiment_saved)
 
-  def _on_experiment_saved(self, payload):
+  def _get_analyzer(self, prob_type: ProblemType, target_col: str) -> ResultAnalyzer:
+    if prob_type == ProblemType.CLASSIFICATION:
+      return ClassificationAnalyzer(target_col)
+
+    return RegressionAnalyzer(target_col)
+
+  def _on_experiment_saved(self, payload: dict[str, t.Any]) -> None:
     self.config(cursor="watch")
     self.update()
 
@@ -134,8 +142,8 @@ class ExperimentView(ttk.Frame):
     filepath = dataset_info.path
     
     status = ExperimentStatus.PENDING
-    results_str = ""
-    trained_model = None
+    results: list[ExportResult] = []
+    trained_model: t.Optional[ModelAPI] = None
 
     try:
       df = pd.read_csv(filepath)
@@ -157,37 +165,21 @@ class ExperimentView(ttk.Frame):
 
       preds = model.predict(X_test)
 
-      fig = Figure(figsize=(5, 4), dpi=100)
-      ax = fig.add_subplot(111)
-
-      if prob_type == ProblemType.CLASSIFICATION:
-        acc = accuracy_score(y_test, preds)
-        report = classification_report(y_test, preds, zero_division=0)
-        results_str = f"Target Column: {target_col}\nTest Size: 20%\n\nAccuracy: {acc:.4f}\n\nClassification Report:\n{report}"
-
-        ConfusionMatrixDisplay.from_predictions(y_test, preds, ax=ax, cmap="Blues")
-        ax.set_title("Confusion Matrix")
-      else:
-        mse = mean_squared_error(y_test, preds)
-        r2 = r2_score(y_test, preds)
-        results_str = f"Target Column: {target_col}\nTest Size: 20%\n\nMean Squared Error (MSE): {mse:.4f}\nR2 Score: {r2:.4f}"
-
-        ax.scatter(y_test, preds, alpha=0.7, edgecolors="k", color="#0984e3")
-        ax.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'r--', lw=2) # Linha de tendência ideal
-        ax.set_xlabel("Actual Values")
-        ax.set_ylabel("Predicted Values")
-        ax.set_title("Actual vs Predicted")
-
-      fig.tight_layout()
+      analyzer = self._get_analyzer(prob_type, target_col)
+      results = analyzer.analyze(y_test, preds)
 
       status = ExperimentStatus.OK
 
     except Exception as e:
       status = ExperimentStatus.NOK
-      results_str = f"Error executing pipeline:\n\n{str(e)}\n\nTry checking if your hyperparameters are valid."
-      fig = None
+      results = [TextResult(
+        "metrics_and_logs.txt",
+        f"Error executing pipeline:\n\n{str(e)}\n\nTry checking if your hyperparameters are valid."
+      )]
     finally:
       self.config(cursor="")
+
+    results_str = "\n\n".join(r.content for r in results if isinstance(r, TextResult))
 
     ExperimentManager.add_experiment(
       name=payload["name"],
@@ -200,17 +192,17 @@ class ExperimentView(ttk.Frame):
 
     self.load_table_data()
     
-    experiment_data = {
-      "name": payload["name"],
-      "dataset": payload["dataset"],
-      "problem_type": prob_type,
-      "model_name": payload["model_name"],
-      "hyperparameters": payload["hyperparams"]
-    }
+    experiment_data = ExperimentExportData(
+      name=payload["name"],
+      dataset=payload["dataset"],
+      problem_type=prob_type,
+      model_name=payload["model_name"],
+      hyperparameters=payload["hyperparams"],
+    )
 
-    self._show_results_popup(experiment_data, status, results_str, trained_model, fig)
+    self._show_results_popup(experiment_data, status, results, trained_model)
 
-  def export_selected(self):
+  def export_selected(self) -> None:
     selected = self.tree.selection()
 
     if not selected:
@@ -218,12 +210,15 @@ class ExperimentView(ttk.Frame):
       return
 
     exp_id = str(self.tree.item(selected[0])["values"][0])
-    target_exp = next((e for e in ExperimentManager.get_all() if str(e["id"]) == exp_id), None)
+    target_exp = next((e for e in ExperimentManager.get_all() if str(e.id) == exp_id), None)
 
     if target_exp:
-      ExperimentExportModal(self, target_exp, target_exp.get("results", ""))
+      experiment_data = ExperimentExportData.from_experiment_metadata(target_exp)
+      results: list[ExportResult] = [TextResult("metrics_and_logs.txt", target_exp.results)]
 
-  def duplicate_experiment(self):
+      ExperimentExportModal(self, experiment_data, results)
+
+  def duplicate_experiment(self) -> None:
     selected = self.tree.selection()
     if not selected:
       messagebox.showwarning("Warning", "Select an experiment to duplicate.")
@@ -235,7 +230,7 @@ class ExperimentView(ttk.Frame):
     if target_exp:
       ExperimentFormModal(self, on_save=self._on_experiment_saved, initial_data=target_exp)
 
-  def delete_experiment(self):
+  def delete_experiment(self) -> None:
     selected = self.tree.selection()
     if not selected:
       return
@@ -249,9 +244,15 @@ class ExperimentView(ttk.Frame):
       self.result_text.delete(1.0, tk.END)
       self.result_text.config(state=tk.DISABLED)
 
-  def _show_results_popup(self, experiment_data, status, results, trained_model=None, fig=None):
+  def _show_results_popup(
+    self,
+    experiment_data: ExperimentExportData,
+    status: ExperimentStatus,
+    results: list[ExportResult],
+    trained_model: t.Optional[ModelAPI] = None,
+  ) -> None:
     popup = tk.Toplevel(self)
-    popup.title(f"Results: {experiment_data['name']}")
+    popup.title(f"Results: {experiment_data.name}")
     popup.geometry("600x650")
     popup.resizable(False, False)
     popup.grab_set()
@@ -285,18 +286,20 @@ class ExperimentView(ttk.Frame):
     text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
     scrollbar.config(command=text_widget.yview)
 
-    text_widget.insert(tk.END, results)
+    report_text = "\n\n".join(r.content for r in results if isinstance(r, TextResult))
+    text_widget.insert(tk.END, report_text)
     text_widget.config(state=tk.DISABLED)
 
-    if fig and status == ExperimentStatus.OK:
-      tab_chart = ttk.Frame(notebook)
-      notebook.add(tab_chart, text="📊 Charts")
-      
-      canvas = FigureCanvasTkAgg(fig, master=tab_chart)
-      canvas.draw()
-      canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+    if status == ExperimentStatus.OK:
+      for image_result in (r for r in results if isinstance(r, ImageResult)):
+        tab_chart = ttk.Frame(notebook)
+        notebook.add(tab_chart, text=f"📊 {image_result.name}")
 
-    def open_export():
+        canvas = FigureCanvasTkAgg(image_result.figure, master=tab_chart)
+        canvas.draw()
+        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+    def open_export() -> None:
       from application.views.experiment import ExperimentExportModal
       ExperimentExportModal(popup, experiment_data, results, trained_model)
 

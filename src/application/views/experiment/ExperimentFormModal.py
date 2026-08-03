@@ -5,11 +5,18 @@ from tkinter import ttk, messagebox
 from application.managers import DatasetManager, ModelManager
 
 from application.components import HyperParamForm
+from application.managers.DatasetManager import DatasetMetadata
 from application.managers.ExperimentManager import ExperimentMetadata
+from application.managers.model.ModelManager import HyperParamConfig
 
 class ExperimentFormModal(tk.Toplevel):
 
-  def __init__(self, parent, on_save, initial_data: t.Optional[ExperimentMetadata]=None):
+  def __init__(
+    self,
+    parent: tk.Misc,
+    on_save: t.Callable[[dict[str, t.Any]], None],
+    initial_data: t.Optional[ExperimentMetadata] = None,
+  ) -> None:
     super().__init__(parent)
 
     self.title("New Experiment")
@@ -27,7 +34,7 @@ class ExperimentFormModal(tk.Toplevel):
       init_name += f"{self.initial_data.name} (Copy)"
 
     self.name_var = tk.StringVar(value=init_name)
-    self.selected_dataset = None
+    self.selected_dataset: t.Optional[DatasetMetadata] = None
     self.dataset_var = tk.StringVar()
     self.model_var = tk.StringVar()
 
@@ -35,7 +42,7 @@ class ExperimentFormModal(tk.Toplevel):
     
     self._apply_autofill()
 
-  def _build_ui(self):
+  def _build_ui(self) -> None:
     main_frame = ttk.Frame(self, padding=(25, 20))
     main_frame.pack(fill=tk.BOTH, expand=True)
 
@@ -62,7 +69,7 @@ class ExperimentFormModal(tk.Toplevel):
 
     ttk.Button(main_frame, text="Run Experiment", command=self._handle_save).pack(fill=tk.X, ipady=6)
 
-  def _apply_autofill(self):
+  def _apply_autofill(self) -> None:
     if not self.initial_data:
       return
 
@@ -86,7 +93,7 @@ class ExperimentFormModal(tk.Toplevel):
       if param_name in self.hyperparam_form.param_vars:
         self.hyperparam_form.param_vars[param_name].set(str(param_value))
 
-  def _on_dataset_selected(self, event):
+  def _on_dataset_selected(self, event: t.Optional[tk.Event]) -> None:
     selected_text = self.dataset_var.get()
 
     self.selected_dataset = next((ds for ds in self.datasets if f"{ds.name} ({ds.type})" == selected_text), None)
@@ -101,7 +108,7 @@ class ExperimentFormModal(tk.Toplevel):
     self.model_combo.set("")
     self.hyperparam_form.render_form([])
 
-  def _on_model_selected(self, event):
+  def _on_model_selected(self, event: t.Optional[tk.Event]) -> None:
     if not self.selected_dataset:
       return
 
@@ -115,7 +122,7 @@ class ExperimentFormModal(tk.Toplevel):
     if model_config:
       self.hyperparam_form.render_form(model_config.params)
 
-  def _handle_save(self):
+  def _handle_save(self) -> None:
     if not self.name_var.get() or not self.selected_dataset or not self.model_var.get():
       messagebox.showerror("Error", "Name, Dataset, and Model are required.", parent=self)
       return

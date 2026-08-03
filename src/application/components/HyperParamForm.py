@@ -1,13 +1,14 @@
+import typing as t
 import tkinter as tk
 from tkinter import ttk
 
 from application.enums import ParamType
 from application.managers.model.ModelManager import HyperParamConfig
 
-def create_tooltip(widget: tk.Widget, text: str):
-  tooltip_window = None
+def create_tooltip(widget: tk.Widget, text: str) -> None:
+  tooltip_window: t.Optional[tk.Toplevel] = None
 
-  def on_enter(event: tk.Event):
+  def on_enter(event: tk.Event) -> None:
     nonlocal tooltip_window
 
     tooltip_window = tk.Toplevel(widget)
@@ -28,7 +29,7 @@ def create_tooltip(widget: tk.Widget, text: str):
     )
     label.pack(ipadx=4, ipady=4)
 
-  def on_leave(event):
+  def on_leave(event: tk.Event) -> None:
     nonlocal tooltip_window
 
     if tooltip_window:
@@ -40,7 +41,12 @@ def create_tooltip(widget: tk.Widget, text: str):
 
 class HyperParamForm(ttk.Frame):
 
-  def __init__(self, master=None, on_change=None, is_readonly=False):
+  def __init__(
+    self,
+    master: t.Optional[tk.Misc] = None,
+    on_change: t.Optional[t.Callable[[dict[str, t.Any]], None]] = None,
+    is_readonly: bool = False,
+  ) -> None:
     super().__init__(master)
     self.on_change = on_change 
     self.is_readonly = is_readonly
@@ -62,17 +68,17 @@ class HyperParamForm(ttk.Frame):
     self.inner_frame.bind("<Configure>", self._on_frame_configure)
     self.canvas.bind("<Configure>", self._on_canvas_configure)
 
-  def _on_frame_configure(self, event=None):
+  def _on_frame_configure(self, event: t.Optional[tk.Event] = None) -> None:
     self.canvas.configure(scrollregion=self.canvas.bbox("all"))
 
-  def _on_canvas_configure(self, event):
+  def _on_canvas_configure(self, event: tk.Event) -> None:
     self.canvas.itemconfig(self.canvas_window, width=event.width)
 
-  def clear_form(self):
+  def clear_form(self) -> None:
     for widget in self.inner_frame.winfo_children():
       widget.destroy()
 
-  def render_form(self, params_config: list[HyperParamConfig]):
+  def render_form(self, params_config: list[HyperParamConfig]) -> None:
     self.clear_form()
     self.param_vars.clear()
     self.param_definitions = params_config
@@ -116,7 +122,7 @@ class HyperParamForm(ttk.Frame):
     if not self.is_readonly:
       self._trigger_change()
 
-  def _trigger_change(self, *args):
+  def _trigger_change(self, *args: t.Any) -> None:
     if self.on_change:
       try:
         parsed_vals = self.get_parsed_values()
@@ -124,8 +130,8 @@ class HyperParamForm(ttk.Frame):
       except ValueError:
         pass
 
-  def get_parsed_values(self):
-    parsed_kwargs = {}
+  def get_parsed_values(self) -> dict[str, t.Any]:
+    parsed_kwargs: dict[str, t.Any] = {}
 
     for param in self.param_definitions:
       name = param.name
