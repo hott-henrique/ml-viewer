@@ -5,7 +5,7 @@ from sqlalchemy import JSON, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from application.db.database import Base
-from application.enums import ExperimentStatus, ProblemType
+from application.enums import AnalysisOutputKind, ExperimentStatus, ProblemType
 
 HyperParamValue = int | float | bool | str
 
@@ -37,6 +37,7 @@ class Experiment(Base):
   model_name: Mapped[str]
   hyperparameters: Mapped[dict[str, HyperParamValue]] = mapped_column(JSON)
   status: Mapped[ExperimentStatus] = mapped_column(_str_enum(ExperimentStatus))
+  selected_analyses: Mapped[list[str]] = mapped_column(JSON, default=list)
   result_artifacts: Mapped[list[dict[str, t.Any]]] = mapped_column(JSON, default=list)
   model_pickle_filename: Mapped[t.Optional[str]] = mapped_column(default=None)
   model_pickle_md5: Mapped[t.Optional[str]] = mapped_column(default=None)
@@ -54,6 +55,23 @@ class Model(Base):
   class_name: Mapped[str]
   module: Mapped[t.Optional[str]] = mapped_column(default=None)
   params: Mapped[list[dict[str, t.Any]]] = mapped_column(JSON, default=list)
+  storage_filename: Mapped[t.Optional[str]] = mapped_column(default=None)
+  original_filename: Mapped[t.Optional[str]] = mapped_column(default=None)
+  md5_hash: Mapped[t.Optional[str]] = mapped_column(default=None)
+  size_bytes: Mapped[t.Optional[int]] = mapped_column(default=None)
+  is_native: Mapped[bool] = mapped_column(default=False)
+  created_at: Mapped[str]
+
+class Analysis(Base):
+  __tablename__ = "analyses"
+
+  id: Mapped[int] = mapped_column(primary_key=True)
+  name: Mapped[str]
+  problem_type: Mapped[ProblemType] = mapped_column(_str_enum(ProblemType))
+  class_name: Mapped[str]
+  module: Mapped[t.Optional[str]] = mapped_column(default=None)
+  output_kind: Mapped[AnalysisOutputKind] = mapped_column(_str_enum(AnalysisOutputKind))
+  description: Mapped[str] = mapped_column(default="")
   storage_filename: Mapped[t.Optional[str]] = mapped_column(default=None)
   original_filename: Mapped[t.Optional[str]] = mapped_column(default=None)
   md5_hash: Mapped[t.Optional[str]] = mapped_column(default=None)

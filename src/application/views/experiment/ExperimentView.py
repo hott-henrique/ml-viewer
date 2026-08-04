@@ -9,29 +9,27 @@ from application.components import HyperParamForm
 from application.enums import ExperimentStatus, ProblemType
 from application.managers.DatasetManager import DatasetMetadata
 from application.managers.results import (
-  ClassificationAnalyzer,
   ExportResult,
   ImageResult,
-  RegressionAnalyzer,
-  ResultAnalyzer,
+  ScalarResult,
   StoredImageResult,
   TextResult,
 )
 from application.views.experiment import ExperimentFormModal, ExperimentExportModal
 from application.views.experiment.ExperimentExportModal import ExperimentExportData
-from application.managers import ExperimentManager, ModelManager
+from application.managers import AnalysisManager, ExperimentManager, ModelManager
 from application.managers.model.ModelManager import ModelAPI
 
 class ExperimentView(ttk.Frame):
 
   def __init__(self, parent: tk.Misc) -> None:
     super().__init__(parent)
-    
+
     header_frame = ttk.Frame(self)
     header_frame.pack(fill=tk.X, padx=10, pady=10)
 
     ttk.Label(header_frame, text="🧪 Experiments", font=("", 16, "bold")).pack(side=tk.LEFT)
-    
+
     ttk.Button(header_frame, text="🗑️ Delete", command=self.delete_experiment).pack(side=tk.RIGHT, padx=(5, 0))
     ttk.Button(header_frame, text="💾 Export", command=self.export_selected).pack(side=tk.RIGHT, padx=(5, 0))
     ttk.Button(header_frame, text="📊 View Results", command=self.view_results).pack(side=tk.RIGHT, padx=(5, 0))
@@ -43,9 +41,9 @@ class ExperimentView(ttk.Frame):
 
     columns = ("id", "name", "dataset", "model", "status", "date")
     self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=6)
-    
+
     self.tree.heading("id", text="ID")
-    self.tree.column("id", width=0, stretch=tk.NO) 
+    self.tree.column("id", width=0, stretch=tk.NO)
 
     self.tree.heading("name", text="Experiment Name")
     self.tree.heading("dataset", text="Dataset")
@@ -68,20 +66,20 @@ class ExperimentView(ttk.Frame):
 
     details_frame = ttk.Frame(self)
     details_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-    
+
     details_frame.columnconfigure(0, weight=1)
     details_frame.columnconfigure(1, weight=2)
     details_frame.rowconfigure(0, weight=1)
 
     param_frame = ttk.LabelFrame(details_frame, text="Hyperparameters (Read-Only)")
     param_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
-    
+
     self.hyperparam_form = HyperParamForm(param_frame, is_readonly=True)
     self.hyperparam_form.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
     logs_frame = ttk.LabelFrame(details_frame, text="Execution Logs")
     logs_frame.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
-    
+
     self.logs_text = tk.Text(logs_frame, wrap=tk.WORD, state=tk.DISABLED, bg="#f5f5f5", height=10)
     self.logs_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
@@ -114,7 +112,7 @@ class ExperimentView(ttk.Frame):
       status_icon = "⏳ Pending" if status == "Pending" else ("✅ OK" if status == "OK" else "❌ NOK")
 
       self.tree.insert("", tk.END, values=(
-        exp.id, exp.name, exp.dataset_name, 
+        exp.id, exp.name, exp.dataset_name,
         exp.model_name, status_icon, exp.date
       ))
 
@@ -124,20 +122,16 @@ class ExperimentView(ttk.Frame):
     if experiment is None:
       return
 
-    prob_type = experiment.problem_type
-    model_name = experiment.model_name
-    saved_hyperparams = experiment.hyperparameters
-
-    model_config = ModelManager.registry(prob_type).get(model_name)
+    model_config = ModelManager.registry(experiment.problem_type).get(experiment.model_name)
 
     if model_config:
       self.hyperparam_form.render_form(model_config.params)
-      
-      for param_name, param_value in saved_hyperparams.items():
-          if param_name in self.hyperparam_form.param_vars:
-              self.hyperparam_form.param_vars[param_name].set(str(param_value))
+
+      for param_name, param_value in experiment.hyperparameters.items():
+        if param_name in self.hyperparam_form.param_vars:
+          self.hyperparam_form.param_vars[param_name].set(str(param_value))
     else:
-      print('Failed to find model to show!')
+      print("Failed to find model to show!")
 
     try:
       logs = ExperimentManager.load_logs(experiment.id)
@@ -149,11 +143,20 @@ class ExperimentView(ttk.Frame):
   def open_create_modal(self) -> None:
     ExperimentFormModal(self, on_save=self._on_experiment_saved)
 
-  def _get_analyzer(self, prob_type: ProblemType, target_col: str) -> ResultAnalyzer:
-    if prob_type == ProblemType.CLASSIFICATION:
-      return ClassificationAnalyzer(target_col)
+  def _run_analyses(
+    self,
+    problem_type: ProblemType,
+    analysis_names: list[str],
+    y_true: t.Any,
+    y_pred: t.Any,
+  ) -> list[ExportResult]:
+    results: list[ExportResult] = []
 
-    return RegressionAnalyzer(target_col)
+    for name in analysis_names:
+      analyzer = AnalysisManager.instantiate(problem_type, name)
+      results.append(analyzer.analyze(y_true, y_pred))
+
+    return results
 
   def _on_experiment_saved(self, payload: dict[str, t.Any]) -> None:
     self.config(cursor="watch")
@@ -163,7 +166,8 @@ class ExperimentView(ttk.Frame):
     prob_type = dataset_info.type
     target_col = dataset_info.target
     filepath = dataset_info.path
-    
+    selected_analyses: list[str] = list(payload.get("analyses") or [])
+
     status = ExperimentStatus.PENDING
     results: list[ExportResult] = []
     logs = ""
@@ -183,14 +187,11 @@ class ExperimentView(ttk.Frame):
       X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
       model = ModelManager.instantiate(prob_type, payload["model_name"], payload["hyperparams"])
-
       model.fit(X_train, y_train)
       trained_model = model
 
       preds = model.predict(X_test)
-
-      analyzer = self._get_analyzer(prob_type, target_col)
-      results = analyzer.analyze(y_test, preds)
+      results = self._run_analyses(prob_type, selected_analyses, y_test, preds)
 
       status = ExperimentStatus.OK
       logs = "Experiment completed successfully."
@@ -207,6 +208,7 @@ class ExperimentView(ttk.Frame):
       model_name=payload["model_name"],
       hyperparams=payload["hyperparams"],
       status=status,
+      selected_analyses=selected_analyses,
     )
 
     ExperimentManager.save_logs(new_experiment.id, logs)
@@ -219,7 +221,7 @@ class ExperimentView(ttk.Frame):
         ExperimentManager.save_trained_model(new_experiment.id, trained_model)
 
     self.load_table_data()
-    
+
     experiment_data = ExperimentExportData(
       name=payload["name"],
       dataset=payload["dataset"],
@@ -243,10 +245,6 @@ class ExperimentView(ttk.Frame):
       return
 
     results = ExperimentManager.load_results(experiment.id)
-
-    if not results and experiment.status != ExperimentStatus.OK:
-      messagebox.showinfo("No Results", "This experiment has no persisted analysis results.")
-      return
 
     if not results:
       messagebox.showinfo("No Results", "No analysis results were found for this experiment.")
@@ -301,7 +299,7 @@ class ExperimentView(ttk.Frame):
   ) -> None:
     popup = tk.Toplevel(self)
     popup.title(f"Results: {experiment_data.name}")
-    popup.geometry("600x650")
+    popup.geometry("640x680")
     popup.resizable(False, False)
     popup.grab_set()
 
@@ -316,37 +314,54 @@ class ExperimentView(ttk.Frame):
     notebook = ttk.Notebook(main_frame)
     notebook.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
 
-    text_results = [r for r in results if isinstance(r, TextResult)]
-    report_text = "\n\n".join(r.content for r in text_results)
+    scalars = [r for r in results if isinstance(r, ScalarResult)]
+    texts = [r for r in results if isinstance(r, TextResult)]
+    images = [r for r in results if isinstance(r, (ImageResult, StoredImageResult))]
+
+    if scalars:
+      tab_metrics = ttk.Frame(notebook)
+      notebook.add(tab_metrics, text="Metrics")
+
+      tree = ttk.Treeview(tab_metrics, columns=("metric", "value"), show="headings", height=8)
+      tree.heading("metric", text="Metric")
+      tree.heading("value", text="Value")
+      tree.column("metric", width=220)
+      tree.column("value", width=160)
+      tree.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+      for scalar in scalars:
+        tree.insert("", tk.END, values=(scalar.label, scalar.value))
+
+    report_text = "\n\n".join(r.content for r in texts)
 
     if status != ExperimentStatus.OK and not report_text and logs:
       report_text = logs
 
-    tab_text = ttk.Frame(notebook)
-    notebook.add(tab_text, text="📝 Report")
+    if report_text or status != ExperimentStatus.OK:
+      tab_text = ttk.Frame(notebook)
+      notebook.add(tab_text, text="Report")
 
-    scrollbar = ttk.Scrollbar(tab_text, orient="vertical")
-    scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+      scrollbar = ttk.Scrollbar(tab_text, orient="vertical")
+      scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-    text_widget = tk.Text(
-      tab_text,
-      wrap=tk.WORD,
-      bg="#1e1e1e",
-      fg="#d4d4d4",
-      font=("Consolas", 10),
-      relief="flat",
-      yscrollcommand=scrollbar.set
-    )
-    text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-    scrollbar.config(command=text_widget.yview)
-
-    text_widget.insert(tk.END, report_text)
-    text_widget.config(state=tk.DISABLED)
+      text_widget = tk.Text(
+        tab_text,
+        wrap=tk.WORD,
+        bg="#1e1e1e",
+        fg="#d4d4d4",
+        font=("Consolas", 10),
+        relief="flat",
+        yscrollcommand=scrollbar.set,
+      )
+      text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+      scrollbar.config(command=text_widget.yview)
+      text_widget.insert(tk.END, report_text or "(No text report)")
+      text_widget.config(state=tk.DISABLED)
 
     if status == ExperimentStatus.OK:
-      for image_result in (r for r in results if isinstance(r, (ImageResult, StoredImageResult))):
+      for image_result in images:
         tab_chart = ttk.Frame(notebook)
-        notebook.add(tab_chart, text=f"📊 {image_result.name}")
+        notebook.add(tab_chart, text=image_result.name)
 
         canvas = FigureCanvasTkAgg(image_result.figure, master=tab_chart)
         canvas.draw()
@@ -360,6 +375,6 @@ class ExperimentView(ttk.Frame):
     btn_frame.pack(fill=tk.X)
 
     ttk.Button(btn_frame, text="Close", command=popup.destroy).pack(side=tk.RIGHT, ipady=6, ipadx=10)
-    
+
     if status == ExperimentStatus.OK:
-        ttk.Button(btn_frame, text="💾 Export", command=open_export).pack(side=tk.RIGHT, padx=(0, 10), ipady=6, ipadx=10)
+      ttk.Button(btn_frame, text="💾 Export", command=open_export).pack(side=tk.RIGHT, padx=(0, 10), ipady=6, ipadx=10)

@@ -1,6 +1,6 @@
 import tkinter as tk
 
-from application.views import DatasetView, ExperimentView, ModelView
+from application.views import DatasetView, ExperimentView, ModelView, AnalysisView
 
 class Application(tk.Tk):
   def __init__(self):
@@ -24,7 +24,7 @@ class Application(tk.Tk):
 
     self.frames: dict[str, tk.Frame] = {}
 
-    for ViewClass in (DatasetView, ModelView, ExperimentView):
+    for ViewClass in (DatasetView, ModelView, AnalysisView, ExperimentView):
       page_name = ViewClass.__name__
 
       frame = ViewClass(parent=self.main_container)
@@ -35,6 +35,7 @@ class Application(tk.Tk):
 
     self._create_nav_button("📁 Datasets", DatasetView.__name__)
     self._create_nav_button("🧠 Models", ModelView.__name__)
+    self._create_nav_button("📈 Analyses", AnalysisView.__name__)
     self._create_nav_button("🧪 Experiments", ExperimentView.__name__)
 
     self.show_frame(DatasetView.__name__)

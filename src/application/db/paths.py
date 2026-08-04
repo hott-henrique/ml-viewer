@@ -8,7 +8,7 @@ def get_data_dir() -> Path:
   data_dir = Path(platformdirs.user_data_dir(APP_NAME))
   data_dir.mkdir(parents=True, exist_ok=True)
 
-  for subdir in ("datasets", "models", "experiments"):
+  for subdir in ("datasets", "models", "experiments", "analyses"):
     (data_dir / subdir).mkdir(parents=True, exist_ok=True)
 
   return data_dir
@@ -18,6 +18,9 @@ def get_datasets_dir() -> Path:
 
 def get_models_dir() -> Path:
   return get_data_dir() / "models"
+
+def get_analyses_dir() -> Path:
+  return get_data_dir() / "analyses"
 
 def get_experiments_dir() -> Path:
   return get_data_dir() / "experiments"

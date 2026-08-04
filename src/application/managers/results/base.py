@@ -1,4 +1,5 @@
 import io
+import json
 import zipfile
 import typing as t
 from abc import ABC, abstractmethod
@@ -6,6 +7,8 @@ from pathlib import Path
 
 from matplotlib import image as mpimg
 from matplotlib.figure import Figure
+
+ScalarValue = int | float | bool
 
 class ExportResult(ABC):
   """Base abstraction for a single piece of analysis output that knows how to include itself in an export ZIP."""
@@ -24,6 +27,23 @@ class TextResult(ExportResult):
 
   def include_in_zip(self, zf: zipfile.ZipFile) -> None:
     zf.writestr(self.name, self.content)
+
+class ScalarResult(ExportResult):
+  def __init__(self, name: str, value: ScalarValue, label: str) -> None:
+    super().__init__(name)
+    self.value = value
+    self.label = label
+
+  def to_json(self) -> str:
+    return json.dumps({"label": self.label, "value": self.value}, indent=2)
+
+  @classmethod
+  def from_json(cls, name: str, content: str) -> "ScalarResult":
+    data = json.loads(content)
+    return cls(name=name, value=data["value"], label=data["label"])
+
+  def include_in_zip(self, zf: zipfile.ZipFile) -> None:
+    zf.writestr(self.name, self.to_json())
 
 class ImageResult(ExportResult):
   def __init__(self, name: str, figure: Figure) -> None:
@@ -55,8 +75,8 @@ class StoredImageResult(ExportResult):
     zf.write(self.path, self.name)
 
 class ResultAnalyzer(ABC):
-  """Base abstraction for a metric/analysis that produces one or more ExportResults."""
+  """Atomic analysis that produces exactly one typed ExportResult."""
 
   @abstractmethod
-  def analyze(self, y_true: t.Any, y_pred: t.Any) -> list[ExportResult]:
+  def analyze(self, y_true: t.Any, y_pred: t.Any) -> ExportResult:
     ...

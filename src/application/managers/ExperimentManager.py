@@ -16,11 +16,11 @@ from application.db.storage import FileIntegrityError, FileStore, StoredFile
 from application.enums import ExperimentStatus, ProblemType
 from application.managers.DatasetManager import DatasetMetadata
 from application.managers.model.ModelManager import ModelAPI
-from application.managers.results import ExportResult, ImageResult, StoredImageResult, TextResult
+from application.managers.results import ExportResult, ImageResult, ScalarResult, StoredImageResult, TextResult
 
 HyperParamValue = int | float | bool | str
 
-ArtifactKind = t.Literal["log", "text", "image"]
+ArtifactKind = t.Literal["log", "text", "image", "scalar"]
 
 class ResultArtifact(BaseModel):
   name: str
@@ -38,6 +38,7 @@ class ExperimentMetadata(BaseModel):
   hyperparameters: dict[str, HyperParamValue]
   status: ExperimentStatus
   date: str
+  selected_analyses: list[str] = Field(default_factory=list)
   result_artifacts: list[ResultArtifact] = Field(default_factory=list)
   model_pickle_filename: t.Optional[str] = None
   model_pickle_md5: t.Optional[str] = None
@@ -75,6 +76,7 @@ class ExperimentMetadata(BaseModel):
       hyperparameters=row.hyperparameters,
       status=row.status,
       date=row.created_at,
+      selected_analyses=list(row.selected_analyses or []),
       result_artifacts=[ResultArtifact.model_validate(a) for a in (row.result_artifacts or [])],
       model_pickle_filename=row.model_pickle_filename,
       model_pickle_md5=row.model_pickle_md5,
@@ -98,7 +100,8 @@ class ExperimentManager:
                      dataset: DatasetMetadata,
                      model_name: str,
                      hyperparams: dict[str, HyperParamValue],
-                     status: ExperimentStatus = ExperimentStatus.PENDING) -> ExperimentMetadata:
+                     status: ExperimentStatus = ExperimentStatus.PENDING,
+                     selected_analyses: t.Optional[list[str]] = None) -> ExperimentMetadata:
     with SessionLocal() as session:
       row = ExperimentRow(
         name=name,
@@ -106,6 +109,7 @@ class ExperimentManager:
         model_name=model_name,
         hyperparameters=hyperparams,
         status=status,
+        selected_analyses=list(selected_analyses or []),
         result_artifacts=[],
         created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
       )
@@ -127,7 +131,7 @@ class ExperimentManager:
       if row is None:
         raise ValueError(f"Experimento com ID {target_id} não encontrado.")
 
-      for field in ("name", "model_name", "hyperparameters", "status"):
+      for field in ("name", "model_name", "hyperparameters", "status", "selected_analyses"):
         value = updates.get(field)
 
         if value is not None:
@@ -219,7 +223,7 @@ class ExperimentManager:
 
   @classmethod
   def save_results(cls, exp_id: int, results: list[ExportResult]) -> ExperimentMetadata:
-    """Persists analysis results (text + images) to the experiment's subfolder."""
+    """Persists analysis results (scalar + text + images) to the experiment's subfolder."""
     store = FileStore(get_experiment_dir(exp_id))
     artifacts: list[ResultArtifact] = []
 
@@ -229,6 +233,14 @@ class ExperimentManager:
         artifacts.append(ResultArtifact(
           name=result.name,
           kind="text",
+          storage_filename=stored.storage_filename,
+          md5_hash=stored.md5_hash,
+        ))
+      elif isinstance(result, ScalarResult):
+        stored = cls._store_text_file(store, result.name, result.to_json())
+        artifacts.append(ResultArtifact(
+          name=result.name,
+          kind="scalar",
           storage_filename=stored.storage_filename,
           md5_hash=stored.md5_hash,
         ))
@@ -247,7 +259,7 @@ class ExperimentManager:
 
   @classmethod
   def load_results(cls, exp_id: int) -> list[ExportResult]:
-    """Loads persisted analysis results (text + images) for an experiment."""
+    """Loads persisted analysis results (scalar + text + images) for an experiment."""
     with SessionLocal() as session:
       row = session.get(ExperimentRow, exp_id)
 
@@ -272,6 +284,8 @@ class ExperimentManager:
 
       if artifact.kind == "text":
         loaded.append(TextResult(artifact.name, path.read_text(encoding="utf-8")))
+      elif artifact.kind == "scalar":
+        loaded.append(ScalarResult.from_json(artifact.name, path.read_text(encoding="utf-8")))
       elif artifact.kind == "image":
         loaded.append(StoredImageResult(artifact.name, path))
 

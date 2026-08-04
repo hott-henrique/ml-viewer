@@ -1,12 +1,17 @@
-from application.managers.results.base import ExportResult, ImageResult, ResultAnalyzer, StoredImageResult, TextResult
-from application.managers.results.analyzers import ClassificationAnalyzer, RegressionAnalyzer
+from application.managers.results.base import (
+  ExportResult,
+  ImageResult,
+  ResultAnalyzer,
+  ScalarResult,
+  StoredImageResult,
+  TextResult,
+)
 
 __all__ = [
   "ExportResult",
   "TextResult",
+  "ScalarResult",
   "ImageResult",
   "StoredImageResult",
   "ResultAnalyzer",
-  "ClassificationAnalyzer",
-  "RegressionAnalyzer",
 ]

@@ -21,3 +21,8 @@ class ExperimentStatus(StrEnum):
   PENDING = "Pending"
   OK = "OK"
   NOK = "NOK"
+
+class AnalysisOutputKind(StrEnum):
+  SCALAR = "scalar"
+  TEXT = "text"
+  IMAGE = "image"
