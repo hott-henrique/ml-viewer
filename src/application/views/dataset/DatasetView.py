@@ -52,7 +52,7 @@ class DatasetView(ttk.Frame):
     datasets = DatasetManager.get_all()
 
     for ds in datasets:
-      self.tree.insert("", tk.END, values=(ds.id, ds.name, ds.name, ds.target, ds.date, ds.path))
+      self.tree.insert("", tk.END, values=(ds.id, ds.name, ds.type, ds.target, ds.date, ds.path))
 
   def open_add_modal(self):
     DatasetFormModal(self, on_save=self._on_dataset_saved)

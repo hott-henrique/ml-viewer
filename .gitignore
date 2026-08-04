@@ -1,9 +1,5 @@
 **/__pycache__
 
-src/plugins
-src/application/datasets_metadata.json
-src/application/experiments_metadata.json
-
 examples
 
 TODO.md

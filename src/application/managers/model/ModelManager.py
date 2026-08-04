@@ -1,12 +1,18 @@
 import importlib
 import importlib.util
-import typing as t
-import shutil
-import os
 import sys
+import typing as t
+from datetime import datetime
+from pathlib import Path
 
 from pydantic import BaseModel, Field, ConfigDict
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
+from application.db.database import SessionLocal
+from application.db.models import Model as ModelRow
+from application.db.paths import get_models_dir
+from application.db.storage import FileStore
 from application.enums import ParamType, ProblemType
 from application.managers.model.definitions import CLASSIFICATION_REGISTRY, REGRETION_REGISTRY
 
@@ -41,12 +47,12 @@ class ModelConfig(BaseModel):
   module: t.Optional[str] = None
   custom_module: t.Optional[t.Any] = None
   plugin_path: t.Optional[str] = None
+  is_native: bool = False
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODELS_DIR = os.path.join(BASE_DIR, "plugins")
+MODELS_DIR = get_models_dir()
 
 class ModelManager:
-  BASE_MODEL_REGISTRY: dict[str, dict[str, ModelConfig]] = {}
+  BASE_MODEL_REGISTRY: dict[ProblemType, dict[str, ModelConfig]] = {}
 
   @staticmethod
   def registry(problem_type: ProblemType) -> dict[str, ModelConfig]:
@@ -57,7 +63,7 @@ class ModelManager:
     return list(ModelManager.registry(problem_type).keys())
 
   @staticmethod
-  def instantiate(problem_type: ProblemType, name: str, params: dict) -> ModelAPI:
+  def instantiate(problem_type: ProblemType, name: str, params: dict[str, t.Any]) -> ModelAPI:
     registry = ModelManager.registry(problem_type)
 
     if name not in registry:
@@ -75,55 +81,9 @@ class ModelManager:
 
     return model_class(**params)
 
-  @classmethod
-  def _load_native_registry(cls, prob_type: ProblemType, raw_registry: dict):
-    if prob_type not in cls.BASE_MODEL_REGISTRY:
-      cls.BASE_MODEL_REGISTRY[prob_type] = {}
-      
-    for name, data in raw_registry.items():
-      try:
-        if 'type' not in data:
-          data['type'] = prob_type
-
-        valid_model = ModelConfig.model_validate(data)
-
-        cls.BASE_MODEL_REGISTRY[prob_type][name] = valid_model
-      except Exception as e:
-        print(f"Warning: Native model '{name}' failed validation: {e}")
-
-  @classmethod
-  def boot_models(cls):
-    cls._load_native_registry(ProblemType.CLASSIFICATION, CLASSIFICATION_REGISTRY)
-    cls._load_native_registry(ProblemType.REGRESSION, REGRETION_REGISTRY)
-
-    if not os.path.exists(MODELS_DIR):
-      os.makedirs(MODELS_DIR)
-      return
-
-    for filename in os.listdir(MODELS_DIR):
-      if filename.endswith(".py"):
-        filepath = os.path.join(MODELS_DIR, filename)
-        try:
-          cls._load_file(filepath)
-        except Exception as e:
-          print(f"Warning: Failed to auto-load plugin '{filename}': {e}")
-
-  @classmethod
-  def import_from_file(cls, filepath: str):
-    if not os.path.exists(MODELS_DIR):
-      os.makedirs(MODELS_DIR)
-
-    filename = os.path.basename(filepath)
-    destination = os.path.join(MODELS_DIR, filename)
-
-    if os.path.abspath(filepath) != os.path.abspath(destination):
-      shutil.copy2(filepath, destination)
-
-    return cls._load_file(destination)
-
-  @classmethod
-  def _load_file(cls, filepath: str):
-    module_name = os.path.basename(filepath).replace('.py', '')
+  @staticmethod
+  def _load_module_from_path(filepath: str) -> t.Any:
+    module_name = Path(filepath).stem
 
     spec = importlib.util.spec_from_file_location(module_name, filepath)
     if spec is None or spec.loader is None:
@@ -133,54 +93,150 @@ class ModelManager:
     sys.modules[module_name] = module
     spec.loader.exec_module(module)
 
-    if not hasattr(module, 'MODEL_CONFIG'):
-      raise ValueError("The imported file must contain a 'MODEL_CONFIG' dictionary.")
+    return module
 
-    custom_config: dict[str, dict] = getattr(module, 'MODEL_CONFIG')
+  @classmethod
+  def _seed_native_models(cls, session: Session) -> None:
+    """Populates the `models` table from the hardcoded native registries, once, on first boot."""
+    has_any_model = session.scalar(select(ModelRow.id).limit(1)) is not None
 
-    if not isinstance(custom_config, dict):
-      raise ValueError("'MODEL_CONFIG' must be a dictionary.")
+    if has_any_model:
+      return
 
-    added_models = []
+    for prob_type, raw_registry in (
+      (ProblemType.CLASSIFICATION, CLASSIFICATION_REGISTRY),
+      (ProblemType.REGRESSION, REGRETION_REGISTRY),
+    ):
+      for name, data in raw_registry.items():
+        try:
+          config = ModelConfig.model_validate({**data, "type": data.get("type", prob_type)})
+        except Exception as e:
+          print(f"Warning: Native model '{name}' failed validation: {e}")
+          continue
 
-    for model_name, model_data in custom_config.items():
-      if 'module' not in model_data:
-        model_data['custom_module'] = module
+        session.add(ModelRow(
+          name=name,
+          problem_type=prob_type,
+          class_name=config.class_name,
+          module=config.module,
+          params=[p.model_dump(mode="json") for p in config.params],
+          is_native=True,
+          created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        ))
 
-      model_data['plugin_path'] = filepath
+    session.commit()
 
-      try:
-        valid_model = ModelConfig.model_validate(model_data)
+  @classmethod
+  def _register_row_in_memory(cls, row: ModelRow) -> None:
+    custom_module: t.Optional[t.Any] = None
+    plugin_path: t.Optional[str] = None
 
-        prob_type = valid_model.type
+    if not row.is_native:
+      store = FileStore(MODELS_DIR)
 
-        if prob_type not in cls.BASE_MODEL_REGISTRY:
-          cls.BASE_MODEL_REGISTRY[prob_type] = {}
+      if not row.storage_filename or not row.md5_hash or not store.verify_integrity(row.storage_filename, row.md5_hash):
+        print(f"Warning: Plugin model '{row.name}' failed integrity check, skipping.")
+        return
 
-        cls.BASE_MODEL_REGISTRY[prob_type][model_name] = valid_model
-        added_models.append(model_name)
-      except Exception as e:
-        print(f"Warning: Custom plugin '{model_name}' rejected due to validation error: {e}")
+      plugin_path = str(store.resolve_path(row.storage_filename))
+      custom_module = cls._load_module_from_path(plugin_path)
+
+    config = ModelConfig(
+      class_name=row.class_name,
+      type=row.problem_type,
+      params=[HyperParamConfig.model_validate(p) for p in row.params],
+      module=row.module,
+      custom_module=custom_module,
+      plugin_path=plugin_path,
+      is_native=row.is_native,
+    )
+
+    cls.BASE_MODEL_REGISTRY.setdefault(row.problem_type, {})[row.name] = config
+
+  @classmethod
+  def boot_models(cls) -> None:
+    cls.BASE_MODEL_REGISTRY = {}
+
+    with SessionLocal() as session:
+      cls._seed_native_models(session)
+
+      rows = session.scalars(select(ModelRow)).all()
+
+      for row in rows:
+        cls._register_row_in_memory(row)
+
+  @classmethod
+  def import_from_file(cls, filepath: str) -> list[str]:
+    store = FileStore(MODELS_DIR)
+    stored = store.save(Path(filepath))
+    destination = str(store.resolve_path(stored.storage_filename))
+
+    try:
+      module = cls._load_module_from_path(destination)
+
+      if not hasattr(module, 'MODEL_CONFIG'):
+        raise ValueError("The imported file must contain a 'MODEL_CONFIG' dictionary.")
+
+      custom_config: dict[str, dict[str, t.Any]] = getattr(module, 'MODEL_CONFIG')
+
+      if not isinstance(custom_config, dict):
+        raise ValueError("'MODEL_CONFIG' must be a dictionary.")
+    except Exception:
+      store.delete(stored.storage_filename)
+      raise
+
+    added_models: list[str] = []
+
+    with SessionLocal() as session:
+      for model_name, model_data in custom_config.items():
+        try:
+          config = ModelConfig.model_validate(model_data)
+
+          session.add(ModelRow(
+            name=model_name,
+            problem_type=config.type,
+            class_name=config.class_name,
+            module=None,
+            params=[p.model_dump(mode="json") for p in config.params],
+            storage_filename=stored.storage_filename,
+            original_filename=stored.original_filename,
+            md5_hash=stored.md5_hash,
+            size_bytes=stored.size_bytes,
+            is_native=False,
+            created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+          ))
+
+          added_models.append(model_name)
+        except Exception as e:
+          print(f"Warning: Custom plugin '{model_name}' rejected due to validation error: {e}")
+
+      session.commit()
+
+    cls.boot_models()
 
     return added_models
 
   @classmethod
-  def delete_model(cls, problem_type: ProblemType, name: str):
-    registry = cls.BASE_MODEL_REGISTRY.get(problem_type, {})
+  def delete_model(cls, problem_type: ProblemType, name: str) -> None:
+    with SessionLocal() as session:
+      row = session.scalar(
+        select(ModelRow).where(ModelRow.problem_type == problem_type, ModelRow.name == name)
+      )
 
-    if name not in registry:
-      return
+      if row is None:
+        return
 
-    model_config = registry[name]
+      if row.is_native:
+        raise ValueError("Modelos nativos não podem ser removidos.")
 
-    filepath = model_config.plugin_path
+      storage_filename = row.storage_filename
 
-    del registry[name]
+      session.delete(row)
+      session.commit()
 
-    if filepath and os.path.exists(filepath):
-      try:
-        os.remove(filepath)
-      except Exception as e:
-        print(f"Error deleting file {filepath}: {e}")
+    if storage_filename:
+      FileStore(MODELS_DIR).delete(storage_filename)
+
+    cls.boot_models()
 
 ModelManager.boot_models()

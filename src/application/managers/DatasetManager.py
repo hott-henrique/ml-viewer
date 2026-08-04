@@ -1,82 +1,135 @@
-import json
-import os
+import typing as t
 from datetime import datetime
-from pydantic import BaseModel
+from pathlib import Path
 
+from pydantic import BaseModel
+from sqlalchemy import select
+
+from application.db.database import SessionLocal
+from application.db.models import Dataset as DatasetRow
+from application.db.paths import get_datasets_dir
+from application.db.storage import FileIntegrityError, FileStore
 from application.enums import ProblemType
 
 class DatasetMetadata(BaseModel):
-  id: str
+  id: int
   name: str
-  path: str
   type: ProblemType
   target: str
+  original_filename: str
+  storage_filename: str
+  md5_hash: str
+  size_bytes: int
   date: str
 
+  @property
+  def path(self) -> str:
+    """Resolves the on-disk location of the managed dataset file, verifying its MD5 first."""
+    store = FileStore(get_datasets_dir())
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATASETS_FILE = os.path.join(BASE_DIR, "datasets_metadata.json")
+    if not store.verify_integrity(self.storage_filename, self.md5_hash):
+      raise FileIntegrityError(
+        f"Dataset '{self.name}' está corrompido ou foi alterado externamente (MD5 não corresponde)."
+      )
+
+    return str(store.resolve_path(self.storage_filename))
+
+  @classmethod
+  def from_row(cls, row: DatasetRow) -> "DatasetMetadata":
+    return cls(
+      id=row.id,
+      name=row.name,
+      type=row.problem_type,
+      target=row.target,
+      original_filename=row.original_filename,
+      storage_filename=row.storage_filename,
+      md5_hash=row.md5_hash,
+      size_bytes=row.size_bytes,
+      date=row.created_at,
+    )
 
 class DatasetManager:
 
   @classmethod
   def get_all(cls) -> list[DatasetMetadata]:
-    if os.path.exists(DATASETS_FILE):
-      with open(DATASETS_FILE, "r", encoding="utf-8") as f:
-        try:
-          data = json.load(f)
-          return [DatasetMetadata.model_validate(ds) for ds in data]
-        except (json.JSONDecodeError, ValueError) as e:
-          print(f"Warning: Failed to parse datasets JSON: {e}")
-          return []
+    with SessionLocal() as session:
+      rows = session.scalars(select(DatasetRow).order_by(DatasetRow.id)).all()
 
-    return []
+      return [DatasetMetadata.from_row(row) for row in rows]
 
   @classmethod
   def add_dataset(cls, name: str, filepath: str, problem_type: str | ProblemType, target: str) -> DatasetMetadata:
-    datasets = cls.get_all()
+    store = FileStore(get_datasets_dir())
+    stored = store.save(Path(filepath))
 
-    new_dataset = DatasetMetadata(
-      id=str(len(datasets) + 1),
-      name=name,
-      path=filepath,
-      type=problem_type,
-      target=target,
-      date=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    )
+    with SessionLocal() as session:
+      row = DatasetRow(
+        name=name,
+        problem_type=ProblemType(problem_type),
+        target=target,
+        original_filename=stored.original_filename,
+        storage_filename=stored.storage_filename,
+        md5_hash=stored.md5_hash,
+        size_bytes=stored.size_bytes,
+        created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+      )
 
-    datasets.append(new_dataset)
+      session.add(row)
+      session.commit()
+      session.refresh(row)
 
-    cls._save_all(datasets)
-
-    return new_dataset
-
-  @classmethod
-  def update_dataset(cls, payload: dict) -> DatasetMetadata:
-    datasets = cls.get_all()
-    target_id = str(payload.get("id"))
-    
-    for i, ds in enumerate(datasets):
-      if ds.id == target_id:
-        updates = {k: v for k, v in payload.items() if k in ds.model_fields and v is not None}
-        updated_dataset = ds.model_copy(update=updates)
-        
-        datasets[i] = updated_dataset
-        cls._save_all(datasets)
-        
-        return updated_dataset
-
-    raise ValueError(f"Dataset com ID {target_id} não encontrado.")
-  
-  @classmethod
-  def delete_dataset(cls, target_id: str):
-    datasets = cls.get_all()
-    
-    updated_datasets = [ds for ds in datasets if ds.id != str(target_id)]
-    
-    cls._save_all(updated_datasets)
+      return DatasetMetadata.from_row(row)
 
   @classmethod
-  def _save_all(cls, datasets: list[DatasetMetadata]):
-    with open(DATASETS_FILE, "w", encoding="utf-8") as f:
-      json.dump([ds.model_dump(mode='json') for ds in datasets], f, indent=4)
+  def update_dataset(cls, payload: dict[str, t.Any]) -> DatasetMetadata:
+    target_id = int(payload["id"])
+    store = FileStore(get_datasets_dir())
+
+    with SessionLocal() as session:
+      row = session.get(DatasetRow, target_id)
+
+      if row is None:
+        raise ValueError(f"Dataset com ID {target_id} não encontrado.")
+
+      if payload.get("name") is not None:
+        row.name = payload["name"]
+
+      if payload.get("type") is not None:
+        row.problem_type = ProblemType(payload["type"])
+
+      if payload.get("target") is not None:
+        row.target = payload["target"]
+
+      new_path = payload.get("path")
+      current_path = str(store.resolve_path(row.storage_filename))
+
+      if new_path is not None and new_path != current_path:
+        old_storage_filename = row.storage_filename
+        stored = store.save(Path(new_path))
+
+        row.original_filename = stored.original_filename
+        row.storage_filename = stored.storage_filename
+        row.md5_hash = stored.md5_hash
+        row.size_bytes = stored.size_bytes
+
+        store.delete(old_storage_filename)
+
+      session.commit()
+      session.refresh(row)
+
+      return DatasetMetadata.from_row(row)
+
+  @classmethod
+  def delete_dataset(cls, target_id: str | int) -> None:
+    with SessionLocal() as session:
+      row = session.get(DatasetRow, int(target_id))
+
+      if row is None:
+        return
+
+      storage_filename = row.storage_filename
+
+      session.delete(row)
+      session.commit()
+
+    FileStore(get_datasets_dir()).delete(storage_filename)

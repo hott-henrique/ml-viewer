@@ -8,7 +8,15 @@ from sklearn.model_selection import train_test_split
 from application.components import HyperParamForm
 from application.enums import ExperimentStatus, ProblemType
 from application.managers.DatasetManager import DatasetMetadata
-from application.managers.results import ClassificationAnalyzer, ExportResult, ImageResult, RegressionAnalyzer, ResultAnalyzer, TextResult
+from application.managers.results import (
+  ClassificationAnalyzer,
+  ExportResult,
+  ImageResult,
+  RegressionAnalyzer,
+  ResultAnalyzer,
+  StoredImageResult,
+  TextResult,
+)
 from application.views.experiment import ExperimentFormModal, ExperimentExportModal
 from application.views.experiment.ExperimentExportModal import ExperimentExportData
 from application.managers import ExperimentManager, ModelManager
@@ -26,6 +34,7 @@ class ExperimentView(ttk.Frame):
     
     ttk.Button(header_frame, text="🗑️ Delete", command=self.delete_experiment).pack(side=tk.RIGHT, padx=(5, 0))
     ttk.Button(header_frame, text="💾 Export", command=self.export_selected).pack(side=tk.RIGHT, padx=(5, 0))
+    ttk.Button(header_frame, text="📊 View Results", command=self.view_results).pack(side=tk.RIGHT, padx=(5, 0))
     ttk.Button(header_frame, text="📑 Duplicate", command=self.duplicate_experiment).pack(side=tk.RIGHT, padx=(5, 0))
     ttk.Button(header_frame, text="➕ Run", command=self.open_create_modal).pack(side=tk.RIGHT)
 
@@ -70,13 +79,29 @@ class ExperimentView(ttk.Frame):
     self.hyperparam_form = HyperParamForm(param_frame, is_readonly=True)
     self.hyperparam_form.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-    result_frame = ttk.LabelFrame(details_frame, text="Execution Results")
-    result_frame.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
+    logs_frame = ttk.LabelFrame(details_frame, text="Execution Logs")
+    logs_frame.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
     
-    self.result_text = tk.Text(result_frame, wrap=tk.WORD, state=tk.DISABLED, bg="#f5f5f5", height=10)
-    self.result_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+    self.logs_text = tk.Text(logs_frame, wrap=tk.WORD, state=tk.DISABLED, bg="#f5f5f5", height=10)
+    self.logs_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
     self.load_table_data()
+
+  def _get_selected_experiment(self):
+    selected = self.tree.selection()
+
+    if not selected:
+      return None
+
+    exp_id = str(self.tree.item(selected[0])["values"][0])
+
+    return next((e for e in ExperimentManager.get_all() if str(e.id) == exp_id), None)
+
+  def _set_logs_panel(self, content: str) -> None:
+    self.logs_text.config(state=tk.NORMAL)
+    self.logs_text.delete(1.0, tk.END)
+    self.logs_text.insert(tk.END, content)
+    self.logs_text.config(state=tk.DISABLED)
 
   def load_table_data(self) -> None:
     for item in self.tree.get_children():
@@ -94,34 +119,32 @@ class ExperimentView(ttk.Frame):
       ))
 
   def on_experiment_selected(self, event: t.Optional[tk.Event]) -> None:
-    selected = self.tree.selection()
-    if not selected:
+    experiment = self._get_selected_experiment()
+
+    if experiment is None:
       return
 
-    exp_id = str(self.tree.item(selected[0])["values"][0])
-    
-    experiment = next((e for e in ExperimentManager.get_all() if str(e.id) == exp_id), None)
+    prob_type = experiment.problem_type
+    model_name = experiment.model_name
+    saved_hyperparams = experiment.hyperparameters
 
-    if experiment:
-      prob_type = experiment.problem_type
-      model_name = experiment.model_name
-      saved_hyperparams = experiment.hyperparameters
+    model_config = ModelManager.registry(prob_type).get(model_name)
 
-      model_config = ModelManager.registry(prob_type).get(model_name)
+    if model_config:
+      self.hyperparam_form.render_form(model_config.params)
+      
+      for param_name, param_value in saved_hyperparams.items():
+          if param_name in self.hyperparam_form.param_vars:
+              self.hyperparam_form.param_vars[param_name].set(str(param_value))
+    else:
+      print('Failed to find model to show!')
 
-      if model_config:
-        self.hyperparam_form.render_form(model_config.params)
-        
-        for param_name, param_value in saved_hyperparams.items():
-            if param_name in self.hyperparam_form.param_vars:
-                self.hyperparam_form.param_vars[param_name].set(str(param_value))
-      else:
-        print('Failed to find model to show!')
+    try:
+      logs = ExperimentManager.load_logs(experiment.id)
+    except Exception as e:
+      logs = f"(Failed to load logs: {e})"
 
-      self.result_text.config(state=tk.NORMAL)
-      self.result_text.delete(1.0, tk.END)
-      self.result_text.insert(tk.END, experiment.results)
-      self.result_text.config(state=tk.DISABLED)
+    self._set_logs_panel(logs)
 
   def open_create_modal(self) -> None:
     ExperimentFormModal(self, on_save=self._on_experiment_saved)
@@ -143,6 +166,7 @@ class ExperimentView(ttk.Frame):
     
     status = ExperimentStatus.PENDING
     results: list[ExportResult] = []
+    logs = ""
     trained_model: t.Optional[ModelAPI] = None
 
     try:
@@ -169,26 +193,30 @@ class ExperimentView(ttk.Frame):
       results = analyzer.analyze(y_test, preds)
 
       status = ExperimentStatus.OK
+      logs = "Experiment completed successfully."
 
     except Exception as e:
       status = ExperimentStatus.NOK
-      results = [TextResult(
-        "metrics_and_logs.txt",
-        f"Error executing pipeline:\n\n{str(e)}\n\nTry checking if your hyperparameters are valid."
-      )]
+      logs = f"Error executing pipeline:\n\n{str(e)}\n\nTry checking if your hyperparameters are valid."
     finally:
       self.config(cursor="")
 
-    results_str = "\n\n".join(r.content for r in results if isinstance(r, TextResult))
-
-    ExperimentManager.add_experiment(
+    new_experiment = ExperimentManager.add_experiment(
       name=payload["name"],
       dataset=payload["dataset"],
       model_name=payload["model_name"],
       hyperparams=payload["hyperparams"],
       status=status,
-      results=results_str
     )
+
+    ExperimentManager.save_logs(new_experiment.id, logs)
+
+    if status == ExperimentStatus.OK:
+      if results:
+        ExperimentManager.save_results(new_experiment.id, results)
+
+      if trained_model is not None:
+        ExperimentManager.save_trained_model(new_experiment.id, trained_model)
 
     self.load_table_data()
     
@@ -198,51 +226,70 @@ class ExperimentView(ttk.Frame):
       problem_type=prob_type,
       model_name=payload["model_name"],
       hyperparameters=payload["hyperparams"],
+      pickle_path=None,
     )
 
-    self._show_results_popup(experiment_data, status, results, trained_model)
+    if status == ExperimentStatus.OK:
+      reloaded = next(e for e in ExperimentManager.get_all() if e.id == new_experiment.id)
+      experiment_data = ExperimentExportData.from_experiment_metadata(reloaded)
+
+    self._show_results_popup(experiment_data, status, results, trained_model, logs=logs)
+
+  def view_results(self) -> None:
+    experiment = self._get_selected_experiment()
+
+    if experiment is None:
+      messagebox.showwarning("Warning", "Select an experiment to view results.")
+      return
+
+    results = ExperimentManager.load_results(experiment.id)
+
+    if not results and experiment.status != ExperimentStatus.OK:
+      messagebox.showinfo("No Results", "This experiment has no persisted analysis results.")
+      return
+
+    if not results:
+      messagebox.showinfo("No Results", "No analysis results were found for this experiment.")
+      return
+
+    experiment_data = ExperimentExportData.from_experiment_metadata(experiment)
+    self._show_results_popup(experiment_data, experiment.status, results)
 
   def export_selected(self) -> None:
-    selected = self.tree.selection()
+    experiment = self._get_selected_experiment()
 
-    if not selected:
+    if experiment is None:
       messagebox.showwarning("Warning", "Select an experiment to export.")
       return
 
-    exp_id = str(self.tree.item(selected[0])["values"][0])
-    target_exp = next((e for e in ExperimentManager.get_all() if str(e.id) == exp_id), None)
+    experiment_data = ExperimentExportData.from_experiment_metadata(experiment)
+    results = ExperimentManager.load_results(experiment.id)
+    logs = ExperimentManager.load_logs(experiment.id)
 
-    if target_exp:
-      experiment_data = ExperimentExportData.from_experiment_metadata(target_exp)
-      results: list[ExportResult] = [TextResult("metrics_and_logs.txt", target_exp.results)]
+    if logs:
+      results = [TextResult("logs.txt", logs), *results]
 
-      ExperimentExportModal(self, experiment_data, results)
+    ExperimentExportModal(self, experiment_data, results)
 
   def duplicate_experiment(self) -> None:
-    selected = self.tree.selection()
-    if not selected:
+    experiment = self._get_selected_experiment()
+
+    if experiment is None:
       messagebox.showwarning("Warning", "Select an experiment to duplicate.")
       return
 
-    exp_id = str(self.tree.item(selected[0])["values"][0])
-    target_exp = next((e for e in ExperimentManager.get_all() if str(e.id) == exp_id), None)
-
-    if target_exp:
-      ExperimentFormModal(self, on_save=self._on_experiment_saved, initial_data=target_exp)
+    ExperimentFormModal(self, on_save=self._on_experiment_saved, initial_data=experiment)
 
   def delete_experiment(self) -> None:
-    selected = self.tree.selection()
-    if not selected:
+    experiment = self._get_selected_experiment()
+
+    if experiment is None:
       return
 
-    exp_id = str(self.tree.item(selected[0])["values"][0])
-
     if messagebox.askyesno("Confirm", "Delete this experiment permanently?"):
-      ExperimentManager.delete_experiment(exp_id)
+      ExperimentManager.delete_experiment(experiment.id)
       self.load_table_data()
-      self.result_text.config(state=tk.NORMAL)
-      self.result_text.delete(1.0, tk.END)
-      self.result_text.config(state=tk.DISABLED)
+      self._set_logs_panel("")
 
   def _show_results_popup(
     self,
@@ -250,6 +297,7 @@ class ExperimentView(ttk.Frame):
     status: ExperimentStatus,
     results: list[ExportResult],
     trained_model: t.Optional[ModelAPI] = None,
+    logs: str = "",
   ) -> None:
     popup = tk.Toplevel(self)
     popup.title(f"Results: {experiment_data.name}")
@@ -267,6 +315,12 @@ class ExperimentView(ttk.Frame):
 
     notebook = ttk.Notebook(main_frame)
     notebook.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
+
+    text_results = [r for r in results if isinstance(r, TextResult)]
+    report_text = "\n\n".join(r.content for r in text_results)
+
+    if status != ExperimentStatus.OK and not report_text and logs:
+      report_text = logs
 
     tab_text = ttk.Frame(notebook)
     notebook.add(tab_text, text="📝 Report")
@@ -286,12 +340,11 @@ class ExperimentView(ttk.Frame):
     text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
     scrollbar.config(command=text_widget.yview)
 
-    report_text = "\n\n".join(r.content for r in results if isinstance(r, TextResult))
     text_widget.insert(tk.END, report_text)
     text_widget.config(state=tk.DISABLED)
 
     if status == ExperimentStatus.OK:
-      for image_result in (r for r in results if isinstance(r, ImageResult)):
+      for image_result in (r for r in results if isinstance(r, (ImageResult, StoredImageResult))):
         tab_chart = ttk.Frame(notebook)
         notebook.add(tab_chart, text=f"📊 {image_result.name}")
 

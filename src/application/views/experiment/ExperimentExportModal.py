@@ -23,6 +23,7 @@ class ExperimentExportData(BaseModel):
   problem_type: ProblemType
   model_name: str
   hyperparameters: dict[str, HyperParamValue]
+  pickle_path: t.Optional[str] = None
 
   @classmethod
   def from_experiment_metadata(cls, experiment: ExperimentMetadata) -> "ExperimentExportData":
@@ -32,6 +33,7 @@ class ExperimentExportData(BaseModel):
       problem_type=experiment.problem_type,
       model_name=experiment.model_name,
       hyperparameters=experiment.hyperparameters,
+      pickle_path=experiment.pickle_path,
     )
 
 class ExperimentExportModal(tk.Toplevel):
@@ -70,8 +72,8 @@ class ExperimentExportModal(tk.Toplevel):
     self.chk_model = ttk.Checkbutton(main_frame, text="Include Trained Model (.pkl)", variable=self.inc_model_var)
     self.chk_model.pack(anchor=tk.W, pady=5)
 
-    if self.trained_model is None:
-      self.chk_model.config(text="Include Trained Model (.pkl)  [Not in memory]")
+    if self.trained_model is None and not self.experiment_data.pickle_path:
+      self.chk_model.config(text="Include Trained Model (.pkl)  [Not available]")
       self.chk_model.state(['disabled'])
       self.inc_model_var.set(False)
 
@@ -125,10 +127,13 @@ class ExperimentExportModal(tk.Toplevel):
           if ds_path and os.path.exists(ds_path):
             zf.write(ds_path, os.path.basename(ds_path))
 
-        if self.inc_model_var.get() and self.trained_model is not None:
-          model_bytes = pickle.dumps(self.trained_model)
+        if self.inc_model_var.get():
           model_filename = f"model_{self.experiment_data.model_name.replace(' ', '_')}.pkl"
-          zf.writestr(model_filename, model_bytes)
+
+          if self.trained_model is not None:
+            zf.writestr(model_filename, pickle.dumps(self.trained_model))
+          elif self.experiment_data.pickle_path and os.path.exists(self.experiment_data.pickle_path):
+            zf.write(self.experiment_data.pickle_path, model_filename)
 
         if self.inc_script_var.get() and self.plugin_path:
             zf.write(self.plugin_path, os.path.basename(self.plugin_path))

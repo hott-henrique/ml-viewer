@@ -2,7 +2,7 @@ import typing as t
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-from application.managers import DatasetManager, ModelManager
+from application.managers import DatasetManager, ExperimentManager, ModelManager
 
 from application.components import HyperParamForm
 from application.managers.DatasetManager import DatasetMetadata
@@ -28,10 +28,11 @@ class ExperimentFormModal(tk.Toplevel):
     self.initial_data = initial_data or {}
     self.datasets = DatasetManager.get_all()
     
-    init_name = ""
-
     if self.initial_data:
-      init_name += f"{self.initial_data.name} (Copy)"
+      init_name = f"{self.initial_data.name} (Copy)"
+    else:
+      next_n = len(ExperimentManager.get_all()) + 1
+      init_name = f"Experiment #{next_n}"
 
     self.name_var = tk.StringVar(value=init_name)
     self.selected_dataset: t.Optional[DatasetMetadata] = None

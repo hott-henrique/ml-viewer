@@ -2,7 +2,9 @@ import io
 import zipfile
 import typing as t
 from abc import ABC, abstractmethod
+from pathlib import Path
 
+from matplotlib import image as mpimg
 from matplotlib.figure import Figure
 
 class ExportResult(ABC):
@@ -32,6 +34,25 @@ class ImageResult(ExportResult):
     buf = io.BytesIO()
     self.figure.savefig(buf, format="png", dpi=150)
     zf.writestr(self.name, buf.getvalue())
+
+class StoredImageResult(ExportResult):
+  """Disk-backed image result loaded from a persisted PNG file."""
+
+  def __init__(self, name: str, path: Path) -> None:
+    super().__init__(name)
+    self.path = path
+
+  @property
+  def figure(self) -> Figure:
+    fig = Figure(figsize=(5, 4), dpi=100)
+    ax = fig.add_subplot(111)
+    ax.imshow(mpimg.imread(self.path))
+    ax.axis("off")
+    fig.tight_layout()
+    return fig
+
+  def include_in_zip(self, zf: zipfile.ZipFile) -> None:
+    zf.write(self.path, self.name)
 
 class ResultAnalyzer(ABC):
   """Base abstraction for a metric/analysis that produces one or more ExportResults."""

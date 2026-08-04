@@ -1,96 +1,324 @@
-import json
-import os
+import pickle
+import shutil
+import tempfile
 import typing as t
 from datetime import datetime
-from pydantic import BaseModel
+from pathlib import Path
 
+from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
+
+from application.db.database import SessionLocal
+from application.db.models import Experiment as ExperimentRow
+from application.db.paths import get_experiment_dir, get_experiments_dir
+from application.db.storage import FileIntegrityError, FileStore, StoredFile
 from application.enums import ExperimentStatus, ProblemType
 from application.managers.DatasetManager import DatasetMetadata
+from application.managers.model.ModelManager import ModelAPI
+from application.managers.results import ExportResult, ImageResult, StoredImageResult, TextResult
+
+HyperParamValue = int | float | bool | str
+
+ArtifactKind = t.Literal["log", "text", "image"]
+
+class ResultArtifact(BaseModel):
+  name: str
+  kind: ArtifactKind
+  storage_filename: str
+  md5_hash: str
 
 class ExperimentMetadata(BaseModel):
-  id: str
+  id: int
   name: str
   dataset: DatasetMetadata
   dataset_name: str
   problem_type: ProblemType
   model_name: str
-  hyperparameters: dict[str, t.Any]
+  hyperparameters: dict[str, HyperParamValue]
   status: ExperimentStatus
-  results: str
   date: str
+  result_artifacts: list[ResultArtifact] = Field(default_factory=list)
+  model_pickle_filename: t.Optional[str] = None
+  model_pickle_md5: t.Optional[str] = None
+  model_pickle_size: t.Optional[int] = None
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-EXPERIMENTS_FILE = os.path.join(BASE_DIR, "experiments_metadata.json")
+  @property
+  def pickle_path(self) -> t.Optional[str]:
+    """Resolves the on-disk location of the trained model pickle for this experiment, verifying its MD5 first.
+
+    Returns None when no pickle has been persisted for this experiment.
+    """
+    if not self.model_pickle_filename or not self.model_pickle_md5:
+      return None
+
+    store = FileStore(get_experiment_dir(self.id))
+
+    if not store.verify_integrity(self.model_pickle_filename, self.model_pickle_md5):
+      raise FileIntegrityError(
+        f"O modelo treinado do experimento '{self.name}' está corrompido ou foi alterado externamente (MD5 não corresponde)."
+      )
+
+    return str(store.resolve_path(self.model_pickle_filename))
+
+  @classmethod
+  def from_row(cls, row: ExperimentRow) -> "ExperimentMetadata":
+    dataset = DatasetMetadata.from_row(row.dataset)
+
+    return cls(
+      id=row.id,
+      name=row.name,
+      dataset=dataset,
+      dataset_name=dataset.name,
+      problem_type=dataset.type,
+      model_name=row.model_name,
+      hyperparameters=row.hyperparameters,
+      status=row.status,
+      date=row.created_at,
+      result_artifacts=[ResultArtifact.model_validate(a) for a in (row.result_artifacts or [])],
+      model_pickle_filename=row.model_pickle_filename,
+      model_pickle_md5=row.model_pickle_md5,
+      model_pickle_size=row.model_pickle_size,
+    )
+
+BASE_QUERY = select(ExperimentRow).options(selectinload(ExperimentRow.dataset))
 
 class ExperimentManager:
 
   @classmethod
   def get_all(cls) -> list[ExperimentMetadata]:
-    if os.path.exists(EXPERIMENTS_FILE):
-      with open(EXPERIMENTS_FILE, "r", encoding="utf-8") as f:
-        try:
-          data = json.load(f)
+    with SessionLocal() as session:
+      rows = session.scalars(BASE_QUERY.order_by(ExperimentRow.id)).all()
 
-          return [ExperimentMetadata.model_validate(exp) for exp in data]
-        except (json.JSONDecodeError, ValueError) as e:
-          print(f"Warning: Failed to parse experiments JSON: {e}")
-          return []
-    return []
+      return [ExperimentMetadata.from_row(row) for row in rows]
 
   @classmethod
   def add_experiment(cls,
                      name: str,
                      dataset: DatasetMetadata,
                      model_name: str,
-                     hyperparams: dict,
-                     status: ExperimentStatus = ExperimentStatus.PENDING,
-                     results: str = "") -> ExperimentMetadata:
-    experiments = cls.get_all()
+                     hyperparams: dict[str, HyperParamValue],
+                     status: ExperimentStatus = ExperimentStatus.PENDING) -> ExperimentMetadata:
+    with SessionLocal() as session:
+      row = ExperimentRow(
+        name=name,
+        dataset_id=dataset.id,
+        model_name=model_name,
+        hyperparameters=hyperparams,
+        status=status,
+        result_artifacts=[],
+        created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+      )
 
-    new_exp = ExperimentMetadata(
-      id=str(len(experiments) + 1),
-      name=name,
-      dataset=dataset,
-      dataset_name=dataset.name,
-      problem_type=dataset.type,
-      model_name=model_name,
-      hyperparameters=hyperparams,
-      status=status,
-      results=results,
-      date=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    )
+      session.add(row)
+      session.commit()
 
-    experiments.append(new_exp)
+      row = session.scalars(BASE_QUERY.where(ExperimentRow.id == row.id)).one()
 
-    cls._save_all(experiments)
-
-    return new_exp
+      return ExperimentMetadata.from_row(row)
 
   @classmethod
-  def update_experiment(cls, exp_id: str, updates: dict) -> ExperimentMetadata:
-    experiments = cls.get_all()
-    
-    for i, exp in enumerate(experiments):
-      if exp.id == str(exp_id):
-        valid_updates = {k: v for k, v in updates.items() if k in ExperimentMetadata.model_fields and v is not None}
+  def update_experiment(cls, exp_id: str | int, updates: dict[str, t.Any]) -> ExperimentMetadata:
+    target_id = int(exp_id)
 
-        updated_exp = exp.model_copy(update=valid_updates)
+    with SessionLocal() as session:
+      row = session.get(ExperimentRow, target_id)
 
-        experiments[i] = updated_exp
-        cls._save_all(experiments)
-        return updated_exp
+      if row is None:
+        raise ValueError(f"Experimento com ID {target_id} não encontrado.")
 
-    raise ValueError(f"Experimento com ID {exp_id} não encontrado.")
+      for field in ("name", "model_name", "hyperparameters", "status"):
+        value = updates.get(field)
 
-  @classmethod
-  def delete_experiment(cls, target_id: str):
-    experiments = cls.get_all()
+        if value is not None:
+          setattr(row, field, value)
 
-    updated_experiments = [e for e in experiments if e.id != str(target_id)]
+      session.commit()
 
-    cls._save_all(updated_experiments)
+      row = session.scalars(BASE_QUERY.where(ExperimentRow.id == target_id)).one()
+
+      return ExperimentMetadata.from_row(row)
 
   @classmethod
-  def _save_all(cls, experiments: list[ExperimentMetadata]):
-    with open(EXPERIMENTS_FILE, "w", encoding="utf-8") as f:
-      json.dump([exp.model_dump(mode='json') for exp in experiments], f, indent=4)
+  def _store_text_file(cls, store: FileStore, name: str, content: str) -> StoredFile:
+    with tempfile.NamedTemporaryFile(suffix=Path(name).suffix or ".txt", delete=False, mode="w", encoding="utf-8") as tmp_file:
+      tmp_file.write(content)
+      tmp_path = Path(tmp_file.name)
+
+    try:
+      return store.save(tmp_path)
+    finally:
+      tmp_path.unlink(missing_ok=True)
+
+  @classmethod
+  def _store_image_result(cls, store: FileStore, image: ImageResult) -> StoredFile:
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_file:
+      tmp_path = Path(tmp_file.name)
+
+    try:
+      image.figure.savefig(tmp_path, format="png", dpi=150)
+      return store.save(tmp_path)
+    finally:
+      tmp_path.unlink(missing_ok=True)
+
+  @classmethod
+  def _append_artifacts(cls, exp_id: int, new_artifacts: list[ResultArtifact]) -> ExperimentMetadata:
+    with SessionLocal() as session:
+      row = session.get(ExperimentRow, exp_id)
+
+      if row is None:
+        raise ValueError(f"Experimento com ID {exp_id} não encontrado.")
+
+      existing = list(row.result_artifacts or [])
+      existing.extend(a.model_dump(mode="json") for a in new_artifacts)
+      row.result_artifacts = existing
+
+      session.commit()
+
+      row = session.scalars(BASE_QUERY.where(ExperimentRow.id == exp_id)).one()
+
+      return ExperimentMetadata.from_row(row)
+
+  @classmethod
+  def save_logs(cls, exp_id: int, content: str) -> ExperimentMetadata:
+    """Persists execution logs as a file in the experiment's subfolder."""
+    store = FileStore(get_experiment_dir(exp_id))
+    stored = cls._store_text_file(store, "logs.txt", content)
+
+    return cls._append_artifacts(exp_id, [ResultArtifact(
+      name="logs.txt",
+      kind="log",
+      storage_filename=stored.storage_filename,
+      md5_hash=stored.md5_hash,
+    )])
+
+  @classmethod
+  def load_logs(cls, exp_id: int) -> str:
+    """Loads persisted execution logs for an experiment. Returns empty string when none exist."""
+    with SessionLocal() as session:
+      row = session.get(ExperimentRow, exp_id)
+
+      if row is None:
+        raise ValueError(f"Experimento com ID {exp_id} não encontrado.")
+
+      artifacts = [ResultArtifact.model_validate(a) for a in (row.result_artifacts or [])]
+
+    log_artifact = next((a for a in artifacts if a.kind == "log"), None)
+
+    if log_artifact is None:
+      return ""
+
+    store = FileStore(get_experiment_dir(exp_id))
+
+    if not store.verify_integrity(log_artifact.storage_filename, log_artifact.md5_hash):
+      raise FileIntegrityError(
+        f"Os logs do experimento #{exp_id} estão corrompidos ou foram alterados externamente (MD5 não corresponde)."
+      )
+
+    return store.resolve_path(log_artifact.storage_filename).read_text(encoding="utf-8")
+
+  @classmethod
+  def save_results(cls, exp_id: int, results: list[ExportResult]) -> ExperimentMetadata:
+    """Persists analysis results (text + images) to the experiment's subfolder."""
+    store = FileStore(get_experiment_dir(exp_id))
+    artifacts: list[ResultArtifact] = []
+
+    for result in results:
+      if isinstance(result, TextResult):
+        stored = cls._store_text_file(store, result.name, result.content)
+        artifacts.append(ResultArtifact(
+          name=result.name,
+          kind="text",
+          storage_filename=stored.storage_filename,
+          md5_hash=stored.md5_hash,
+        ))
+      elif isinstance(result, ImageResult):
+        stored = cls._store_image_result(store, result)
+        artifacts.append(ResultArtifact(
+          name=result.name,
+          kind="image",
+          storage_filename=stored.storage_filename,
+          md5_hash=stored.md5_hash,
+        ))
+      else:
+        raise TypeError(f"Unsupported result type for persistence: {type(result)!r}")
+
+    return cls._append_artifacts(exp_id, artifacts)
+
+  @classmethod
+  def load_results(cls, exp_id: int) -> list[ExportResult]:
+    """Loads persisted analysis results (text + images) for an experiment."""
+    with SessionLocal() as session:
+      row = session.get(ExperimentRow, exp_id)
+
+      if row is None:
+        raise ValueError(f"Experimento com ID {exp_id} não encontrado.")
+
+      artifacts = [ResultArtifact.model_validate(a) for a in (row.result_artifacts or [])]
+
+    store = FileStore(get_experiment_dir(exp_id))
+    loaded: list[ExportResult] = []
+
+    for artifact in artifacts:
+      if artifact.kind == "log":
+        continue
+
+      if not store.verify_integrity(artifact.storage_filename, artifact.md5_hash):
+        raise FileIntegrityError(
+          f"O artefato '{artifact.name}' do experimento #{exp_id} está corrompido ou foi alterado externamente (MD5 não corresponde)."
+        )
+
+      path = store.resolve_path(artifact.storage_filename)
+
+      if artifact.kind == "text":
+        loaded.append(TextResult(artifact.name, path.read_text(encoding="utf-8")))
+      elif artifact.kind == "image":
+        loaded.append(StoredImageResult(artifact.name, path))
+
+    return loaded
+
+  @classmethod
+  def save_trained_model(cls, exp_id: int, trained_model: ModelAPI) -> ExperimentMetadata:
+    """Persists a trained model's pickle to the experiment's own subfolder and records its metadata."""
+    store = FileStore(get_experiment_dir(exp_id))
+
+    with tempfile.NamedTemporaryFile(suffix=".pkl", delete=False) as tmp_file:
+      pickle.dump(trained_model, tmp_file)
+      tmp_path = Path(tmp_file.name)
+
+    try:
+      stored = store.save(tmp_path)
+    finally:
+      tmp_path.unlink(missing_ok=True)
+
+    with SessionLocal() as session:
+      row = session.get(ExperimentRow, exp_id)
+
+      if row is None:
+        raise ValueError(f"Experimento com ID {exp_id} não encontrado.")
+
+      row.model_pickle_filename = stored.storage_filename
+      row.model_pickle_md5 = stored.md5_hash
+      row.model_pickle_size = stored.size_bytes
+
+      session.commit()
+
+      row = session.scalars(BASE_QUERY.where(ExperimentRow.id == exp_id)).one()
+
+      return ExperimentMetadata.from_row(row)
+
+  @classmethod
+  def delete_experiment(cls, target_id: str | int) -> None:
+    exp_id = int(target_id)
+
+    with SessionLocal() as session:
+      row = session.get(ExperimentRow, exp_id)
+
+      if row is not None:
+        session.delete(row)
+        session.commit()
+
+    experiment_dir = get_experiments_dir() / str(exp_id)
+
+    if experiment_dir.exists():
+      shutil.rmtree(experiment_dir)
