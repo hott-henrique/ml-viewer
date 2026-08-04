@@ -1,19 +1,18 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
-from application.components import HyperParamForm
-
+from application.components import HyperParamForm, SortableTreeview
 from application.managers import ModelManager
 
 class ModelView(ttk.Frame):
-  def __init__(self, parent):
+  def __init__(self, parent: tk.Misc) -> None:
     super().__init__(parent)
-    
+
     header_frame = ttk.Frame(self)
     header_frame.pack(fill=tk.X, padx=10, pady=10)
 
     ttk.Label(header_frame, text="🧠 Models Library", font=("", 16, "bold")).pack(side=tk.LEFT)
-    
+
     ttk.Button(header_frame, text="🗑️ Delete", command=self.delete_model).pack(side=tk.RIGHT, padx=(5, 0))
     ttk.Button(header_frame, text="🔄 Update", command=self.update_model).pack(side=tk.RIGHT, padx=(5, 0))
     ttk.Button(header_frame, text="📥 Import", command=self.import_model).pack(side=tk.RIGHT)
@@ -22,11 +21,11 @@ class ModelView(ttk.Frame):
     table_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
     columns = ("name", "type", "source")
-    self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=8)
-    
-    self.tree.heading("name", text="Model Name")
-    self.tree.heading("type", text="Problem Type")
-    self.tree.heading("source", text="Source")
+    self.tree = SortableTreeview(table_frame, columns=columns, height=8)
+
+    self.tree.set_heading("name", "Model Name")
+    self.tree.set_heading("type", "Problem Type")
+    self.tree.set_heading("source", "Source")
 
     self.tree.column("name", width=250)
     self.tree.column("type", width=120)
@@ -38,6 +37,7 @@ class ModelView(ttk.Frame):
     self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
     self.tree.bind("<<TreeviewSelect>>", self.on_model_selected)
+    self.tree.bind_context_menu(self._build_context_menu)
 
     param_frame = ttk.LabelFrame(self, text="Hyperparameters (Read-Only)")
     param_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=15)
@@ -47,7 +47,7 @@ class ModelView(ttk.Frame):
 
     self.load_table_data()
 
-  def load_table_data(self):
+  def load_table_data(self) -> None:
     for item in self.tree.get_children():
       self.tree.delete(item)
 
@@ -59,75 +59,106 @@ class ModelView(ttk.Frame):
       source = "Custom" if model_config.plugin_path else "Native"
       self.tree.insert("", tk.END, values=(name, "Regression", source))
 
-  def on_model_selected(self, event):
-    selected = self.tree.selection()
-    if not selected:
+  def _selected_rows(self) -> list[tuple]:
+    return [self.tree.item(iid)["values"] for iid in self.tree.selection()]
+
+  def _build_context_menu(self, event: tk.Event) -> tk.Menu | None:
+    if not self.tree.selection():
+      return None
+
+    menu = tk.Menu(self, tearoff=0)
+    menu.add_command(label="Update", command=self.update_model)
+    menu.add_command(label="Delete", command=self.delete_model)
+    return menu
+
+  def on_model_selected(self, event: object) -> None:
+    rows = self._selected_rows()
+
+    if len(rows) != 1:
+      self.hyperparam_form.render_form([])
       return
 
-    values = self.tree.item(selected[0])["values"]
-    name, prob_type, source = values
-
-    registry = ModelManager.registry(prob_type)
-
-    model_config = registry.get(name)
+    name, prob_type, _source = rows[0]
+    model_config = ModelManager.registry(prob_type).get(name)
 
     if model_config:
       self.hyperparam_form.render_form(model_config.params)
 
-  def import_model(self):
+  def import_model(self) -> None:
     filepath = filedialog.askopenfilename(filetypes=[("Python Files", "*.py")])
-    if filepath:
-      try:
-        added = ModelManager.import_from_file(filepath)
-        messagebox.showinfo("Success", f"Successfully imported: {', '.join(added)}")
-        self.load_table_data()
-      except Exception as e:
-        messagebox.showerror("Import Error", str(e))
 
-  def update_model(self):
-    selected = self.tree.selection()
-    if not selected:
-      messagebox.showwarning("Warning", "Please select a custom model to update.")
+    if not filepath:
       return
 
-    values = self.tree.item(selected[0])["values"]
-    name, prob_type, source = values
+    try:
+      added = ModelManager.import_from_file(filepath)
+      messagebox.showinfo("Success", f"Successfully imported: {', '.join(added)}")
+      self.load_table_data()
+    except Exception as e:
+      messagebox.showerror("Import Error", str(e))
+
+  def update_model(self) -> None:
+    rows = self._selected_rows()
+
+    if len(rows) != 1:
+      messagebox.showwarning("Warning", "Please select exactly one custom model to update.")
+      return
+
+    name, prob_type, source = rows[0]
 
     if source == "Native":
       messagebox.showwarning("Warning", "You cannot update native models.")
       return
 
-    filepath = filedialog.askopenfilename(title=f"Select updated .py for {name}", filetypes=[("Python Files", "*.py")])
+    filepath = filedialog.askopenfilename(
+      title=f"Select updated .py for {name}",
+      filetypes=[("Python Files", "*.py")],
+    )
 
-    if filepath:
-      try:
-        added = ModelManager.import_from_file(filepath)
-
-        messagebox.showinfo("Success", f"Successfully updated: {', '.join(added)}")
-
-        self.load_table_data()
-
-      except Exception as e:
-        messagebox.showerror("Update Error", str(e))
-
-  def delete_model(self):
-    selected = self.tree.selection()
-    if not selected:
-      messagebox.showwarning("Warning", "Please select a model to delete.")
+    if not filepath:
       return
 
-    values = self.tree.item(selected[0])["values"]
-    name, prob_type, source = values
-
-    if source == "Native":
-      messagebox.showerror("Error", "You cannot delete native models.")
-      return
-
-    confirm = messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete '{name}'?\nThis will permanently remove the plugin file.")
-
-    if confirm:
-      ModelManager.delete_model(prob_type, name)
-
-      self.hyperparam_form.render_form([])
-
+    try:
+      added = ModelManager.import_from_file(filepath)
+      messagebox.showinfo("Success", f"Successfully updated: {', '.join(added)}")
       self.load_table_data()
+    except Exception as e:
+      messagebox.showerror("Update Error", str(e))
+
+  def delete_model(self) -> None:
+    rows = self._selected_rows()
+
+    if not rows:
+      messagebox.showwarning("Warning", "Please select at least one model to delete.")
+      return
+
+    custom_rows = [row for row in rows if row[2] != "Native"]
+    skipped_native = len(rows) - len(custom_rows)
+
+    if not custom_rows:
+      messagebox.showerror("Error", "Native models cannot be deleted.")
+      return
+
+    names = [str(row[0]) for row in custom_rows]
+    label = names[0] if len(names) == 1 else f"{len(names)} models"
+    extra = f"\n({skipped_native} native model(s) will be skipped.)" if skipped_native else ""
+
+    if not messagebox.askyesno(
+      "Confirm Delete",
+      f"Delete {label} permanently?{extra}\nThis will permanently remove the plugin file(s).",
+    ):
+      return
+
+    errors: list[str] = []
+
+    for name, prob_type, _source in custom_rows:
+      try:
+        ModelManager.delete_model(prob_type, name)
+      except Exception as e:
+        errors.append(f"{name}: {e}")
+
+    self.hyperparam_form.render_form([])
+    self.load_table_data()
+
+    if errors:
+      messagebox.showerror("Delete Error", "Some models could not be deleted:\n\n" + "\n".join(errors))

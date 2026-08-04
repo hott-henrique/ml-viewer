@@ -3,6 +3,7 @@ from application.components.DatasetHandler import DatasetHandler
 from application.components.TextOutputView import TextOutputView
 from application.components.HyperParamForm import HyperParamForm
 from application.components.ProblemTypeSelector import ProblemTypeSelector
+from application.components.SortableTreeview import SortableTreeview
 
 __all__ = [
   'FileSelector',
@@ -10,4 +11,5 @@ __all__ = [
   'TextOutputView',
   'HyperParamForm',
   'ProblemTypeSelector',
+  'SortableTreeview',
 ]

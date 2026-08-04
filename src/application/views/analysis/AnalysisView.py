@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
+from application.components import SortableTreeview
 from application.enums import ProblemType
 from application.managers import AnalysisManager
 
@@ -20,12 +21,12 @@ class AnalysisView(ttk.Frame):
     table_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
     columns = ("name", "type", "output", "source")
-    self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=10)
+    self.tree = SortableTreeview(table_frame, columns=columns, height=10)
 
-    self.tree.heading("name", text="Analysis Name")
-    self.tree.heading("type", text="Problem Type")
-    self.tree.heading("output", text="Output Kind")
-    self.tree.heading("source", text="Source")
+    self.tree.set_heading("name", "Analysis Name")
+    self.tree.set_heading("type", "Problem Type")
+    self.tree.set_heading("output", "Output Kind")
+    self.tree.set_heading("source", "Source")
 
     self.tree.column("name", width=220)
     self.tree.column("type", width=120)
@@ -38,6 +39,7 @@ class AnalysisView(ttk.Frame):
     self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
     self.tree.bind("<<TreeviewSelect>>", self.on_analysis_selected)
+    self.tree.bind_context_menu(self._build_context_menu)
 
     desc_frame = ttk.LabelFrame(self, text="Description")
     desc_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=15)
@@ -56,13 +58,30 @@ class AnalysisView(ttk.Frame):
         source = "Native" if config.is_native else "Custom"
         self.tree.insert("", tk.END, values=(name, problem_type.value, config.output_kind.value, source))
 
-  def on_analysis_selected(self, event: object) -> None:
-    selected = self.tree.selection()
+  def _selected_rows(self) -> list[tuple]:
+    return [self.tree.item(iid)["values"] for iid in self.tree.selection()]
 
-    if not selected:
+  def _build_context_menu(self, event: tk.Event) -> tk.Menu | None:
+    if not self.tree.selection():
+      return None
+
+    menu = tk.Menu(self, tearoff=0)
+    menu.add_command(label="Delete", command=self.delete_analysis)
+    return menu
+
+  def _clear_description(self) -> None:
+    self.desc_text.config(state=tk.NORMAL)
+    self.desc_text.delete(1.0, tk.END)
+    self.desc_text.config(state=tk.DISABLED)
+
+  def on_analysis_selected(self, event: object) -> None:
+    rows = self._selected_rows()
+
+    if len(rows) != 1:
+      self._clear_description()
       return
 
-    name, prob_type, _output, _source = self.tree.item(selected[0])["values"]
+    name, prob_type, _output, _source = rows[0]
     config = AnalysisManager.registry(prob_type).get(name)
 
     self.desc_text.config(state=tk.NORMAL)
@@ -87,26 +106,36 @@ class AnalysisView(ttk.Frame):
       messagebox.showerror("Import Error", str(e))
 
   def delete_analysis(self) -> None:
-    selected = self.tree.selection()
+    rows = self._selected_rows()
 
-    if not selected:
-      messagebox.showwarning("Warning", "Please select an analysis to delete.")
+    if not rows:
+      messagebox.showwarning("Warning", "Please select at least one analysis to delete.")
       return
 
-    name, prob_type, _output, source = self.tree.item(selected[0])["values"]
+    custom_rows = [row for row in rows if row[3] != "Native"]
+    skipped_native = len(rows) - len(custom_rows)
 
-    if source == "Native":
-      messagebox.showerror("Error", "You cannot delete native analyses.")
+    if not custom_rows:
+      messagebox.showerror("Error", "Native analyses cannot be deleted.")
       return
 
-    if not messagebox.askyesno("Confirm Delete", f"Delete analysis '{name}' permanently?"):
+    names = [str(row[0]) for row in custom_rows]
+    label = names[0] if len(names) == 1 else f"{len(names)} analyses"
+    extra = f"\n({skipped_native} native analysis(es) will be skipped.)" if skipped_native else ""
+
+    if not messagebox.askyesno("Confirm Delete", f"Delete {label} permanently?{extra}"):
       return
 
-    try:
-      AnalysisManager.delete_analysis(prob_type, name)
-      self.desc_text.config(state=tk.NORMAL)
-      self.desc_text.delete(1.0, tk.END)
-      self.desc_text.config(state=tk.DISABLED)
-      self.load_table_data()
-    except Exception as e:
-      messagebox.showerror("Delete Error", str(e))
+    errors: list[str] = []
+
+    for name, prob_type, _output, _source in custom_rows:
+      try:
+        AnalysisManager.delete_analysis(prob_type, name)
+      except Exception as e:
+        errors.append(f"{name}: {e}")
+
+    self._clear_description()
+    self.load_table_data()
+
+    if errors:
+      messagebox.showerror("Delete Error", "Some analyses could not be deleted:\n\n" + "\n".join(errors))

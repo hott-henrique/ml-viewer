@@ -5,7 +5,9 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-from application.components import HyperParamForm
+from application.components import HyperParamForm, SortableTreeview
+from application.db.paths import get_experiments_dir
+from application.db.storage_usage import dir_size_bytes, format_bytes
 from application.enums import ExperimentStatus, ProblemType
 from application.managers.DatasetManager import DatasetMetadata
 from application.managers.results import (
@@ -39,23 +41,32 @@ class ExperimentView(ttk.Frame):
     table_frame = ttk.Frame(self)
     table_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
-    columns = ("id", "name", "dataset", "model", "status", "date")
-    self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=6)
+    columns = ("id", "name", "dataset", "model", "status", "date", "disk", "disk_bytes")
+    self.tree = SortableTreeview(
+      table_frame,
+      columns=columns,
+      display_columns=("name", "dataset", "model", "status", "date", "disk"),
+      sort_keys={"disk": "disk_bytes"},
+      height=6,
+    )
 
-    self.tree.heading("id", text="ID")
+    self.tree.set_heading("id", "ID", sortable=False)
     self.tree.column("id", width=0, stretch=tk.NO)
+    self.tree.column("disk_bytes", width=0, stretch=tk.NO)
 
-    self.tree.heading("name", text="Experiment Name")
-    self.tree.heading("dataset", text="Dataset")
-    self.tree.heading("model", text="Model")
-    self.tree.heading("status", text="Status")
-    self.tree.heading("date", text="Created On")
+    self.tree.set_heading("name", "Experiment Name")
+    self.tree.set_heading("dataset", "Dataset")
+    self.tree.set_heading("model", "Model")
+    self.tree.set_heading("status", "Status")
+    self.tree.set_heading("date", "Created On")
+    self.tree.set_heading("disk", "Disk")
 
-    self.tree.column("name", width=150)
-    self.tree.column("dataset", width=120)
-    self.tree.column("model", width=120)
+    self.tree.column("name", width=140)
+    self.tree.column("dataset", width=110)
+    self.tree.column("model", width=110)
     self.tree.column("status", width=80)
-    self.tree.column("date", width=130)
+    self.tree.column("date", width=120)
+    self.tree.column("disk", width=80)
 
     scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
     self.tree.configure(yscrollcommand=scrollbar.set)
@@ -63,6 +74,8 @@ class ExperimentView(ttk.Frame):
     self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
     self.tree.bind("<<TreeviewSelect>>", self.on_experiment_selected)
+    self.tree.bind("<Double-1>", self._on_double_click)
+    self.tree.bind_context_menu(self._build_context_menu)
 
     details_frame = ttk.Frame(self)
     details_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
@@ -85,15 +98,37 @@ class ExperimentView(ttk.Frame):
 
     self.load_table_data()
 
-  def _get_selected_experiment(self):
-    selected = self.tree.selection()
+  def _get_selected_experiments(self):
+    selected_ids = {str(self.tree.item(iid)["values"][0]) for iid in self.tree.selection()}
 
-    if not selected:
+    if not selected_ids:
+      return []
+
+    return [e for e in ExperimentManager.get_all() if str(e.id) in selected_ids]
+
+  def _get_selected_experiment(self):
+    experiments = self._get_selected_experiments()
+
+    if len(experiments) != 1:
       return None
 
-    exp_id = str(self.tree.item(selected[0])["values"][0])
+    return experiments[0]
 
-    return next((e for e in ExperimentManager.get_all() if str(e.id) == exp_id), None)
+  def _build_context_menu(self, event: tk.Event) -> tk.Menu | None:
+    if not self.tree.selection():
+      return None
+
+    menu = tk.Menu(self, tearoff=0)
+    menu.add_command(label="View Results", command=self.view_results)
+    menu.add_command(label="Export", command=self.export_selected)
+    menu.add_command(label="Duplicate", command=self.duplicate_experiment)
+    menu.add_separator()
+    menu.add_command(label="Delete", command=self.delete_experiment)
+    return menu
+
+  def _on_double_click(self, event: tk.Event) -> None:
+    if self.tree.identify_row(event.y):
+      self.view_results()
 
   def _set_logs_panel(self, content: str) -> None:
     self.logs_text.config(state=tk.NORMAL)
@@ -110,10 +145,12 @@ class ExperimentView(ttk.Frame):
     for exp in experiments:
       status = exp.status
       status_icon = "⏳ Pending" if status == "Pending" else ("✅ OK" if status == "OK" else "❌ NOK")
+      disk_bytes = dir_size_bytes(get_experiments_dir() / str(exp.id))
 
       self.tree.insert("", tk.END, values=(
         exp.id, exp.name, exp.dataset_name,
-        exp.model_name, status_icon, exp.date
+        exp.model_name, status_icon, exp.date,
+        format_bytes(disk_bytes), disk_bytes,
       ))
 
   def on_experiment_selected(self, event: t.Optional[tk.Event]) -> None:
@@ -241,7 +278,7 @@ class ExperimentView(ttk.Frame):
     experiment = self._get_selected_experiment()
 
     if experiment is None:
-      messagebox.showwarning("Warning", "Select an experiment to view results.")
+      messagebox.showwarning("Warning", "Select exactly one experiment to view results.")
       return
 
     results = ExperimentManager.load_results(experiment.id)
@@ -257,7 +294,7 @@ class ExperimentView(ttk.Frame):
     experiment = self._get_selected_experiment()
 
     if experiment is None:
-      messagebox.showwarning("Warning", "Select an experiment to export.")
+      messagebox.showwarning("Warning", "Select exactly one experiment to export.")
       return
 
     experiment_data = ExperimentExportData.from_experiment_metadata(experiment)
@@ -273,21 +310,28 @@ class ExperimentView(ttk.Frame):
     experiment = self._get_selected_experiment()
 
     if experiment is None:
-      messagebox.showwarning("Warning", "Select an experiment to duplicate.")
+      messagebox.showwarning("Warning", "Select exactly one experiment to duplicate.")
       return
 
     ExperimentFormModal(self, on_save=self._on_experiment_saved, initial_data=experiment)
 
   def delete_experiment(self) -> None:
-    experiment = self._get_selected_experiment()
+    experiments = self._get_selected_experiments()
 
-    if experiment is None:
+    if not experiments:
+      messagebox.showwarning("Warning", "Select at least one experiment to delete.")
       return
 
-    if messagebox.askyesno("Confirm", "Delete this experiment permanently?"):
+    label = experiments[0].name if len(experiments) == 1 else f"{len(experiments)} experiments"
+
+    if not messagebox.askyesno("Confirm", f"Delete {label} permanently?"):
+      return
+
+    for experiment in experiments:
       ExperimentManager.delete_experiment(experiment.id)
-      self.load_table_data()
-      self._set_logs_panel("")
+
+    self.load_table_data()
+    self._set_logs_panel("")
 
   def _show_results_popup(
     self,
