@@ -53,7 +53,12 @@ class AnalysisView(ttk.Frame):
     for item in self.tree.get_children():
       self.tree.delete(item)
 
-    for problem_type in (ProblemType.CLASSIFICATION, ProblemType.REGRESSION):
+    for problem_type in (
+      ProblemType.CLASSIFICATION,
+      ProblemType.REGRESSION,
+      ProblemType.CLUSTERING,
+      ProblemType.DIMENSIONALITY_REDUCTION,
+    ):
       for name, config in AnalysisManager.registry(problem_type).items():
         source = "Native" if config.is_native else "Custom"
         self.tree.insert("", tk.END, values=(name, problem_type.value, config.output_kind.value, source))

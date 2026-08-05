@@ -15,7 +15,7 @@ from application.db.paths import get_experiment_dir, get_experiments_dir
 from application.db.storage import FileIntegrityError, FileStore, StoredFile
 from application.enums import ExperimentStatus, ProblemType
 from application.managers.DatasetManager import DatasetMetadata
-from application.managers.model.ModelManager import ModelAPI
+from application.managers.model.base import ModelAPI
 from application.managers.results import ExportResult, ImageResult, ScalarResult, StoredImageResult, TextResult
 
 HyperParamValue = int | float | bool | str

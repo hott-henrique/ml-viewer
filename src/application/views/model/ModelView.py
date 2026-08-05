@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
 from application.components import HyperParamForm, SortableTreeview
+from application.enums import ProblemType
 from application.managers import ModelManager
 
 class ModelView(ttk.Frame):
@@ -51,13 +52,15 @@ class ModelView(ttk.Frame):
     for item in self.tree.get_children():
       self.tree.delete(item)
 
-    for name, model_config in ModelManager.registry("Classification").items():
-      source = "Custom" if model_config.plugin_path else "Native"
-      self.tree.insert("", tk.END, values=(name, "Classification", source))
-
-    for name, model_config in ModelManager.registry("Regression").items():
-      source = "Custom" if model_config.plugin_path else "Native"
-      self.tree.insert("", tk.END, values=(name, "Regression", source))
+    for problem_type in (
+      ProblemType.CLASSIFICATION,
+      ProblemType.REGRESSION,
+      ProblemType.CLUSTERING,
+      ProblemType.DIMENSIONALITY_REDUCTION,
+    ):
+      for name, model_config in ModelManager.registry(problem_type).items():
+        source = "Custom" if model_config.plugin_path else "Native"
+        self.tree.insert("", tk.END, values=(name, problem_type.value, source))
 
   def _selected_rows(self) -> list[tuple]:
     return [self.tree.item(iid)["values"] for iid in self.tree.selection()]

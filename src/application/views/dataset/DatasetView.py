@@ -54,7 +54,7 @@ class DatasetView(ttk.Frame):
       self.tree.delete(item)
 
     for ds in DatasetManager.get_all():
-      self.tree.insert("", tk.END, values=(ds.id, ds.name, ds.type, ds.target, ds.date, ds.path))
+      self.tree.insert("", tk.END, values=(ds.id, ds.name, ds.type, ds.target or "—", ds.date, ds.path))
 
   def _selected_rows(self) -> list[tuple]:
     return [self.tree.item(iid)["values"] for iid in self.tree.selection()]
@@ -87,7 +87,7 @@ class DatasetView(ttk.Frame):
       "id": str(values[0]),
       "name": values[1],
       "type": values[2],
-      "target": values[3],
+      "target": None if values[3] in ("—", "", None) else values[3],
       "path": values[5],
     }
 
@@ -129,14 +129,18 @@ class DatasetView(ttk.Frame):
       )
 
   def _on_dataset_saved(self, dataset_payload: dict) -> None:
-    if dataset_payload.get("id"):
-      DatasetManager.update_dataset(dataset_payload)
-    else:
-      DatasetManager.add_dataset(
-        name=dataset_payload["name"],
-        filepath=dataset_payload["path"],
-        problem_type=dataset_payload["type"],
-        target=dataset_payload["target"],
-      )
+    try:
+      if dataset_payload.get("id"):
+        DatasetManager.update_dataset(dataset_payload)
+      else:
+        DatasetManager.add_dataset(
+          name=dataset_payload["name"],
+          filepath=dataset_payload["path"],
+          problem_type=dataset_payload["type"],
+          target=dataset_payload.get("target"),
+        )
+    except Exception as e:
+      messagebox.showerror("Error", str(e))
+      return
 
     self.load_table_data()

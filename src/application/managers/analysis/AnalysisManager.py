@@ -15,7 +15,12 @@ from application.db.paths import get_analyses_dir
 from application.db.storage import FileStore
 from application.enums import AnalysisOutputKind, ProblemType
 from application.managers.analysis.natives import NATIVE_ANALYSIS_REGISTRY
-from application.managers.results.base import ResultAnalyzer
+from application.managers.results.base import (
+  ClusteringAnalyzer,
+  DimensionalityReductionAnalyzer,
+  ResultAnalyzer,
+  SupervisedAnalyzer,
+)
 
 class AnalysisConfig(BaseModel):
   model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True)
@@ -61,8 +66,14 @@ class AnalysisManager:
 
     instance = analysis_class()
 
-    if not hasattr(instance, "analyze") or not callable(getattr(instance, "analyze")):
-      raise ValueError(f"Analysis class '{config.class_name}' must implement analyze(y_true, y_pred).")
+    if not callable(getattr(instance, "analyze", None)):
+      raise ValueError(f"Analysis class '{config.class_name}' must implement analyze(...).")
+
+    if not isinstance(instance, (SupervisedAnalyzer, ClusteringAnalyzer, DimensionalityReductionAnalyzer)):
+      raise ValueError(
+        f"Analysis class '{config.class_name}' must inherit SupervisedAnalyzer, "
+        "ClusteringAnalyzer, or DimensionalityReductionAnalyzer."
+      )
 
     return instance
 
@@ -179,8 +190,11 @@ class AnalysisManager:
           if analysis_class is None:
             raise ValueError(f"Class '{config.class_name}' not found in the imported file.")
 
-          if not hasattr(analysis_class, "analyze"):
-            raise ValueError(f"Class '{config.class_name}' must implement analyze(y_true, y_pred).")
+          if not issubclass(analysis_class, (SupervisedAnalyzer, ClusteringAnalyzer, DimensionalityReductionAnalyzer)):
+            raise ValueError(
+              f"Class '{config.class_name}' must inherit SupervisedAnalyzer, "
+               "ClusteringAnalyzer, or DimensionalityReductionAnalyzer."
+            )
 
           session.add(AnalysisRow(
             name=analysis_name,

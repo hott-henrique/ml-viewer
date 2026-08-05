@@ -10,17 +10,21 @@ from application.db.paths import get_experiments_dir
 from application.db.storage_usage import dir_size_bytes, format_bytes
 from application.enums import ExperimentStatus, ProblemType
 from application.managers.DatasetManager import DatasetMetadata
+from application.managers.model.base import ModelAPI
 from application.managers.results import (
+  ClusteringAnalyzer,
+  DimensionalityReductionAnalyzer,
   ExportResult,
   ImageResult,
   ScalarResult,
   StoredImageResult,
+  SupervisedAnalyzer,
   TextResult,
 )
 from application.views.experiment import ExperimentFormModal, ExperimentExportModal
 from application.views.experiment.ExperimentExportModal import ExperimentExportData
 from application.managers import AnalysisManager, ExperimentManager, ModelManager
-from application.managers.model.ModelManager import ModelAPI
+from application.managers.DatasetManager import SUPERVISED_TYPES
 
 class ExperimentView(ttk.Frame):
 
@@ -184,14 +188,27 @@ class ExperimentView(ttk.Frame):
     self,
     problem_type: ProblemType,
     analysis_names: list[str],
-    y_true: t.Any,
-    y_pred: t.Any,
+    *,
+    y_true: t.Any = None,
+    y_pred: t.Any = None,
+    X: t.Any = None,
+    labels: t.Any = None,
+    embedding: t.Any = None,
+    model: t.Any = None,
   ) -> list[ExportResult]:
     results: list[ExportResult] = []
 
     for name in analysis_names:
       analyzer = AnalysisManager.instantiate(problem_type, name)
-      results.append(analyzer.analyze(y_true, y_pred))
+
+      if isinstance(analyzer, SupervisedAnalyzer):
+        results.append(analyzer.analyze(y_true, y_pred))
+      elif isinstance(analyzer, ClusteringAnalyzer):
+        results.append(analyzer.analyze(X, labels))
+      elif isinstance(analyzer, DimensionalityReductionAnalyzer):
+        results.append(analyzer.analyze(X, embedding, model))
+      else:
+        raise TypeError(f"Unsupported analyzer type: {type(analyzer)!r}")
 
     return results
 
@@ -211,24 +228,56 @@ class ExperimentView(ttk.Frame):
     trained_model: t.Optional[ModelAPI] = None
 
     try:
-      df = pd.read_csv(filepath)
-
-      if target_col not in df.columns:
-        raise ValueError(f"Target column '{target_col}' not found in dataset.")
-
-      df = df.dropna()
-      X = df.drop(columns=[target_col])
-      y = df[target_col]
-      X = pd.get_dummies(X)
-
-      X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
+      df = pd.read_csv(filepath).dropna()
+      X = pd.get_dummies(df)
       model = ModelManager.instantiate(prob_type, payload["model_name"], payload["hyperparams"])
-      model.fit(X_train, y_train)
-      trained_model = model
 
-      preds = model.predict(X_test)
-      results = self._run_analyses(prob_type, selected_analyses, y_test, preds)
+      if prob_type in SUPERVISED_TYPES:
+        if not target_col:
+          raise ValueError("Supervised experiments require a dataset target column.")
+
+        if target_col not in df.columns:
+          raise ValueError(f"Target column '{target_col}' not found in dataset.")
+
+        X = pd.get_dummies(df.drop(columns=[target_col]))
+        y = df[target_col]
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        model.fit(X_train, y_train)
+        trained_model = model
+        preds = model.predict(X_test)
+        results = self._run_analyses(
+          prob_type,
+          selected_analyses,
+          y_true=y_test,
+          y_pred=preds,
+        )
+
+      elif prob_type == ProblemType.CLUSTERING:
+        model.fit(X)
+        trained_model = model
+        labels = model.predict(X)
+        results = self._run_analyses(
+          prob_type,
+          selected_analyses,
+          X=X,
+          labels=labels,
+        )
+
+      elif prob_type == ProblemType.DIMENSIONALITY_REDUCTION:
+        model.fit(X)
+        trained_model = model
+        embedding = model.transform(X)
+        results = self._run_analyses(
+          prob_type,
+          selected_analyses,
+          X=X,
+          embedding=embedding,
+          model=model,
+        )
+
+      else:
+        raise ValueError(f"Unsupported problem type: {prob_type}")
 
       status = ExperimentStatus.OK
       logs = "Experiment completed successfully."

@@ -19,7 +19,7 @@ class Dataset(Base):
   id: Mapped[int] = mapped_column(primary_key=True)
   name: Mapped[str]
   problem_type: Mapped[ProblemType] = mapped_column(_str_enum(ProblemType))
-  target: Mapped[str]
+  target: Mapped[t.Optional[str]] = mapped_column(default=None)
   original_filename: Mapped[str]
   storage_filename: Mapped[str]
   md5_hash: Mapped[str]

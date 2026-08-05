@@ -4,6 +4,8 @@ from tkinter import ttk, filedialog, messagebox
 import pandas as pd
 
 from application.components import ProblemTypeSelector
+from application.enums import ProblemType
+from application.managers.DatasetManager import SUPERVISED_TYPES, UNSUPERVISED_TYPES
 
 class DatasetFormModal(tk.Toplevel):
 
@@ -13,7 +15,7 @@ class DatasetFormModal(tk.Toplevel):
     self.is_editing = dataset_data is not None
     self.title("Edit Dataset" if self.is_editing else "Add New Dataset")
 
-    self.geometry("400x400")
+    self.geometry("400x420")
     self.resizable(False, False)
     self.grab_set()
 
@@ -21,18 +23,22 @@ class DatasetFormModal(tk.Toplevel):
 
     data = dataset_data or {}
     self.dataset_id = data.get("id")
-    
+
     self.name_var = tk.StringVar(value=data.get("name", ""))
     self.type_var = tk.StringVar(value=data.get("type", "Classification"))
     self.path_var = tk.StringVar(value=data.get("path", ""))
-    self.target_var = tk.StringVar(value=data.get("target", ""))
-
-    self.path_var.trace_add("write", self._load_csv_columns)
+    initial_target = data.get("target")
+    self.target_var = tk.StringVar(value=initial_target if initial_target else "")
 
     self._build_ui()
 
+    self.path_var.trace_add("write", self._load_csv_columns)
+    self.type_var.trace_add("write", self._on_type_changed)
+
     if self.path_var.get():
       self._load_csv_columns()
+
+    self._on_type_changed()
 
   def _build_ui(self):
     main_frame = ttk.Frame(self, padding=(25, 20))
@@ -49,16 +55,17 @@ class DatasetFormModal(tk.Toplevel):
 
     selector = ProblemTypeSelector(form_frame, type_var=self.type_var, initial_value=self.type_var.get())
     selector.grid(row=3, column=0, sticky="ew", pady=(0, 15))
-    
+
     ttk.Label(form_frame, text="File (CSV):", foreground="#333333").grid(row=4, column=0, sticky="w", pady=(0, 2))
-    
+
     file_frame = ttk.Frame(form_frame)
     file_frame.grid(row=5, column=0, sticky="ew", pady=(0, 15))
-    
+
     ttk.Entry(file_frame, textvariable=self.path_var, state="readonly").pack(side=tk.LEFT, fill=tk.X, expand=True)
     ttk.Button(file_frame, text="Browse", command=self._browse_file, width=8).pack(side=tk.RIGHT, padx=(5, 0))
 
-    ttk.Label(form_frame, text="Target Variable:", foreground="#333333").grid(row=6, column=0, sticky="w", pady=(0, 2))
+    self.target_label = ttk.Label(form_frame, text="Target Variable:", foreground="#333333")
+    self.target_label.grid(row=6, column=0, sticky="w", pady=(0, 2))
     self.target_selector = ttk.Combobox(form_frame, textvariable=self.target_var, state="readonly")
     self.target_selector.grid(row=7, column=0, sticky="ew", pady=(0, 20))
 
@@ -67,9 +74,27 @@ class DatasetFormModal(tk.Toplevel):
     save_btn = ttk.Button(main_frame, text=btn_text, command=self._handle_save)
     save_btn.pack(fill=tk.X, ipady=6)
 
+  def _current_problem_type(self) -> ProblemType:
+    return ProblemType(self.type_var.get())
+
+  def _is_supervised(self) -> bool:
+    return self._current_problem_type() in SUPERVISED_TYPES
+
+  def _on_type_changed(self, *args) -> None:
+    if self._is_supervised():
+      self.target_label.config(text="Target Variable:")
+      self.target_selector.config(state="readonly")
+
+      if self.path_var.get() and not self.target_var.get():
+        self._load_csv_columns()
+    else:
+      self.target_label.config(text="Target Variable: (not used)")
+      self.target_var.set("")
+      self.target_selector.config(state="disabled")
+
   def _browse_file(self):
     filepath = filedialog.askopenfilename(
-      parent=self, 
+      parent=self,
       filetypes=[("CSV Files", "*.csv")]
     )
 
@@ -89,28 +114,43 @@ class DatasetFormModal(tk.Toplevel):
       df = pd.read_csv(filepath, nrows=0)
       columns = df.columns.tolist()
 
-      self.target_selector['values'] = columns
+      self.target_selector["values"] = columns
 
-      if columns and not self.target_var.get():
+      if self._is_supervised() and columns and not self.target_var.get():
         self.target_var.set(columns[-1])
 
     except Exception as e:
-      self.target_selector['values'] = []
+      self.target_selector["values"] = []
       self.target_var.set("")
       print(f"Error reading CSV inside modal: {e}")
 
   def _handle_save(self):
-    if not self.name_var.get() or not self.path_var.get() or not self.target_var.get():
-      messagebox.showerror("Error", "Name, File, and Target Variable are required.", parent=self)
+    if not self.name_var.get() or not self.path_var.get():
+      messagebox.showerror("Error", "Name and File are required.", parent=self)
       return
+
+    problem_type = self._current_problem_type()
+    target_value = self.target_var.get().strip() or None
+
+    if problem_type in SUPERVISED_TYPES and target_value is None:
+      messagebox.showerror("Error", "Target Variable is required for supervised datasets.", parent=self)
+      return
+
+    if problem_type in UNSUPERVISED_TYPES:
+      target_value = None
 
     dataset_payload = {
       "id": self.dataset_id,
       "name": self.name_var.get(),
       "type": self.type_var.get(),
       "path": self.path_var.get(),
-      "target": self.target_var.get()
+      "target": target_value,
     }
 
-    self.on_save(dataset_payload)
+    try:
+      self.on_save(dataset_payload)
+    except Exception as e:
+      messagebox.showerror("Error", str(e), parent=self)
+      return
+
     self.destroy()

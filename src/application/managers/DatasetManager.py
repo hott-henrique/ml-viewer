@@ -2,7 +2,7 @@ import typing as t
 from datetime import datetime
 from pathlib import Path
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 
 from application.db.database import SessionLocal
@@ -11,16 +11,56 @@ from application.db.paths import get_datasets_dir
 from application.db.storage import FileIntegrityError, FileStore
 from application.enums import ProblemType
 
+SUPERVISED_TYPES = {ProblemType.CLASSIFICATION, ProblemType.REGRESSION}
+UNSUPERVISED_TYPES = {ProblemType.CLUSTERING, ProblemType.DIMENSIONALITY_REDUCTION}
+
+def normalize_target(target: str | None) -> str | None:
+  if target is None:
+    return None
+
+  cleaned = target.strip()
+
+  if cleaned == "":
+    return None
+
+  return cleaned
+
+def validate_problem_target(problem_type: ProblemType, target: str | None) -> str | None:
+  target = normalize_target(target)
+
+  if problem_type in SUPERVISED_TYPES:
+    if target is None:
+      raise ValueError("Datasets supervisionados exigem uma coluna target válida.")
+    return target
+
+  if problem_type in UNSUPERVISED_TYPES:
+    if target is not None:
+      raise ValueError("Datasets não supervisionados não possuem target; deixe-o vazio.")
+    return None
+
+  raise ValueError(f"Tipo de problema não suportado: {problem_type}")
+
 class DatasetMetadata(BaseModel):
   id: int
   name: str
   type: ProblemType
-  target: str
+  target: t.Optional[str] = None
   original_filename: str
   storage_filename: str
   md5_hash: str
   size_bytes: int
   date: str
+
+  @field_validator("target", mode="before")
+  @classmethod
+  def _reject_blank_target(cls, value: t.Any) -> t.Any:
+    if value is None:
+      return None
+
+    if isinstance(value, str) and value.strip() == "":
+      return None
+
+    return value
 
   @property
   def path(self) -> str:
@@ -40,7 +80,7 @@ class DatasetMetadata(BaseModel):
       id=row.id,
       name=row.name,
       type=row.problem_type,
-      target=row.target,
+      target=normalize_target(row.target),
       original_filename=row.original_filename,
       storage_filename=row.storage_filename,
       md5_hash=row.md5_hash,
@@ -58,15 +98,24 @@ class DatasetManager:
       return [DatasetMetadata.from_row(row) for row in rows]
 
   @classmethod
-  def add_dataset(cls, name: str, filepath: str, problem_type: str | ProblemType, target: str) -> DatasetMetadata:
+  def add_dataset(
+    cls,
+    name: str,
+    filepath: str,
+    problem_type: str | ProblemType,
+    target: str | None = None,
+  ) -> DatasetMetadata:
+    problem = ProblemType(problem_type)
+    normalized_target = validate_problem_target(problem, target)
+
     store = FileStore(get_datasets_dir())
     stored = store.save(Path(filepath))
 
     with SessionLocal() as session:
       row = DatasetRow(
         name=name,
-        problem_type=ProblemType(problem_type),
-        target=target,
+        problem_type=problem,
+        target=normalized_target,
         original_filename=stored.original_filename,
         storage_filename=stored.storage_filename,
         md5_hash=stored.md5_hash,
@@ -94,11 +143,15 @@ class DatasetManager:
       if payload.get("name") is not None:
         row.name = payload["name"]
 
-      if payload.get("type") is not None:
-        row.problem_type = ProblemType(payload["type"])
+      problem = row.problem_type
 
-      if payload.get("target") is not None:
-        row.target = payload["target"]
+      if payload.get("type") is not None:
+        problem = ProblemType(payload["type"])
+        row.problem_type = problem
+
+      if "target" in payload or payload.get("type") is not None:
+        incoming_target = payload["target"] if "target" in payload else row.target
+        row.target = validate_problem_target(problem, incoming_target)
 
       new_path = payload.get("path")
       current_path = str(store.resolve_path(row.storage_filename))

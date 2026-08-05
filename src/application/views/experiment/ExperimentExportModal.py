@@ -12,7 +12,7 @@ from application.enums import ProblemType
 from application.managers import ModelManager
 from application.managers.DatasetManager import DatasetMetadata
 from application.managers.ExperimentManager import ExperimentMetadata
-from application.managers.model.ModelManager import ModelAPI
+from application.managers.model.base import ModelAPI
 from application.managers.results import ExportResult
 
 HyperParamValue = int | float | bool | str

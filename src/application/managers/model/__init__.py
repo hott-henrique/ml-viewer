@@ -1,5 +1,17 @@
-from application.managers.model.ModelManager import ModelManager
+from application.managers.model.ModelManager import HyperParamConfig, ModelConfig, ModelManager
+from application.managers.model.base import (
+  ClusteringModelAPI,
+  DimensionalityReductionModelAPI,
+  ModelAPI,
+  SupervisedModelAPI,
+)
 
 __all__ = [
-  'ModelManager',
+  "ModelManager",
+  "ModelConfig",
+  "HyperParamConfig",
+  "ModelAPI",
+  "SupervisedModelAPI",
+  "ClusteringModelAPI",
+  "DimensionalityReductionModelAPI",
 ]

@@ -14,17 +14,13 @@ from application.db.models import Model as ModelRow
 from application.db.paths import get_models_dir
 from application.db.storage import FileStore
 from application.enums import ParamType, ProblemType
-from application.managers.model.definitions import CLASSIFICATION_REGISTRY, REGRETION_REGISTRY
-
-class ModelAPI(t.Protocol):
-  def fit(self, X: t.Any, y: t.Any, **fit_params: t.Any) -> 'ModelAPI':
-    ...
-
-  def predict(self, X: t.Any) -> t.Any:
-    ...
-
-  def get_params(self) -> dict:
-    ...
+from application.managers.model.base import ModelAPI
+from application.managers.model.definitions import (
+  CLASSIFICATION_REGISTRY,
+  CLUSTERING_REGISTRY,
+  DIMENSIONALITY_REGISTRY,
+  REGRETION_REGISTRY,
+)
 
 class HyperParamConfig(BaseModel):
   model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -106,6 +102,8 @@ class ModelManager:
     for prob_type, raw_registry in (
       (ProblemType.CLASSIFICATION, CLASSIFICATION_REGISTRY),
       (ProblemType.REGRESSION, REGRETION_REGISTRY),
+      (ProblemType.CLUSTERING, CLUSTERING_REGISTRY),
+      (ProblemType.DIMENSIONALITY_REDUCTION, DIMENSIONALITY_REGISTRY),
     ):
       for name, data in raw_registry.items():
         try:
