@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from application.enums import ParamType
+from application.i18n import _, resolve_text
 from application.managers.model.ModelManager import HyperParamConfig
 
 def create_tooltip(widget: tk.Widget, text: str) -> None:
@@ -84,7 +85,7 @@ class HyperParamForm(ttk.Frame):
     self.param_definitions = params_config
 
     if not params_config:
-      ttk.Label(self.inner_frame, text="No hyperparameters available.", foreground="gray").pack(padx=10, pady=10)
+      ttk.Label(self.inner_frame, text=_("model.hyperparams.empty"), foreground="gray").pack(padx=10, pady=10)
       self._trigger_change()
       return
 
@@ -92,7 +93,8 @@ class HyperParamForm(ttk.Frame):
       row = ttk.Frame(self.inner_frame)
       row.pack(fill=tk.X, padx=10, pady=5)
 
-      ttk.Label(row, text=param.label + ":").pack(side=tk.LEFT)
+      label = resolve_text(param.label)
+      ttk.Label(row, text=label + ":").pack(side=tk.LEFT)
 
       var = tk.StringVar(value=str(param.default if param.default is not None else ""))
       
@@ -101,7 +103,7 @@ class HyperParamForm(ttk.Frame):
 
       self.param_vars[param.name] = var
 
-      desc = param.description or "No description available."
+      desc = resolve_text(param.description) or _("common.no_description_available")
       info_icon = tk.Label(row, text="ⓘ", foreground="#0055cc", cursor="question_arrow", font=("", 10))
       info_icon.pack(side=tk.RIGHT, padx=(5, 0))
 
@@ -158,7 +160,9 @@ class HyperParamForm(ttk.Frame):
         else: # ParamType.CATEGORICAL.value
           parsed_kwargs[name] = raw_value
       except ValueError:
-        raise ValueError(f"Invalid value for {param.label}. Expected {ptype}.")
+        raise ValueError(
+          _("model.hyperparams.invalid_value").format(label=resolve_text(param.label), type=ptype)
+        )
 
     for param in self.param_definitions:
       if getattr(param, "validate", None) is None:

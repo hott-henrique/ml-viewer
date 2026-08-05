@@ -74,26 +74,30 @@ class StoredImageResult(ExportResult):
   def include_in_zip(self, zf: zipfile.ZipFile) -> None:
     zf.write(self.path, self.name)
 
-class SupervisedAnalyzer(ABC):
-  """Atomic supervised analysis: compares ground truth vs predictions."""
+class ResultAnalyzer(ABC):
+  """Atomic analysis that produces exactly one typed ExportResult."""
+
+  @abstractmethod
+  def analyze(self, *args: t.Any, **kwargs: t.Any) -> ExportResult:
+    ...
+
+class SupervisedAnalyzer(ResultAnalyzer):
+  """Analyzer for supervised (classification/regression) problems: analyze(y_true, y_pred)."""
 
   @abstractmethod
   def analyze(self, y_true: t.Any, y_pred: t.Any) -> ExportResult:
     ...
 
-class ClusteringAnalyzer(ABC):
-  """Atomic clustering analysis: features matrix + cluster labels."""
+class ClusteringAnalyzer(ResultAnalyzer):
+  """Analyzer for clustering problems: analyze(X, labels)."""
 
   @abstractmethod
   def analyze(self, X: t.Any, labels: t.Any) -> ExportResult:
     ...
 
-class DimensionalityReductionAnalyzer(ABC):
-  """Atomic dim-reduction analysis: original features + embedding (+ optional fitted model)."""
+class DimensionalityReductionAnalyzer(ResultAnalyzer):
+  """Analyzer for dimensionality reduction problems: analyze(X, embedding, model=None)."""
 
   @abstractmethod
   def analyze(self, X: t.Any, embedding: t.Any, model: t.Any = None) -> ExportResult:
     ...
-
-# Union of analyzer contracts used by AnalysisManager.instantiate.
-ResultAnalyzer = SupervisedAnalyzer | ClusteringAnalyzer | DimensionalityReductionAnalyzer

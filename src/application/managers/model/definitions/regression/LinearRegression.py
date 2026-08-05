@@ -1,6 +1,7 @@
 LINEAR_REGRESSION_REGISTRY_INSTANCE = {
   "module": "sklearn.linear_model",
   "class": "LinearRegression",
+  "title": {"en_US": "Linear Regression", "pt_BR": "Regressão Linear"},
   "description": "A foundational algorithm that predicts a continuous number by finding the best-fitting straight line (or hyperplane) through the data points.",
   "params": [
     {

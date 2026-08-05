@@ -1,0 +1,594 @@
+# en_US translations for ml-viewer (msgid = stable codes).
+msgid ""
+msgstr ""
+"Project-Id-Version: ml-viewer\n"
+"Language: en_US\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "action.add"
+msgstr "➕ Add"
+
+msgid "action.delete"
+msgstr "🗑️ Delete"
+
+msgid "action.duplicate"
+msgstr "📑 Duplicate"
+
+msgid "action.edit"
+msgstr "✏️ Edit"
+
+msgid "action.export"
+msgstr "💾 Export"
+
+msgid "action.import"
+msgstr "📥 Import"
+
+msgid "action.run"
+msgstr "➕ Run"
+
+msgid "action.update"
+msgstr "🔄 Update"
+
+msgid "action.view_results"
+msgstr "📊 View Results"
+
+msgid "analysis.col.name"
+msgstr "Analysis Name"
+
+msgid "analysis.col.output_kind"
+msgstr "Output Kind"
+
+msgid "analysis.err.native_cannot_delete"
+msgstr "Native analyses cannot be deleted."
+
+msgid "analysis.msg.delete_confirm"
+msgstr "Delete {label} permanently?{extra}"
+
+msgid "analysis.msg.delete_partial"
+msgstr "Some analyses could not be deleted:\n\n"
+
+msgid "analysis.msg.n_analyses"
+msgstr "{n} analyses"
+
+msgid "analysis.msg.select_delete"
+msgstr "Please select at least one analysis to delete."
+
+msgid "analysis.msg.skip_native"
+msgstr "({n} native analysis(es) will be skipped.)"
+
+msgid "analysis.view.title"
+msgstr "Analyses Library"
+
+msgid "app.brand"
+msgstr "ML STUDIO"
+
+msgid "app.title"
+msgstr "ML Viewer"
+
+msgid "common.browse"
+msgstr "Browse"
+
+msgid "common.cancel"
+msgstr "Cancel"
+
+msgid "common.close"
+msgstr "Close"
+
+msgid "common.confirm"
+msgstr "Confirm"
+
+msgid "common.confirm_delete"
+msgstr "Confirm Delete"
+
+msgid "common.custom"
+msgstr "Custom"
+
+msgid "common.delete"
+msgstr "Delete"
+
+msgid "common.delete_error"
+msgstr "Delete Error"
+
+msgid "common.description"
+msgstr "Description"
+
+msgid "common.edit"
+msgstr "Edit"
+
+msgid "common.error"
+msgstr "Error"
+
+msgid "common.error_loading"
+msgstr "Error loading"
+
+msgid "common.export"
+msgstr "Export"
+
+msgid "common.export_error"
+msgstr "Export Error"
+
+msgid "common.file"
+msgstr "File"
+
+msgid "common.filetypes.csv"
+msgstr "CSV Files"
+
+msgid "common.filetypes.csv_long"
+msgstr "Comma separated values files"
+
+msgid "common.filetypes.python"
+msgstr "Python Files"
+
+msgid "common.filetypes.zip"
+msgstr "ZIP Archive"
+
+msgid "common.id"
+msgstr "ID"
+
+msgid "common.import"
+msgstr "Import"
+
+msgid "common.import_error"
+msgstr "Import Error"
+
+msgid "common.metric"
+msgstr "Metric"
+
+msgid "common.metrics"
+msgstr "Metrics"
+
+msgid "common.name"
+msgstr "Name"
+
+msgid "common.native"
+msgstr "Native"
+
+msgid "common.no_description"
+msgstr "(No description)"
+
+msgid "common.no_description_available"
+msgstr "No description available."
+
+msgid "common.no_file_selected"
+msgstr "No file selected"
+
+msgid "common.output_results"
+msgstr "Output / Results"
+
+msgid "common.report"
+msgstr "Report"
+
+msgid "common.select_csv"
+msgstr "Select CSV"
+
+msgid "common.select_file"
+msgstr "Select a File"
+
+msgid "common.source"
+msgstr "Source"
+
+msgid "common.status"
+msgstr "Status"
+
+msgid "common.success"
+msgstr "Success"
+
+msgid "common.type"
+msgstr "Type"
+
+msgid "common.update"
+msgstr "Update"
+
+msgid "common.update_error"
+msgstr "Update Error"
+
+msgid "common.validation_error"
+msgstr "Validation Error"
+
+msgid "common.value"
+msgstr "Value"
+
+msgid "common.warning"
+msgstr "Warning"
+
+msgid "dataset.col.added_on"
+msgstr "Added On"
+
+msgid "dataset.col.file_path"
+msgstr "File Path"
+
+msgid "dataset.col.target"
+msgstr "Target"
+
+msgid "dataset.err.integrity"
+msgstr "Dataset '{name}' is corrupted or was modified externally (MD5 mismatch)."
+
+msgid "dataset.err.not_found"
+msgstr "Dataset with ID {id} was not found."
+
+msgid "dataset.err.supervised_requires_target"
+msgstr "Supervised datasets require a valid target column."
+
+msgid "dataset.err.unsupervised_no_target"
+msgstr "Unsupervised datasets do not use a target; leave it empty."
+
+msgid "dataset.err.unsupported_problem_type"
+msgstr "Unsupported problem type: {problem_type}"
+
+msgid "dataset.form.add_title"
+msgstr "Add New Dataset"
+
+msgid "dataset.form.edit_title"
+msgstr "Edit Dataset"
+
+msgid "dataset.form.err_name_file"
+msgstr "Name and File are required."
+
+msgid "dataset.form.err_target_required"
+msgstr "Target Variable is required for supervised datasets."
+
+msgid "dataset.form.file"
+msgstr "File (CSV):"
+
+msgid "dataset.form.name"
+msgstr "Dataset Name:"
+
+msgid "dataset.form.paradigm_type"
+msgstr "Paradigm & Problem Type:"
+
+msgid "dataset.form.save"
+msgstr "Save Dataset"
+
+msgid "dataset.form.target"
+msgstr "Target Variable:"
+
+msgid "dataset.form.target_unused"
+msgstr "Target Variable: (not used)"
+
+msgid "dataset.form.update"
+msgstr "Update Dataset"
+
+msgid "dataset.handler.problem_type"
+msgstr "Problem Type:"
+
+msgid "dataset.handler.title"
+msgstr "Dataset Configuration"
+
+msgid "dataset.handler.train_size"
+msgstr "Train Size (0 to 1):"
+
+msgid "dataset.msg.delete_confirm"
+msgstr "Delete {label} permanently?\nThis action cannot be undone."
+
+msgid "dataset.msg.delete_partial"
+msgstr "Some datasets could not be deleted (they may be used by experiments):\n\n"
+
+msgid "dataset.msg.n_datasets"
+msgstr "{n} datasets"
+
+msgid "dataset.msg.select_one_delete"
+msgstr "Please select at least one dataset to delete."
+
+msgid "dataset.msg.select_one_edit"
+msgstr "Please select exactly one dataset to edit."
+
+msgid "dataset.view.title"
+msgstr "📁 Datasets Library"
+
+msgid "enum.analysis_output_kind.image"
+msgstr "image"
+
+msgid "enum.analysis_output_kind.scalar"
+msgstr "scalar"
+
+msgid "enum.analysis_output_kind.text"
+msgstr "text"
+
+msgid "enum.experiment_status.nok"
+msgstr "NOK"
+
+msgid "enum.experiment_status.ok"
+msgstr "OK"
+
+msgid "enum.experiment_status.pending"
+msgstr "Pending"
+
+msgid "enum.learning_paradigm.supervised"
+msgstr "Supervised"
+
+msgid "enum.learning_paradigm.unsupervised"
+msgstr "Unsupervised"
+
+msgid "enum.problem_type.classification"
+msgstr "Classification"
+
+msgid "enum.problem_type.clustering"
+msgstr "Clustering"
+
+msgid "enum.problem_type.dimensionality_reduction"
+msgstr "Dimensionality Reduction"
+
+msgid "enum.problem_type.regression"
+msgstr "Regression"
+
+msgid "experiment.col.created_on"
+msgstr "Created On"
+
+msgid "experiment.col.dataset"
+msgstr "Dataset"
+
+msgid "experiment.col.disk"
+msgstr "Disk"
+
+msgid "experiment.col.model"
+msgstr "Model"
+
+msgid "experiment.col.name"
+msgstr "Experiment Name"
+
+msgid "experiment.err.artifact_integrity"
+msgstr "Artifact '{name}' for experiment #{id} is corrupted or was modified externally (MD5 mismatch)."
+
+msgid "experiment.err.logs_integrity"
+msgstr "Logs for experiment #{id} are corrupted or were modified externally (MD5 mismatch)."
+
+msgid "experiment.err.model_integrity"
+msgstr "The trained model for experiment '{name}' is corrupted or was modified externally (MD5 mismatch)."
+
+msgid "experiment.err.not_found"
+msgstr "Experiment with ID {id} was not found."
+
+msgid "experiment.err.supervised_requires_target"
+msgstr "Supervised experiments require a dataset target column."
+
+msgid "experiment.err.target_column_missing"
+msgstr "Target column '{column}' not found in dataset."
+
+msgid "experiment.export.as_zip"
+msgstr "💾 Export as ZIP"
+
+msgid "experiment.export.dialog_title"
+msgstr "Export Experiment as ZIP"
+
+msgid "experiment.export.failed"
+msgstr "Failed to export experiment:\n{error}"
+
+msgid "experiment.export.include_dataset"
+msgstr "Include Dataset (.csv)"
+
+msgid "experiment.export.include_model"
+msgstr "Include Trained Model (.pkl)"
+
+msgid "experiment.export.include_model_unavailable"
+msgstr "Include Trained Model (.pkl)  [Not available]"
+
+msgid "experiment.export.include_script"
+msgstr "Include Model Script (.py)"
+
+msgid "experiment.export.include_script_native"
+msgstr "Include Algorithm Script (.py)  [Native algorithm]"
+
+msgid "experiment.export.select_items"
+msgstr "Select items to include in the ZIP:"
+
+msgid "experiment.export.success"
+msgstr "Experiment exported successfully to:\n{path}"
+
+msgid "experiment.export.title"
+msgstr "Export: {name}"
+
+msgid "experiment.form.copy_name"
+msgstr "{name} (Copy)"
+
+msgid "experiment.form.default_name"
+msgstr "Experiment #{n}"
+
+msgid "experiment.form.err_need_analysis"
+msgstr "Select at least one analysis."
+
+msgid "experiment.form.err_required"
+msgstr "Name, Dataset, and Model are required."
+
+msgid "experiment.form.hyperparams"
+msgstr "Hyperparameters Config"
+
+msgid "experiment.form.name"
+msgstr "Experiment Name:"
+
+msgid "experiment.form.no_analyses"
+msgstr "No analyses available for this problem type."
+
+msgid "experiment.form.run"
+msgstr "Run Experiment"
+
+msgid "experiment.form.select_dataset"
+msgstr "Select Dataset:"
+
+msgid "experiment.form.select_dataset_for_analyses"
+msgstr "Select a dataset to choose analyses."
+
+msgid "experiment.form.select_model"
+msgstr "Select Model:"
+
+msgid "experiment.form.title"
+msgstr "New Experiment"
+
+msgid "experiment.logs.load_failed"
+msgstr "(Failed to load logs: {error})"
+
+msgid "experiment.logs.title"
+msgstr "Execution Logs"
+
+msgid "experiment.menu.duplicate"
+msgstr "Duplicate"
+
+msgid "experiment.menu.view_results"
+msgstr "View Results"
+
+msgid "experiment.msg.completed"
+msgstr "Experiment completed successfully."
+
+msgid "experiment.msg.delete_confirm"
+msgstr "Delete {label} permanently?"
+
+msgid "experiment.msg.n_experiments"
+msgstr "{n} experiments"
+
+msgid "experiment.msg.no_results_body"
+msgstr "No analysis results were found for this experiment."
+
+msgid "experiment.msg.no_results_title"
+msgstr "No Results"
+
+msgid "experiment.msg.pipeline_error"
+msgstr "Error executing pipeline:\n\n{error}\n\nTry checking if your hyperparameters are valid."
+
+msgid "experiment.msg.select_delete"
+msgstr "Select at least one experiment to delete."
+
+msgid "experiment.msg.select_one_duplicate"
+msgstr "Select exactly one experiment to duplicate."
+
+msgid "experiment.msg.select_one_export"
+msgstr "Select exactly one experiment to export."
+
+msgid "experiment.msg.select_one_results"
+msgstr "Select exactly one experiment to view results."
+
+msgid "experiment.results.failed"
+msgstr "🚨 Execution Failed!"
+
+msgid "experiment.results.no_text"
+msgstr "(No text report)"
+
+msgid "experiment.results.success"
+msgstr "✅ Execution Successful!"
+
+msgid "experiment.results.title"
+msgstr "Results: {name}"
+
+msgid "experiment.status.nok"
+msgstr "❌ NOK"
+
+msgid "experiment.status.ok"
+msgstr "✅ OK"
+
+msgid "experiment.status.pending"
+msgstr "⏳ Pending"
+
+msgid "experiment.view.title"
+msgstr "🧪 Experiments"
+
+msgid "model.col.name"
+msgstr "Model Name"
+
+msgid "model.col.problem_type"
+msgstr "Problem Type"
+
+msgid "model.err.native_cannot_delete"
+msgstr "Native models cannot be deleted."
+
+msgid "model.hyperparams.empty"
+msgstr "No hyperparameters available."
+
+msgid "model.hyperparams.invalid_value"
+msgstr "Invalid value for {label}. Expected {type}."
+
+msgid "model.hyperparams.readonly"
+msgstr "Hyperparameters (Read-Only)"
+
+msgid "model.msg.cannot_update_native"
+msgstr "You cannot update native models."
+
+msgid "model.msg.delete_confirm"
+msgstr "Delete {label} permanently?{extra}\nThis will permanently remove the plugin file(s)."
+
+msgid "model.msg.delete_partial"
+msgstr "Some models could not be deleted:\n\n"
+
+msgid "model.msg.imported"
+msgstr "Successfully imported: {names}"
+
+msgid "model.msg.n_models"
+msgstr "{n} models"
+
+msgid "model.msg.select_delete"
+msgstr "Please select at least one model to delete."
+
+msgid "model.msg.select_one_update"
+msgstr "Please select exactly one custom model to update."
+
+msgid "model.msg.select_updated_py"
+msgstr "Select updated .py for {name}"
+
+msgid "model.msg.skip_native"
+msgstr "({n} native model(s) will be skipped.)"
+
+msgid "model.msg.updated"
+msgstr "Successfully updated: {names}"
+
+msgid "model.view.title"
+msgstr "🧠 Models Library"
+
+msgid "nav.analyses"
+msgstr "📈 Analyses"
+
+msgid "nav.datasets"
+msgstr "📁 Datasets"
+
+msgid "nav.models"
+msgstr "🧠 Models"
+
+msgid "nav.settings"
+msgstr "⚙ Settings"
+
+msgid "settings.language"
+msgstr "Language"
+
+msgid "settings.storage.analyses"
+msgstr "Analyses"
+
+msgid "settings.storage.app_data"
+msgstr "App data"
+
+msgid "settings.storage.app_total"
+msgstr "App total"
+
+msgid "settings.storage.app_vs_disk"
+msgstr "App vs disk"
+
+msgid "settings.storage.computer_disk"
+msgstr "Computer disk"
+
+msgid "settings.storage.database"
+msgstr "Database"
+
+msgid "settings.storage.datasets"
+msgstr "Datasets"
+
+msgid "settings.storage.disk_free"
+msgstr "Disk free"
+
+msgid "settings.storage.disk_total"
+msgstr "Disk total"
+
+msgid "settings.storage.disk_used"
+msgstr "Disk used"
+
+msgid "settings.storage.experiments"
+msgstr "Experiments"
+
+msgid "settings.storage.models"
+msgstr "Models"
+
+msgid "settings.storage.other"
+msgstr "Other"
+
+msgid "settings.storage.title"
+msgstr "Application Storage"
+
+msgid "settings.title"
+msgstr "Settings"
+

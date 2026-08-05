@@ -10,6 +10,7 @@ from application.db.models import Dataset as DatasetRow
 from application.db.paths import get_datasets_dir
 from application.db.storage import FileIntegrityError, FileStore
 from application.enums import ProblemType
+from application.i18n import _
 
 SUPERVISED_TYPES = {ProblemType.CLASSIFICATION, ProblemType.REGRESSION}
 UNSUPERVISED_TYPES = {ProblemType.CLUSTERING, ProblemType.DIMENSIONALITY_REDUCTION}
@@ -30,15 +31,15 @@ def validate_problem_target(problem_type: ProblemType, target: str | None) -> st
 
   if problem_type in SUPERVISED_TYPES:
     if target is None:
-      raise ValueError("Datasets supervisionados exigem uma coluna target válida.")
+      raise ValueError(_("dataset.err.supervised_requires_target"))
     return target
 
   if problem_type in UNSUPERVISED_TYPES:
     if target is not None:
-      raise ValueError("Datasets não supervisionados não possuem target; deixe-o vazio.")
+      raise ValueError(_("dataset.err.unsupervised_no_target"))
     return None
 
-  raise ValueError(f"Tipo de problema não suportado: {problem_type}")
+  raise ValueError(_("dataset.err.unsupported_problem_type").format(problem_type=problem_type))
 
 class DatasetMetadata(BaseModel):
   id: int
@@ -68,9 +69,7 @@ class DatasetMetadata(BaseModel):
     store = FileStore(get_datasets_dir())
 
     if not store.verify_integrity(self.storage_filename, self.md5_hash):
-      raise FileIntegrityError(
-        f"Dataset '{self.name}' está corrompido ou foi alterado externamente (MD5 não corresponde)."
-      )
+      raise FileIntegrityError(_("dataset.err.integrity").format(name=self.name))
 
     return str(store.resolve_path(self.storage_filename))
 
@@ -138,7 +137,7 @@ class DatasetManager:
       row = session.get(DatasetRow, target_id)
 
       if row is None:
-        raise ValueError(f"Dataset com ID {target_id} não encontrado.")
+        raise ValueError(_("dataset.err.not_found").format(id=target_id))
 
       if payload.get("name") is not None:
         row.name = payload["name"]

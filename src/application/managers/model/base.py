@@ -30,4 +30,5 @@ class DimensionalityReductionModelAPI(t.Protocol):
   def get_params(self) -> dict:
     ...
 
+# Backward-compatible alias used by export/pickle helpers that accept any trained estimator.
 ModelAPI = SupervisedModelAPI | ClusteringModelAPI | DimensionalityReductionModelAPI

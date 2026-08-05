@@ -9,6 +9,7 @@ from application.components import HyperParamForm, SortableTreeview
 from application.db.paths import get_experiments_dir
 from application.db.storage_usage import dir_size_bytes, format_bytes
 from application.enums import ExperimentStatus, ProblemType
+from application.i18n import _, display_title, localize_enum
 from application.managers.DatasetManager import DatasetMetadata
 from application.managers.model.base import ModelAPI
 from application.managers.results import (
@@ -34,13 +35,13 @@ class ExperimentView(ttk.Frame):
     header_frame = ttk.Frame(self)
     header_frame.pack(fill=tk.X, padx=10, pady=10)
 
-    ttk.Label(header_frame, text="🧪 Experiments", font=("", 16, "bold")).pack(side=tk.LEFT)
+    ttk.Label(header_frame, text=_("experiment.view.title"), font=("", 16, "bold")).pack(side=tk.LEFT)
 
-    ttk.Button(header_frame, text="🗑️ Delete", command=self.delete_experiment).pack(side=tk.RIGHT, padx=(5, 0))
-    ttk.Button(header_frame, text="💾 Export", command=self.export_selected).pack(side=tk.RIGHT, padx=(5, 0))
-    ttk.Button(header_frame, text="📊 View Results", command=self.view_results).pack(side=tk.RIGHT, padx=(5, 0))
-    ttk.Button(header_frame, text="📑 Duplicate", command=self.duplicate_experiment).pack(side=tk.RIGHT, padx=(5, 0))
-    ttk.Button(header_frame, text="➕ Run", command=self.open_create_modal).pack(side=tk.RIGHT)
+    ttk.Button(header_frame, text=_("action.delete"), command=self.delete_experiment).pack(side=tk.RIGHT, padx=(5, 0))
+    ttk.Button(header_frame, text=_("action.export"), command=self.export_selected).pack(side=tk.RIGHT, padx=(5, 0))
+    ttk.Button(header_frame, text=_("action.view_results"), command=self.view_results).pack(side=tk.RIGHT, padx=(5, 0))
+    ttk.Button(header_frame, text=_("action.duplicate"), command=self.duplicate_experiment).pack(side=tk.RIGHT, padx=(5, 0))
+    ttk.Button(header_frame, text=_("action.run"), command=self.open_create_modal).pack(side=tk.RIGHT)
 
     table_frame = ttk.Frame(self)
     table_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
@@ -54,16 +55,16 @@ class ExperimentView(ttk.Frame):
       height=6,
     )
 
-    self.tree.set_heading("id", "ID", sortable=False)
+    self.tree.set_heading("id", _("common.id"), sortable=False)
     self.tree.column("id", width=0, stretch=tk.NO)
     self.tree.column("disk_bytes", width=0, stretch=tk.NO)
 
-    self.tree.set_heading("name", "Experiment Name")
-    self.tree.set_heading("dataset", "Dataset")
-    self.tree.set_heading("model", "Model")
-    self.tree.set_heading("status", "Status")
-    self.tree.set_heading("date", "Created On")
-    self.tree.set_heading("disk", "Disk")
+    self.tree.set_heading("name", _("experiment.col.name"))
+    self.tree.set_heading("dataset", _("experiment.col.dataset"))
+    self.tree.set_heading("model", _("experiment.col.model"))
+    self.tree.set_heading("status", _("common.status"))
+    self.tree.set_heading("date", _("experiment.col.created_on"))
+    self.tree.set_heading("disk", _("experiment.col.disk"))
 
     self.tree.column("name", width=140)
     self.tree.column("dataset", width=110)
@@ -88,13 +89,13 @@ class ExperimentView(ttk.Frame):
     details_frame.columnconfigure(1, weight=2)
     details_frame.rowconfigure(0, weight=1)
 
-    param_frame = ttk.LabelFrame(details_frame, text="Hyperparameters (Read-Only)")
+    param_frame = ttk.LabelFrame(details_frame, text=_("model.hyperparams.readonly"))
     param_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
 
     self.hyperparam_form = HyperParamForm(param_frame, is_readonly=True)
     self.hyperparam_form.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-    logs_frame = ttk.LabelFrame(details_frame, text="Execution Logs")
+    logs_frame = ttk.LabelFrame(details_frame, text=_("experiment.logs.title"))
     logs_frame.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
 
     self.logs_text = tk.Text(logs_frame, wrap=tk.WORD, state=tk.DISABLED, bg="#f5f5f5", height=10)
@@ -123,11 +124,11 @@ class ExperimentView(ttk.Frame):
       return None
 
     menu = tk.Menu(self, tearoff=0)
-    menu.add_command(label="View Results", command=self.view_results)
-    menu.add_command(label="Export", command=self.export_selected)
-    menu.add_command(label="Duplicate", command=self.duplicate_experiment)
+    menu.add_command(label=_("experiment.menu.view_results"), command=self.view_results)
+    menu.add_command(label=_("common.export"), command=self.export_selected)
+    menu.add_command(label=_("experiment.menu.duplicate"), command=self.duplicate_experiment)
     menu.add_separator()
-    menu.add_command(label="Delete", command=self.delete_experiment)
+    menu.add_command(label=_("common.delete"), command=self.delete_experiment)
     return menu
 
   def _on_double_click(self, event: tk.Event) -> None:
@@ -148,12 +149,20 @@ class ExperimentView(ttk.Frame):
 
     for exp in experiments:
       status = exp.status
-      status_icon = "⏳ Pending" if status == "Pending" else ("✅ OK" if status == "OK" else "❌ NOK")
+      status_code = {
+        ExperimentStatus.PENDING: "experiment.status.pending",
+        ExperimentStatus.OK: "experiment.status.ok",
+        ExperimentStatus.NOK: "experiment.status.nok",
+      }.get(ExperimentStatus(status), "experiment.status.pending")
+      status_icon = _(status_code)
       disk_bytes = dir_size_bytes(get_experiments_dir() / str(exp.id))
+
+      model_config = ModelManager.registry(exp.problem_type).get(exp.model_name)
+      model_display = display_title(model_config.title, exp.model_name) if model_config else exp.model_name
 
       self.tree.insert("", tk.END, values=(
         exp.id, exp.name, exp.dataset_name,
-        exp.model_name, status_icon, exp.date,
+        model_display, status_icon, exp.date,
         format_bytes(disk_bytes), disk_bytes,
       ))
 
@@ -177,7 +186,7 @@ class ExperimentView(ttk.Frame):
     try:
       logs = ExperimentManager.load_logs(experiment.id)
     except Exception as e:
-      logs = f"(Failed to load logs: {e})"
+      logs = _("experiment.logs.load_failed").format(error=e)
 
     self._set_logs_panel(logs)
 
@@ -234,10 +243,10 @@ class ExperimentView(ttk.Frame):
 
       if prob_type in SUPERVISED_TYPES:
         if not target_col:
-          raise ValueError("Supervised experiments require a dataset target column.")
+          raise ValueError(_("experiment.err.supervised_requires_target"))
 
         if target_col not in df.columns:
-          raise ValueError(f"Target column '{target_col}' not found in dataset.")
+          raise ValueError(_("experiment.err.target_column_missing").format(column=target_col))
 
         X = pd.get_dummies(df.drop(columns=[target_col]))
         y = df[target_col]
@@ -277,14 +286,14 @@ class ExperimentView(ttk.Frame):
         )
 
       else:
-        raise ValueError(f"Unsupported problem type: {prob_type}")
+        raise ValueError(_("dataset.err.unsupported_problem_type").format(problem_type=prob_type))
 
       status = ExperimentStatus.OK
-      logs = "Experiment completed successfully."
+      logs = _("experiment.msg.completed")
 
     except Exception as e:
       status = ExperimentStatus.NOK
-      logs = f"Error executing pipeline:\n\n{str(e)}\n\nTry checking if your hyperparameters are valid."
+      logs = _("experiment.msg.pipeline_error").format(error=str(e))
     finally:
       self.config(cursor="")
 
@@ -327,13 +336,13 @@ class ExperimentView(ttk.Frame):
     experiment = self._get_selected_experiment()
 
     if experiment is None:
-      messagebox.showwarning("Warning", "Select exactly one experiment to view results.")
+      messagebox.showwarning(_("common.warning"), _("experiment.msg.select_one_results"))
       return
 
     results = ExperimentManager.load_results(experiment.id)
 
     if not results:
-      messagebox.showinfo("No Results", "No analysis results were found for this experiment.")
+      messagebox.showinfo(_("experiment.msg.no_results_title"), _("experiment.msg.no_results_body"))
       return
 
     experiment_data = ExperimentExportData.from_experiment_metadata(experiment)
@@ -343,7 +352,7 @@ class ExperimentView(ttk.Frame):
     experiment = self._get_selected_experiment()
 
     if experiment is None:
-      messagebox.showwarning("Warning", "Select exactly one experiment to export.")
+      messagebox.showwarning(_("common.warning"), _("experiment.msg.select_one_export"))
       return
 
     experiment_data = ExperimentExportData.from_experiment_metadata(experiment)
@@ -359,7 +368,7 @@ class ExperimentView(ttk.Frame):
     experiment = self._get_selected_experiment()
 
     if experiment is None:
-      messagebox.showwarning("Warning", "Select exactly one experiment to duplicate.")
+      messagebox.showwarning(_("common.warning"), _("experiment.msg.select_one_duplicate"))
       return
 
     ExperimentFormModal(self, on_save=self._on_experiment_saved, initial_data=experiment)
@@ -368,12 +377,12 @@ class ExperimentView(ttk.Frame):
     experiments = self._get_selected_experiments()
 
     if not experiments:
-      messagebox.showwarning("Warning", "Select at least one experiment to delete.")
+      messagebox.showwarning(_("common.warning"), _("experiment.msg.select_delete"))
       return
 
-    label = experiments[0].name if len(experiments) == 1 else f"{len(experiments)} experiments"
+    label = experiments[0].name if len(experiments) == 1 else _("experiment.msg.n_experiments").format(n=len(experiments))
 
-    if not messagebox.askyesno("Confirm", f"Delete {label} permanently?"):
+    if not messagebox.askyesno(_("common.confirm_delete"), _("experiment.msg.delete_confirm").format(label=label)):
       return
 
     for experiment in experiments:
@@ -391,7 +400,7 @@ class ExperimentView(ttk.Frame):
     logs: str = "",
   ) -> None:
     popup = tk.Toplevel(self)
-    popup.title(f"Results: {experiment_data.name}")
+    popup.title(_("experiment.results.title").format(name=experiment_data.name))
     popup.geometry("640x680")
     popup.resizable(False, False)
     popup.grab_set()
@@ -399,7 +408,7 @@ class ExperimentView(ttk.Frame):
     main_frame = ttk.Frame(popup, padding=(20, 20))
     main_frame.pack(fill=tk.BOTH, expand=True)
 
-    header_text = "✅ Execution Successful!" if status == ExperimentStatus.OK else "🚨 Execution Failed!"
+    header_text = _("experiment.results.success") if status == ExperimentStatus.OK else _("experiment.results.failed")
     fg_color = "#27ae60" if status == ExperimentStatus.OK else "#c0392b"
 
     ttk.Label(main_frame, text=header_text, font=("", 14, "bold"), foreground=fg_color).pack(anchor=tk.W, pady=(0, 10))
@@ -413,11 +422,11 @@ class ExperimentView(ttk.Frame):
 
     if scalars:
       tab_metrics = ttk.Frame(notebook)
-      notebook.add(tab_metrics, text="Metrics")
+      notebook.add(tab_metrics, text=_("common.metrics"))
 
       tree = ttk.Treeview(tab_metrics, columns=("metric", "value"), show="headings", height=8)
-      tree.heading("metric", text="Metric")
-      tree.heading("value", text="Value")
+      tree.heading("metric", text=_("common.metric"))
+      tree.heading("value", text=_("common.value"))
       tree.column("metric", width=220)
       tree.column("value", width=160)
       tree.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
@@ -432,7 +441,7 @@ class ExperimentView(ttk.Frame):
 
     if report_text or status != ExperimentStatus.OK:
       tab_text = ttk.Frame(notebook)
-      notebook.add(tab_text, text="Report")
+      notebook.add(tab_text, text=_("common.report"))
 
       scrollbar = ttk.Scrollbar(tab_text, orient="vertical")
       scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
@@ -448,7 +457,7 @@ class ExperimentView(ttk.Frame):
       )
       text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
       scrollbar.config(command=text_widget.yview)
-      text_widget.insert(tk.END, report_text or "(No text report)")
+      text_widget.insert(tk.END, report_text or _("experiment.results.no_text"))
       text_widget.config(state=tk.DISABLED)
 
     if status == ExperimentStatus.OK:
@@ -467,7 +476,7 @@ class ExperimentView(ttk.Frame):
     btn_frame = ttk.Frame(main_frame)
     btn_frame.pack(fill=tk.X)
 
-    ttk.Button(btn_frame, text="Close", command=popup.destroy).pack(side=tk.RIGHT, ipady=6, ipadx=10)
+    ttk.Button(btn_frame, text=_("common.close"), command=popup.destroy).pack(side=tk.RIGHT, ipady=6, ipadx=10)
 
     if status == ExperimentStatus.OK:
-      ttk.Button(btn_frame, text="💾 Export", command=open_export).pack(side=tk.RIGHT, padx=(0, 10), ipady=6, ipadx=10)
+      ttk.Button(btn_frame, text=_("common.export"), command=open_export).pack(side=tk.RIGHT, padx=(0, 10), ipady=6, ipadx=10)

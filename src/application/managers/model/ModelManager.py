@@ -14,6 +14,7 @@ from application.db.models import Model as ModelRow
 from application.db.paths import get_models_dir
 from application.db.storage import FileStore
 from application.enums import ParamType, ProblemType
+from application.i18n import TranslatableStr, _
 from application.managers.model.base import ModelAPI
 from application.managers.model.definitions import (
   CLASSIFICATION_REGISTRY,
@@ -26,11 +27,11 @@ class HyperParamConfig(BaseModel):
   model_config = ConfigDict(arbitrary_types_allowed=True)
 
   name: str
-  label: str
+  label: TranslatableStr
   type: ParamType
   default: t.Any = None
   options: list[t.Any] = Field(default_factory=list)
-  description: str = ""
+  description: TranslatableStr = ""
 
   field_validation: t.Optional[t.Callable[[t.Any, dict], t.Optional[str]]] = None
 
@@ -39,6 +40,8 @@ class ModelConfig(BaseModel):
 
   class_name: str = Field(..., alias="class")
   type: ProblemType
+  title: t.Optional[TranslatableStr] = None
+  description: TranslatableStr = ""
   params: list[HyperParamConfig] = Field(default_factory=list)
   module: t.Optional[str] = None
   custom_module: t.Optional[t.Any] = None
@@ -46,6 +49,13 @@ class ModelConfig(BaseModel):
   is_native: bool = False
 
 MODELS_DIR = get_models_dir()
+
+NATIVE_MODEL_REGISTRIES: dict[ProblemType, dict[str, dict[str, t.Any]]] = {
+  ProblemType.CLASSIFICATION: CLASSIFICATION_REGISTRY,
+  ProblemType.REGRESSION: REGRETION_REGISTRY,
+  ProblemType.CLUSTERING: CLUSTERING_REGISTRY,
+  ProblemType.DIMENSIONALITY_REDUCTION: DIMENSIONALITY_REGISTRY,
+}
 
 class ModelManager:
   BASE_MODEL_REGISTRY: dict[ProblemType, dict[str, ModelConfig]] = {}
@@ -99,12 +109,7 @@ class ModelManager:
     if has_any_model:
       return
 
-    for prob_type, raw_registry in (
-      (ProblemType.CLASSIFICATION, CLASSIFICATION_REGISTRY),
-      (ProblemType.REGRESSION, REGRETION_REGISTRY),
-      (ProblemType.CLUSTERING, CLUSTERING_REGISTRY),
-      (ProblemType.DIMENSIONALITY_REDUCTION, DIMENSIONALITY_REGISTRY),
-    ):
+    for prob_type, raw_registry in NATIVE_MODEL_REGISTRIES.items():
       for name, data in raw_registry.items():
         try:
           config = ModelConfig.model_validate({**data, "type": data.get("type", prob_type)})
@@ -117,6 +122,8 @@ class ModelManager:
           problem_type=prob_type,
           class_name=config.class_name,
           module=config.module,
+          title=config.title,
+          description=config.description,
           params=[p.model_dump(mode="json") for p in config.params],
           is_native=True,
           created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -139,10 +146,24 @@ class ModelManager:
       plugin_path = str(store.resolve_path(row.storage_filename))
       custom_module = cls._load_module_from_path(plugin_path)
 
+    title: t.Optional[TranslatableStr] = row.title
+    description: TranslatableStr = row.description or ""
+    params = [HyperParamConfig.model_validate(p) for p in row.params]
+
+    if row.is_native:
+      native_data = NATIVE_MODEL_REGISTRIES.get(row.problem_type, {}).get(row.name)
+
+      if native_data is not None:
+        title = native_data.get("title", title)
+        description = native_data.get("description", description)
+        params = [HyperParamConfig.model_validate(p) for p in native_data.get("params", [])]
+
     config = ModelConfig(
       class_name=row.class_name,
       type=row.problem_type,
-      params=[HyperParamConfig.model_validate(p) for p in row.params],
+      title=title,
+      description=description,
+      params=params,
       module=row.module,
       custom_module=custom_module,
       plugin_path=plugin_path,
@@ -195,6 +216,8 @@ class ModelManager:
             problem_type=config.type,
             class_name=config.class_name,
             module=None,
+            title=config.title,
+            description=config.description,
             params=[p.model_dump(mode="json") for p in config.params],
             storage_filename=stored.storage_filename,
             original_filename=stored.original_filename,
@@ -225,7 +248,7 @@ class ModelManager:
         return
 
       if row.is_native:
-        raise ValueError("Modelos nativos não podem ser removidos.")
+        raise ValueError(_("model.err.native_cannot_delete"))
 
       storage_filename = row.storage_filename
 

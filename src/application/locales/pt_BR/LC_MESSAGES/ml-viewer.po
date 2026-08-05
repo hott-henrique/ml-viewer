@@ -1,0 +1,594 @@
+# pt_BR translations for ml-viewer (msgid = stable codes).
+msgid ""
+msgstr ""
+"Project-Id-Version: ml-viewer\n"
+"Language: pt_BR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "action.add"
+msgstr "➕ Adicionar"
+
+msgid "action.delete"
+msgstr "🗑️ Excluir"
+
+msgid "action.duplicate"
+msgstr "📑 Duplicar"
+
+msgid "action.edit"
+msgstr "✏️ Editar"
+
+msgid "action.export"
+msgstr "💾 Exportar"
+
+msgid "action.import"
+msgstr "📥 Importar"
+
+msgid "action.run"
+msgstr "➕ Executar"
+
+msgid "action.update"
+msgstr "🔄 Atualizar"
+
+msgid "action.view_results"
+msgstr "📊 Ver resultados"
+
+msgid "analysis.col.name"
+msgstr "Nome"
+
+msgid "analysis.col.output_kind"
+msgstr "Tipo de saída"
+
+msgid "analysis.err.native_cannot_delete"
+msgstr "Análises nativas não podem ser removidas."
+
+msgid "analysis.msg.delete_confirm"
+msgstr "Excluir {label} permanentemente?{extra}"
+
+msgid "analysis.msg.delete_partial"
+msgstr "Algumas análises não puderam ser excluídas:\n\n"
+
+msgid "analysis.msg.n_analyses"
+msgstr "{n} análises"
+
+msgid "analysis.msg.select_delete"
+msgstr "Selecione pelo menos uma análise para excluir."
+
+msgid "analysis.msg.skip_native"
+msgstr "({n} análise(s) nativa(s) serão ignoradas.)"
+
+msgid "analysis.view.title"
+msgstr "Biblioteca de Análises"
+
+msgid "app.brand"
+msgstr "ML STUDIO"
+
+msgid "app.title"
+msgstr "ML Viewer"
+
+msgid "common.browse"
+msgstr "Procurar"
+
+msgid "common.cancel"
+msgstr "Cancelar"
+
+msgid "common.close"
+msgstr "Fechar"
+
+msgid "common.confirm"
+msgstr "Confirmar"
+
+msgid "common.confirm_delete"
+msgstr "Confirmar exclusão"
+
+msgid "common.custom"
+msgstr "Personalizado"
+
+msgid "common.delete"
+msgstr "Excluir"
+
+msgid "common.delete_error"
+msgstr "Erro ao excluir"
+
+msgid "common.description"
+msgstr "Descrição"
+
+msgid "common.edit"
+msgstr "Editar"
+
+msgid "common.error"
+msgstr "Erro"
+
+msgid "common.error_loading"
+msgstr "Erro ao carregar"
+
+msgid "common.export"
+msgstr "Exportar"
+
+msgid "common.export_error"
+msgstr "Erro de exportação"
+
+msgid "common.file"
+msgstr "Arquivo"
+
+msgid "common.filetypes.csv"
+msgstr "Arquivos CSV"
+
+msgid "common.filetypes.csv_long"
+msgstr "Arquivos CSV"
+
+msgid "common.filetypes.python"
+msgstr "Arquivos Python"
+
+msgid "common.filetypes.zip"
+msgstr "Arquivo ZIP"
+
+msgid "common.id"
+msgstr "ID"
+
+msgid "common.import"
+msgstr "Importar"
+
+msgid "common.import_error"
+msgstr "Erro de importação"
+
+msgid "common.metric"
+msgstr "Métrica"
+
+msgid "common.metrics"
+msgstr "Métricas"
+
+msgid "common.name"
+msgstr "Nome"
+
+msgid "common.native"
+msgstr "Nativo"
+
+msgid "common.no_description"
+msgstr "(Sem descrição)"
+
+msgid "common.no_description_available"
+msgstr "Nenhuma descrição disponível."
+
+msgid "common.no_file_selected"
+msgstr "Nenhum arquivo selecionado"
+
+msgid "common.output_results"
+msgstr "Saída / Resultados"
+
+msgid "common.report"
+msgstr "Relatório"
+
+msgid "common.select_csv"
+msgstr "Selecionar CSV"
+
+msgid "common.select_file"
+msgstr "Selecionar um arquivo"
+
+msgid "common.source"
+msgstr "Origem"
+
+msgid "common.status"
+msgstr "Status"
+
+msgid "common.success"
+msgstr "Sucesso"
+
+msgid "common.type"
+msgstr "Tipo"
+
+msgid "common.update"
+msgstr "Atualizar"
+
+msgid "common.update_error"
+msgstr "Erro de atualização"
+
+msgid "common.validation_error"
+msgstr "Erro de validação"
+
+msgid "common.value"
+msgstr "Valor"
+
+msgid "common.warning"
+msgstr "Aviso"
+
+msgid "dataset.col.added_on"
+msgstr "Adicionado em"
+
+msgid "dataset.col.file_path"
+msgstr "Caminho do arquivo"
+
+msgid "dataset.col.target"
+msgstr "Alvo"
+
+msgid "dataset.err.integrity"
+msgstr "Dataset '{name}' está corrompido ou foi alterado externamente (MD5 não corresponde)."
+
+msgid "dataset.err.not_found"
+msgstr "Dataset com ID {id} não encontrado."
+
+msgid "dataset.err.supervised_requires_target"
+msgstr "Datasets supervisionados exigem uma coluna alvo válida."
+
+msgid "dataset.err.unsupervised_no_target"
+msgstr "Datasets não supervisionados não usam alvo; deixe vazio."
+
+msgid "dataset.err.unsupported_problem_type"
+msgstr "Tipo de problema não suportado: {problem_type}"
+
+msgid "dataset.form.add_title"
+msgstr "Adicionar Dataset"
+
+msgid "dataset.form.edit_title"
+msgstr "Editar Dataset"
+
+msgid "dataset.form.err_name_file"
+msgstr "Nome e arquivo são obrigatórios."
+
+msgid "dataset.form.err_target_required"
+msgstr "A variável alvo é obrigatória para datasets supervisionados."
+
+msgid "dataset.form.file"
+msgstr "Arquivo (CSV):"
+
+msgid "dataset.form.name"
+msgstr "Nome do Dataset:"
+
+msgid "dataset.form.paradigm_type"
+msgstr "Paradigma e tipo de problema:"
+
+msgid "dataset.form.save"
+msgstr "Salvar Dataset"
+
+msgid "dataset.form.target"
+msgstr "Variável alvo:"
+
+msgid "dataset.form.target_unused"
+msgstr "Variável alvo: (não usada)"
+
+msgid "dataset.form.update"
+msgstr "Atualizar Dataset"
+
+msgid "dataset.handler.problem_type"
+msgstr "Tipo de problema:"
+
+msgid "dataset.handler.title"
+msgstr "Configuração do dataset"
+
+msgid "dataset.handler.train_size"
+msgstr "Tamanho do treino (0 a 1):"
+
+msgid "dataset.msg.delete_confirm"
+msgstr "Excluir {label} permanentemente?\nEsta ação não pode ser desfeita."
+
+msgid "dataset.msg.delete_partial"
+msgstr "Alguns datasets não puderam ser excluídos (podem estar em uso por experimentos):\n\n"
+
+msgid "dataset.msg.n_datasets"
+msgstr "{n} datasets"
+
+msgid "dataset.msg.select_one_delete"
+msgstr "Selecione pelo menos um dataset para excluir."
+
+msgid "dataset.msg.select_one_edit"
+msgstr "Selecione exatamente um dataset para editar."
+
+msgid "dataset.view.title"
+msgstr "📁 Biblioteca de Datasets"
+
+msgid "enum.analysis_output_kind.image"
+msgstr "imagem"
+
+msgid "enum.analysis_output_kind.scalar"
+msgstr "escalar"
+
+msgid "enum.analysis_output_kind.text"
+msgstr "texto"
+
+msgid "enum.experiment_status.nok"
+msgstr "NOK"
+
+msgid "enum.experiment_status.ok"
+msgstr "OK"
+
+msgid "enum.experiment_status.pending"
+msgstr "Pendente"
+
+msgid "enum.learning_paradigm.supervised"
+msgstr "Supervisionado"
+
+msgid "enum.learning_paradigm.unsupervised"
+msgstr "Não supervisionado"
+
+msgid "enum.problem_type.classification"
+msgstr "Classificação"
+
+msgid "enum.problem_type.clustering"
+msgstr "Agrupamento"
+
+msgid "enum.problem_type.dimensionality_reduction"
+msgstr "Redução de dimensionalidade"
+
+msgid "enum.problem_type.regression"
+msgstr "Regressão"
+
+msgid "experiment.col.created_on"
+msgstr "Criado em"
+
+msgid "experiment.col.dataset"
+msgstr "Dataset"
+
+msgid "experiment.col.disk"
+msgstr "Disco"
+
+msgid "experiment.col.model"
+msgstr "Modelo"
+
+msgid "experiment.col.name"
+msgstr "Nome do experimento"
+
+msgid "experiment.err.artifact_integrity"
+msgstr "O artefato '{name}' do experimento #{id} está corrompido ou foi alterado externamente (MD5 não corresponde)."
+
+msgid "experiment.err.logs_integrity"
+msgstr "Os logs do experimento #{id} estão corrompidos ou foram alterados externamente (MD5 não corresponde)."
+
+msgid "experiment.err.model_integrity"
+msgstr "O modelo treinado do experimento '{name}' está corrompido ou foi alterado externamente (MD5 não corresponde)."
+
+msgid "experiment.err.not_found"
+msgstr "Experimento com ID {id} não encontrado."
+
+msgid "experiment.err.supervised_requires_target"
+msgstr "Experimentos supervisionados exigem uma coluna alvo no dataset."
+
+msgid "experiment.err.target_column_missing"
+msgstr "Coluna alvo '{column}' não encontrada no dataset."
+
+msgid "experiment.export.as_zip"
+msgstr "💾 Export as ZIP"
+
+msgid "experiment.export.dialog_title"
+msgstr "Exportar experimento como ZIP"
+
+msgid "experiment.export.failed"
+msgstr "Falha ao exportar o experimento:\n{error}"
+
+msgid "experiment.export.include_dataset"
+msgstr "Incluir dataset (.csv)"
+
+msgid "experiment.export.include_model"
+msgstr "Incluir modelo treinado (.pkl)"
+
+msgid "experiment.export.include_model_unavailable"
+msgstr "Incluir modelo treinado (.pkl)  [Indisponível]"
+
+msgid "experiment.export.include_script"
+msgstr "Incluir script do modelo (.py)"
+
+msgid "experiment.export.include_script_native"
+msgstr "Incluir script do algoritmo (.py)  [Algoritmo nativo]"
+
+msgid "experiment.export.select_items"
+msgstr "Selecione os itens a incluir no ZIP:"
+
+msgid "experiment.export.success"
+msgstr "Experimento exportado com sucesso para:\n{path}"
+
+msgid "experiment.export.title"
+msgstr "Exportar: {name}"
+
+msgid "experiment.form.copy_name"
+msgstr "{name} (Cópia)"
+
+msgid "experiment.form.default_name"
+msgstr "Experimento #{n}"
+
+msgid "experiment.form.err_need_analysis"
+msgstr "Selecione pelo menos uma análise."
+
+msgid "experiment.form.err_required"
+msgstr "Nome, dataset e modelo são obrigatórios."
+
+msgid "experiment.form.hyperparams"
+msgstr "Configuração de hiperparâmetros"
+
+msgid "experiment.form.name"
+msgstr "Nome do experimento:"
+
+msgid "experiment.form.no_analyses"
+msgstr "Nenhuma análise disponível para este tipo de problema."
+
+msgid "experiment.form.run"
+msgstr "Executar experimento"
+
+msgid "experiment.form.select_dataset"
+msgstr "Selecionar dataset:"
+
+msgid "experiment.form.select_dataset_for_analyses"
+msgstr "Selecione um dataset para escolher análises."
+
+msgid "experiment.form.select_model"
+msgstr "Selecionar modelo:"
+
+msgid "experiment.form.title"
+msgstr "Novo experimento"
+
+msgid "experiment.logs.load_failed"
+msgstr "(Falha ao carregar logs: {error})"
+
+msgid "experiment.logs.title"
+msgstr "Logs de execução"
+
+msgid "experiment.menu.duplicate"
+msgstr "Duplicar"
+
+msgid "experiment.menu.view_results"
+msgstr "Ver resultados"
+
+msgid "experiment.msg.completed"
+msgstr "Experimento concluído com sucesso."
+
+msgid "experiment.msg.delete_confirm"
+msgstr "Excluir {label} permanentemente?"
+
+msgid "experiment.msg.n_experiments"
+msgstr "{n} experimentos"
+
+msgid "experiment.msg.no_results_body"
+msgstr "Nenhum resultado de análise foi encontrado para este experimento."
+
+msgid "experiment.msg.no_results_title"
+msgstr "Sem resultados"
+
+msgid "experiment.msg.pipeline_error"
+msgstr "Erro ao executar o pipeline:\n\n{error}\n\nVerifique se os hiperparâmetros são válidos."
+
+msgid "experiment.msg.select_delete"
+msgstr "Selecione pelo menos um experimento para excluir."
+
+msgid "experiment.msg.select_one_duplicate"
+msgstr "Selecione exatamente um experimento para duplicar."
+
+msgid "experiment.msg.select_one_export"
+msgstr "Selecione exatamente um experimento para exportar."
+
+msgid "experiment.msg.select_one_results"
+msgstr "Selecione exatamente um experimento para ver os resultados."
+
+msgid "experiment.results.failed"
+msgstr "🚨 Execution Failed!"
+
+msgid "experiment.results.no_text"
+msgstr "(Sem relatório de texto)"
+
+msgid "experiment.results.success"
+msgstr "✅ Execution Successful!"
+
+msgid "experiment.results.title"
+msgstr "Resultados: {name}"
+
+msgid "experiment.status.nok"
+msgstr "❌ NOK"
+
+msgid "experiment.status.ok"
+msgstr "✅ OK"
+
+msgid "experiment.status.pending"
+msgstr "⏳ Pending"
+
+msgid "experiment.view.title"
+msgstr "🧪 Experimentos"
+
+msgid "model.col.name"
+msgstr "Nome do modelo"
+
+msgid "model.col.problem_type"
+msgstr "Tipo de problema"
+
+msgid "model.err.native_cannot_delete"
+msgstr "Modelos nativos não podem ser removidos."
+
+msgid "model.hyperparams.empty"
+msgstr "Nenhum hiperparâmetro disponível."
+
+msgid "model.hyperparams.invalid_value"
+msgstr "Valor inválido para {label}. Esperado {type}."
+
+msgid "model.hyperparams.readonly"
+msgstr "Hiperparâmetros (somente leitura)"
+
+msgid "model.msg.cannot_update_native"
+msgstr "Não é possível atualizar modelos nativos."
+
+msgid "model.msg.delete_confirm"
+msgstr "Excluir {label} permanentemente?{extra}\nIsso removerá permanentemente o(s) arquivo(s) do plugin."
+
+msgid "model.msg.delete_partial"
+msgstr "Alguns modelos não puderam ser excluídos:\n\n"
+
+msgid "model.msg.imported"
+msgstr "Importado com sucesso: {names}"
+
+msgid "model.msg.n_models"
+msgstr "{n} modelos"
+
+msgid "model.msg.select_delete"
+msgstr "Selecione pelo menos um modelo para excluir."
+
+msgid "model.msg.select_one_update"
+msgstr "Selecione exatamente um modelo personalizado para atualizar."
+
+msgid "model.msg.select_updated_py"
+msgstr "Selecione o .py atualizado para {name}"
+
+msgid "model.msg.skip_native"
+msgstr "({n} modelo(s) nativo(s) serão ignorados.)"
+
+msgid "model.msg.updated"
+msgstr "Atualizado com sucesso: {names}"
+
+msgid "model.view.title"
+msgstr "🧠 Biblioteca de Modelos"
+
+msgid "nav.analyses"
+msgstr "📈 Análises"
+
+msgid "nav.datasets"
+msgstr "📁 Datasets"
+
+msgid "nav.models"
+msgstr "🧠 Modelos"
+
+msgid "nav.settings"
+msgstr "⚙ Configurações"
+
+msgid "settings.language"
+msgstr "Idioma"
+
+msgid "settings.storage.analyses"
+msgstr "Análises"
+
+msgid "settings.storage.app_data"
+msgstr "Dados do app"
+
+msgid "settings.storage.app_total"
+msgstr "Total do app"
+
+msgid "settings.storage.app_vs_disk"
+msgstr "App vs Disco"
+
+msgid "settings.storage.computer_disk"
+msgstr "Disco do computador"
+
+msgid "settings.storage.database"
+msgstr "Banco de dados"
+
+msgid "settings.storage.datasets"
+msgstr "Datasets"
+
+msgid "settings.storage.disk_free"
+msgstr "Disco livre"
+
+msgid "settings.storage.disk_total"
+msgstr "Disco total"
+
+msgid "settings.storage.disk_used"
+msgstr "Disco usado"
+
+msgid "settings.storage.experiments"
+msgstr "Experimentos"
+
+msgid "settings.storage.models"
+msgstr "Modelos"
+
+msgid "settings.storage.other"
+msgstr "Outros"
+
+msgid "settings.storage.title"
+msgstr "Armazenamento do Aplicativo"
+
+msgid "settings.title"
+msgstr "Configurações"
+

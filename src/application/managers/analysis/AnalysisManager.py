@@ -14,6 +14,7 @@ from application.db.models import Analysis as AnalysisRow
 from application.db.paths import get_analyses_dir
 from application.db.storage import FileStore
 from application.enums import AnalysisOutputKind, ProblemType
+from application.i18n import TranslatableStr, _
 from application.managers.analysis.natives import NATIVE_ANALYSIS_REGISTRY
 from application.managers.results.base import (
   ClusteringAnalyzer,
@@ -27,8 +28,9 @@ class AnalysisConfig(BaseModel):
 
   class_name: str = Field(..., alias="class")
   type: ProblemType
+  title: t.Optional[TranslatableStr] = None
   output_kind: AnalysisOutputKind
-  description: str = ""
+  description: TranslatableStr = ""
   module: t.Optional[str] = None
   custom_module: t.Optional[t.Any] = None
   plugin_path: t.Optional[str] = None
@@ -112,6 +114,7 @@ class AnalysisManager:
           class_name=config.class_name,
           module=config.module,
           output_kind=config.output_kind,
+          title=config.title,
           description=config.description,
           is_native=True,
           created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -134,11 +137,22 @@ class AnalysisManager:
       plugin_path = str(store.resolve_path(row.storage_filename))
       custom_module = cls._load_module_from_path(plugin_path)
 
+    title: t.Optional[TranslatableStr] = row.title
+    description: TranslatableStr = row.description or ""
+
+    if row.is_native:
+      native_data = NATIVE_ANALYSIS_REGISTRY.get(row.problem_type, {}).get(row.name)
+
+      if native_data is not None:
+        title = native_data.get("title", title)
+        description = native_data.get("description", description)
+
     config = AnalysisConfig(
       class_name=row.class_name,
       type=row.problem_type,
       output_kind=row.output_kind,
-      description=row.description or "",
+      title=title,
+      description=description,
       module=row.module,
       custom_module=custom_module,
       plugin_path=plugin_path,
@@ -202,6 +216,7 @@ class AnalysisManager:
             class_name=config.class_name,
             module=None,
             output_kind=config.output_kind,
+            title=config.title,
             description=config.description,
             storage_filename=stored.storage_filename,
             original_filename=stored.original_filename,
@@ -234,7 +249,7 @@ class AnalysisManager:
         return
 
       if row.is_native:
-        raise ValueError("Analyses nativas não podem ser removidas.")
+        raise ValueError(_("analysis.err.native_cannot_delete"))
 
       storage_filename = row.storage_filename
 

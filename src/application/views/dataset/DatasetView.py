@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 
 from application.components import SortableTreeview
+from application.i18n import _, localize_enum
 from application.managers import DatasetManager
 from application.views.dataset import DatasetFormModal
 
@@ -12,11 +13,11 @@ class DatasetView(ttk.Frame):
     header_frame = ttk.Frame(self)
     header_frame.pack(fill=tk.X, padx=10, pady=10)
 
-    ttk.Label(header_frame, text="📁 Datasets Library", font=("", 16, "bold")).pack(side=tk.LEFT)
+    ttk.Label(header_frame, text=_("dataset.view.title"), font=("", 16, "bold")).pack(side=tk.LEFT)
 
-    ttk.Button(header_frame, text="🗑️ Delete", command=self.delete_dataset).pack(side=tk.RIGHT, padx=(5, 0))
-    ttk.Button(header_frame, text="✏️ Edit", command=self.open_edit_modal).pack(side=tk.RIGHT, padx=(5, 0))
-    ttk.Button(header_frame, text="➕ Add", command=self.open_add_modal).pack(side=tk.RIGHT)
+    ttk.Button(header_frame, text=_("action.delete"), command=self.delete_dataset).pack(side=tk.RIGHT, padx=(5, 0))
+    ttk.Button(header_frame, text=_("action.edit"), command=self.open_edit_modal).pack(side=tk.RIGHT, padx=(5, 0))
+    ttk.Button(header_frame, text=_("action.add"), command=self.open_add_modal).pack(side=tk.RIGHT)
 
     table_frame = ttk.Frame(self)
     table_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
@@ -24,14 +25,14 @@ class DatasetView(ttk.Frame):
     columns = ("id", "name", "type", "target", "date", "path")
     self.tree = SortableTreeview(table_frame, columns=columns, height=12)
 
-    self.tree.set_heading("id", "ID", sortable=False)
+    self.tree.set_heading("id", _("common.id"), sortable=False)
     self.tree.column("id", width=0, stretch=tk.NO)
 
-    self.tree.set_heading("name", "Name")
-    self.tree.set_heading("type", "Type")
-    self.tree.set_heading("target", "Target")
-    self.tree.set_heading("date", "Added On")
-    self.tree.set_heading("path", "File Path")
+    self.tree.set_heading("name", _("common.name"))
+    self.tree.set_heading("type", _("common.type"))
+    self.tree.set_heading("target", _("dataset.col.target"))
+    self.tree.set_heading("date", _("dataset.col.added_on"))
+    self.tree.set_heading("path", _("dataset.col.file_path"))
 
     self.tree.column("name", width=120)
     self.tree.column("type", width=90)
@@ -54,7 +55,11 @@ class DatasetView(ttk.Frame):
       self.tree.delete(item)
 
     for ds in DatasetManager.get_all():
-      self.tree.insert("", tk.END, values=(ds.id, ds.name, ds.type, ds.target or "—", ds.date, ds.path))
+      self.tree.insert(
+        "",
+        tk.END,
+        values=(ds.id, ds.name, localize_enum(ds.type), ds.target or "—", ds.date, ds.path),
+      )
 
   def _selected_rows(self) -> list[tuple]:
     return [self.tree.item(iid)["values"] for iid in self.tree.selection()]
@@ -64,8 +69,8 @@ class DatasetView(ttk.Frame):
       return None
 
     menu = tk.Menu(self, tearoff=0)
-    menu.add_command(label="Edit", command=self.open_edit_modal)
-    menu.add_command(label="Delete", command=self.delete_dataset)
+    menu.add_command(label=_("common.edit"), command=self.open_edit_modal)
+    menu.add_command(label=_("common.delete"), command=self.delete_dataset)
     return menu
 
   def _on_double_click(self, event: tk.Event) -> None:
@@ -79,16 +84,24 @@ class DatasetView(ttk.Frame):
     rows = self._selected_rows()
 
     if len(rows) != 1:
-      messagebox.showwarning("Warning", "Please select exactly one dataset to edit.")
+      messagebox.showwarning(_("common.warning"), _("dataset.msg.select_one_edit"))
       return
 
     values = rows[0]
+    dataset_id = str(values[0])
+
+    dataset = next((ds for ds in DatasetManager.get_all() if str(ds.id) == dataset_id), None)
+
+    if dataset is None:
+      messagebox.showerror(_("common.error"), _("dataset.err.not_found").format(id=dataset_id))
+      return
+
     dataset_data = {
-      "id": str(values[0]),
-      "name": values[1],
-      "type": values[2],
-      "target": None if values[3] in ("—", "", None) else values[3],
-      "path": values[5],
+      "id": dataset_id,
+      "name": dataset.name,
+      "type": dataset.type,
+      "target": dataset.target,
+      "path": dataset.path,
     }
 
     DatasetFormModal(self, on_save=self._on_dataset_saved, dataset_data=dataset_data)
@@ -97,15 +110,15 @@ class DatasetView(ttk.Frame):
     rows = self._selected_rows()
 
     if not rows:
-      messagebox.showwarning("Warning", "Please select at least one dataset to delete.")
+      messagebox.showwarning(_("common.warning"), _("dataset.msg.select_one_delete"))
       return
 
     names = [str(row[1]) for row in rows]
-    label = names[0] if len(names) == 1 else f"{len(names)} datasets"
+    label = names[0] if len(names) == 1 else _("dataset.msg.n_datasets").format(n=len(names))
 
     if not messagebox.askyesno(
-      "Confirm Delete",
-      f"Delete {label} permanently?\nThis action cannot be undone.",
+      _("common.confirm_delete"),
+      _("dataset.msg.delete_confirm").format(label=label),
     ):
       return
 
@@ -124,8 +137,8 @@ class DatasetView(ttk.Frame):
 
     if errors:
       messagebox.showerror(
-        "Delete Error",
-        "Some datasets could not be deleted (they may be used by experiments):\n\n" + "\n".join(errors),
+        _("common.delete_error"),
+        _("dataset.msg.delete_partial") + "\n".join(errors),
       )
 
   def _on_dataset_saved(self, dataset_payload: dict) -> None:
@@ -140,7 +153,7 @@ class DatasetView(ttk.Frame):
           target=dataset_payload.get("target"),
         )
     except Exception as e:
-      messagebox.showerror("Error", str(e))
+      messagebox.showerror(_("common.error"), str(e))
       return
 
     self.load_table_data()

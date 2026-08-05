@@ -54,6 +54,8 @@ class Model(Base):
   problem_type: Mapped[ProblemType] = mapped_column(_str_enum(ProblemType))
   class_name: Mapped[str]
   module: Mapped[t.Optional[str]] = mapped_column(default=None)
+  title: Mapped[t.Optional[t.Any]] = mapped_column(JSON, default=None)
+  description: Mapped[t.Optional[t.Any]] = mapped_column(JSON, default=None)
   params: Mapped[list[dict[str, t.Any]]] = mapped_column(JSON, default=list)
   storage_filename: Mapped[t.Optional[str]] = mapped_column(default=None)
   original_filename: Mapped[t.Optional[str]] = mapped_column(default=None)
@@ -71,7 +73,8 @@ class Analysis(Base):
   class_name: Mapped[str]
   module: Mapped[t.Optional[str]] = mapped_column(default=None)
   output_kind: Mapped[AnalysisOutputKind] = mapped_column(_str_enum(AnalysisOutputKind))
-  description: Mapped[str] = mapped_column(default="")
+  title: Mapped[t.Optional[t.Any]] = mapped_column(JSON, default=None)
+  description: Mapped[t.Optional[t.Any]] = mapped_column(JSON, default=None)
   storage_filename: Mapped[t.Optional[str]] = mapped_column(default=None)
   original_filename: Mapped[t.Optional[str]] = mapped_column(default=None)
   md5_hash: Mapped[t.Optional[str]] = mapped_column(default=None)

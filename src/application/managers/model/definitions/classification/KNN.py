@@ -1,6 +1,7 @@
 KNN_REGISTRY_INSTANCE =  {
   "module": "sklearn.neighbors",
   "class": "KNeighborsClassifier",
+  "title": {"en_US": "K-Nearest Neighbors", "pt_BR": "K-Vizinhos Mais Próximos"},
   "description": "A simple algorithm that classifies a new data point based on the most common category among its closest k neighbors.",
   "params": [
     {

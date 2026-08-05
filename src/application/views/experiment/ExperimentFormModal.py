@@ -5,6 +5,7 @@ from tkinter import ttk, messagebox
 from application.managers import AnalysisManager, DatasetManager, ExperimentManager, ModelManager
 
 from application.components import HyperParamForm
+from application.i18n import _, display_title, localize_enum
 from application.managers.DatasetManager import DatasetMetadata
 from application.managers.ExperimentManager import ExperimentMetadata
 
@@ -18,7 +19,7 @@ class ExperimentFormModal(tk.Toplevel):
   ) -> None:
     super().__init__(parent)
 
-    self.title("New Experiment")
+    self.title(_("experiment.form.title"))
     self.geometry("520x720")
     self.resizable(False, False)
     self.grab_set()
@@ -29,53 +30,64 @@ class ExperimentFormModal(tk.Toplevel):
     self.analysis_vars: dict[str, tk.BooleanVar] = {}
 
     if self.initial_data:
-      init_name = f"{self.initial_data.name} (Copy)"
+      init_name = _("experiment.form.copy_name").format(name=self.initial_data.name)
     else:
       next_n = len(ExperimentManager.get_all()) + 1
-      init_name = f"Experiment #{next_n}"
+      init_name = _("experiment.form.default_name").format(n=next_n)
 
     self.name_var = tk.StringVar(value=init_name)
     self.selected_dataset: t.Optional[DatasetMetadata] = None
     self.dataset_var = tk.StringVar()
     self.model_var = tk.StringVar()
+    self._model_display_var = tk.StringVar()
+    self._dataset_display_to_ds: dict[str, DatasetMetadata] = {}
+    self._model_display_to_name: dict[str, str] = {}
 
     self._build_ui()
     self._apply_autofill()
+
+  def _dataset_display(self, ds: DatasetMetadata) -> str:
+    return f"{ds.name} ({localize_enum(ds.type)})"
 
   def _build_ui(self) -> None:
     main_frame = ttk.Frame(self, padding=(25, 20))
     main_frame.pack(fill=tk.BOTH, expand=True)
 
-    ttk.Label(main_frame, text="Experiment Name:", foreground="#333333").pack(anchor=tk.W)
+    ttk.Label(main_frame, text=_("experiment.form.name"), foreground="#333333").pack(anchor=tk.W)
     ttk.Entry(main_frame, textvariable=self.name_var).pack(fill=tk.X, pady=(0, 12))
 
-    ttk.Label(main_frame, text="Select Dataset:", foreground="#333333").pack(anchor=tk.W)
-    dataset_names = [f"{ds.name} ({ds.type})" for ds in self.datasets]
+    ttk.Label(main_frame, text=_("experiment.form.select_dataset"), foreground="#333333").pack(anchor=tk.W)
+    self._dataset_display_to_ds = {self._dataset_display(ds): ds for ds in self.datasets}
+    dataset_names = list(self._dataset_display_to_ds.keys())
 
     self.ds_combo = ttk.Combobox(main_frame, textvariable=self.dataset_var, values=dataset_names, state="readonly")
     self.ds_combo.pack(fill=tk.X, pady=(0, 12))
     self.ds_combo.bind("<<ComboboxSelected>>", self._on_dataset_selected)
 
-    ttk.Label(main_frame, text="Select Model:", foreground="#333333").pack(anchor=tk.W)
-    self.model_combo = ttk.Combobox(main_frame, textvariable=self.model_var, state="readonly")
+    ttk.Label(main_frame, text=_("experiment.form.select_model"), foreground="#333333").pack(anchor=tk.W)
+    self.model_combo = ttk.Combobox(main_frame, textvariable=self._model_display_var, state="readonly")
     self.model_combo.pack(fill=tk.X, pady=(0, 12))
     self.model_combo.bind("<<ComboboxSelected>>", self._on_model_selected)
 
-    self.param_frame = ttk.LabelFrame(main_frame, text="Hyperparameters Config")
+    self.param_frame = ttk.LabelFrame(main_frame, text=_("experiment.form.hyperparams"))
     self.param_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 12))
 
     self.hyperparam_form = HyperParamForm(self.param_frame, is_readonly=False)
     self.hyperparam_form.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-    self.analyses_frame = ttk.LabelFrame(main_frame, text="Analyses")
+    self.analyses_frame = ttk.LabelFrame(main_frame, text=_("nav.analyses"))
     self.analyses_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 12))
 
     self.analyses_inner = ttk.Frame(self.analyses_frame)
     self.analyses_inner.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-    ttk.Label(self.analyses_inner, text="Select a dataset to choose analyses.", foreground="#666666").pack(anchor=tk.W)
+    ttk.Label(
+      self.analyses_inner,
+      text=_("experiment.form.select_dataset_for_analyses"),
+      foreground="#666666",
+    ).pack(anchor=tk.W)
 
-    ttk.Button(main_frame, text="Run Experiment", command=self._handle_save).pack(fill=tk.X, ipady=6)
+    ttk.Button(main_frame, text=_("experiment.form.run"), command=self._handle_save).pack(fill=tk.X, ipady=6)
 
   def _render_analyses(self, preselected: t.Optional[list[str]] = None) -> None:
     for child in self.analyses_inner.winfo_children():
@@ -84,13 +96,17 @@ class ExperimentFormModal(tk.Toplevel):
     self.analysis_vars = {}
 
     if not self.selected_dataset:
-      ttk.Label(self.analyses_inner, text="Select a dataset to choose analyses.", foreground="#666666").pack(anchor=tk.W)
+      ttk.Label(
+        self.analyses_inner,
+        text=_("experiment.form.select_dataset_for_analyses"),
+        foreground="#666666",
+      ).pack(anchor=tk.W)
       return
 
     registry = AnalysisManager.registry(self.selected_dataset.type)
 
     if not registry:
-      ttk.Label(self.analyses_inner, text="No analyses available for this problem type.", foreground="#666666").pack(anchor=tk.W)
+      ttk.Label(self.analyses_inner, text=_("experiment.form.no_analyses"), foreground="#666666").pack(anchor=tk.W)
       return
 
     for name, config in registry.items():
@@ -103,22 +119,31 @@ class ExperimentFormModal(tk.Toplevel):
 
       self.analysis_vars[name] = var
 
-      ttk.Checkbutton(self.analyses_inner, text=name, variable=var).pack(anchor=tk.W, pady=2)
+      ttk.Checkbutton(
+        self.analyses_inner,
+        text=display_title(config.title, name),
+        variable=var,
+      ).pack(anchor=tk.W, pady=2)
 
   def _apply_autofill(self) -> None:
     if not self.initial_data:
       return
 
     saved_ds = self.initial_data.dataset
-    ds_str_to_find = f"{saved_ds.name} ({saved_ds.type})"
+    ds_str_to_find = self._dataset_display(saved_ds)
 
     if ds_str_to_find in self.ds_combo["values"]:
       self.dataset_var.set(ds_str_to_find)
       self._on_dataset_selected(None, preselected=self.initial_data.selected_analyses or None)
 
     saved_model = self.initial_data.model_name
+    saved_model_display = next(
+      (display for display, name in self._model_display_to_name.items() if name == saved_model),
+      None,
+    )
 
-    if saved_model in self.model_combo["values"]:
+    if saved_model_display is not None:
+      self._model_display_var.set(saved_model_display)
       self.model_var.set(saved_model)
       self._on_model_selected(None)
 
@@ -135,22 +160,29 @@ class ExperimentFormModal(tk.Toplevel):
   ) -> None:
     selected_text = self.dataset_var.get()
 
-    self.selected_dataset = next((ds for ds in self.datasets if f"{ds.name} ({ds.type})" == selected_text), None)
+    self.selected_dataset = self._dataset_display_to_ds.get(selected_text)
 
     if not self.selected_dataset:
       return
 
     prob_type = self.selected_dataset.type
 
-    valid_models = ModelManager.options(prob_type)
-    self.model_combo["values"] = valid_models
-    self.model_combo.set("")
+    self._model_display_to_name = {
+      display_title(model_config.title, name): name
+      for name, model_config in ModelManager.registry(prob_type).items()
+    }
+
+    self.model_combo["values"] = list(self._model_display_to_name.keys())
+    self._model_display_var.set("")
+    self.model_var.set("")
     self.hyperparam_form.render_form([])
     self._render_analyses(preselected=preselected)
 
   def _on_model_selected(self, event: t.Optional[tk.Event]) -> None:
     if not self.selected_dataset:
       return
+
+    self.model_var.set(self._model_display_to_name.get(self._model_display_var.get(), ""))
 
     prob_type = self.selected_dataset.type
     model_name = self.model_var.get()
@@ -162,19 +194,19 @@ class ExperimentFormModal(tk.Toplevel):
 
   def _handle_save(self) -> None:
     if not self.name_var.get() or not self.selected_dataset or not self.model_var.get():
-      messagebox.showerror("Error", "Name, Dataset, and Model are required.", parent=self)
+      messagebox.showerror(_("common.error"), _("experiment.form.err_required"), parent=self)
       return
 
     selected_analyses = [name for name, var in self.analysis_vars.items() if var.get()]
 
     if not selected_analyses:
-      messagebox.showerror("Error", "Select at least one analysis.", parent=self)
+      messagebox.showerror(_("common.error"), _("experiment.form.err_need_analysis"), parent=self)
       return
 
     try:
       params = self.hyperparam_form.get_parsed_values()
     except ValueError as e:
-      messagebox.showerror("Validation Error", str(e), parent=self)
+      messagebox.showerror(_("common.validation_error"), str(e), parent=self)
       return
 
     payload = {

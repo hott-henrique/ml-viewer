@@ -3,6 +3,7 @@ from tkinter import ttk, filedialog, messagebox
 
 from application.components import SortableTreeview
 from application.enums import ProblemType
+from application.i18n import _, display_title, localize_enum, resolve_text
 from application.managers import AnalysisManager
 
 class AnalysisView(ttk.Frame):
@@ -12,21 +13,29 @@ class AnalysisView(ttk.Frame):
     header_frame = ttk.Frame(self)
     header_frame.pack(fill=tk.X, padx=10, pady=10)
 
-    ttk.Label(header_frame, text="Analyses Library", font=("", 16, "bold")).pack(side=tk.LEFT)
+    ttk.Label(header_frame, text=_("analysis.view.title"), font=("", 16, "bold")).pack(side=tk.LEFT)
 
-    ttk.Button(header_frame, text="Delete", command=self.delete_analysis).pack(side=tk.RIGHT, padx=(5, 0))
-    ttk.Button(header_frame, text="Import", command=self.import_analysis).pack(side=tk.RIGHT)
+    ttk.Button(header_frame, text=_("common.delete"), command=self.delete_analysis).pack(side=tk.RIGHT, padx=(5, 0))
+    ttk.Button(header_frame, text=_("common.import"), command=self.import_analysis).pack(side=tk.RIGHT)
 
     table_frame = ttk.Frame(self)
     table_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
-    columns = ("name", "type", "output", "source")
-    self.tree = SortableTreeview(table_frame, columns=columns, height=10)
+    columns = ("key", "name", "type", "output", "source")
+    self.tree = SortableTreeview(
+      table_frame,
+      columns=columns,
+      display_columns=("name", "type", "output", "source"),
+      height=10,
+    )
 
-    self.tree.set_heading("name", "Analysis Name")
-    self.tree.set_heading("type", "Problem Type")
-    self.tree.set_heading("output", "Output Kind")
-    self.tree.set_heading("source", "Source")
+    self.tree.set_heading("key", _("common.id"), sortable=False)
+    self.tree.column("key", width=0, stretch=tk.NO)
+
+    self.tree.set_heading("name", _("analysis.col.name"))
+    self.tree.set_heading("type", _("model.col.problem_type"))
+    self.tree.set_heading("output", _("analysis.col.output_kind"))
+    self.tree.set_heading("source", _("common.source"))
 
     self.tree.column("name", width=220)
     self.tree.column("type", width=120)
@@ -41,7 +50,7 @@ class AnalysisView(ttk.Frame):
     self.tree.bind("<<TreeviewSelect>>", self.on_analysis_selected)
     self.tree.bind_context_menu(self._build_context_menu)
 
-    desc_frame = ttk.LabelFrame(self, text="Description")
+    desc_frame = ttk.LabelFrame(self, text=_("common.description"))
     desc_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=15)
 
     self.desc_text = tk.Text(desc_frame, wrap=tk.WORD, state=tk.DISABLED, bg="#f5f5f5", height=6)
@@ -60,18 +69,31 @@ class AnalysisView(ttk.Frame):
       ProblemType.DIMENSIONALITY_REDUCTION,
     ):
       for name, config in AnalysisManager.registry(problem_type).items():
-        source = "Native" if config.is_native else "Custom"
-        self.tree.insert("", tk.END, values=(name, problem_type.value, config.output_kind.value, source))
+        source = _("common.native") if config.is_native else _("common.custom")
+        self.tree.insert(
+          "",
+          tk.END,
+          values=(
+            name,
+            display_title(config.title, name),
+            localize_enum(problem_type),
+            localize_enum(config.output_kind),
+            source,
+          ),
+        )
 
   def _selected_rows(self) -> list[tuple]:
     return [self.tree.item(iid)["values"] for iid in self.tree.selection()]
+
+  def _is_native_source(self, source: str) -> bool:
+    return source in (_("common.native"), "Native")
 
   def _build_context_menu(self, event: tk.Event) -> tk.Menu | None:
     if not self.tree.selection():
       return None
 
     menu = tk.Menu(self, tearoff=0)
-    menu.add_command(label="Delete", command=self.delete_analysis)
+    menu.add_command(label=_("common.delete"), command=self.delete_analysis)
     return menu
 
   def _clear_description(self) -> None:
@@ -86,61 +108,95 @@ class AnalysisView(ttk.Frame):
       self._clear_description()
       return
 
-    name, prob_type, _output, _source = rows[0]
-    config = AnalysisManager.registry(prob_type).get(name)
+    key = str(rows[0][0])
+    config = None
+    for problem_type in (
+      ProblemType.CLASSIFICATION,
+      ProblemType.REGRESSION,
+      ProblemType.CLUSTERING,
+      ProblemType.DIMENSIONALITY_REDUCTION,
+    ):
+      config = AnalysisManager.registry(problem_type).get(key)
+      if config:
+        break
 
     self.desc_text.config(state=tk.NORMAL)
     self.desc_text.delete(1.0, tk.END)
 
     if config:
-      self.desc_text.insert(tk.END, config.description or "(No description)")
+      text = resolve_text(config.description) or _("common.no_description")
+      self.desc_text.insert(tk.END, text)
 
     self.desc_text.config(state=tk.DISABLED)
 
   def import_analysis(self) -> None:
-    filepath = filedialog.askopenfilename(filetypes=[("Python Files", "*.py")])
+    filepath = filedialog.askopenfilename(filetypes=[(_("common.filetypes.python"), "*.py")])
 
     if not filepath:
       return
 
     try:
       added = AnalysisManager.import_from_file(filepath)
-      messagebox.showinfo("Success", f"Successfully imported: {', '.join(added)}")
+      messagebox.showinfo(_("common.success"), _("model.msg.imported").format(names=", ".join(added)))
       self.load_table_data()
     except Exception as e:
-      messagebox.showerror("Import Error", str(e))
+      messagebox.showerror(_("common.import_error"), str(e))
 
   def delete_analysis(self) -> None:
     rows = self._selected_rows()
 
     if not rows:
-      messagebox.showwarning("Warning", "Please select at least one analysis to delete.")
+      messagebox.showwarning(_("common.warning"), _("analysis.msg.select_delete"))
       return
 
-    custom_rows = [row for row in rows if row[3] != "Native"]
+    custom_rows = [row for row in rows if not self._is_native_source(str(row[4]))]
     skipped_native = len(rows) - len(custom_rows)
 
     if not custom_rows:
-      messagebox.showerror("Error", "Native analyses cannot be deleted.")
+      messagebox.showerror(_("common.error"), _("analysis.err.native_cannot_delete"))
       return
 
     names = [str(row[0]) for row in custom_rows]
-    label = names[0] if len(names) == 1 else f"{len(names)} analyses"
-    extra = f"\n({skipped_native} native analysis(es) will be skipped.)" if skipped_native else ""
+    if len(names) == 1:
+      label = names[0]
+    else:
+      label = _("analysis.msg.n_analyses").format(n=len(names))
 
-    if not messagebox.askyesno("Confirm Delete", f"Delete {label} permanently?{extra}"):
+    extra = ""
+    if skipped_native:
+      extra = "\n" + _("analysis.msg.skip_native").format(n=skipped_native)
+
+    if not messagebox.askyesno(
+      _("common.confirm_delete"),
+      _("analysis.msg.delete_confirm").format(label=label, extra=extra),
+    ):
       return
 
     errors: list[str] = []
 
-    for name, prob_type, _output, _source in custom_rows:
-      try:
-        AnalysisManager.delete_analysis(prob_type, name)
-      except Exception as e:
-        errors.append(f"{name}: {e}")
+    for key, _title, _type, _output, _source in custom_rows:
+      deleted = False
+      for problem_type in (
+        ProblemType.CLASSIFICATION,
+        ProblemType.REGRESSION,
+        ProblemType.CLUSTERING,
+        ProblemType.DIMENSIONALITY_REDUCTION,
+      ):
+        if str(key) in AnalysisManager.registry(problem_type):
+          try:
+            AnalysisManager.delete_analysis(problem_type, str(key))
+            deleted = True
+          except Exception as e:
+            errors.append(f"{key}: {e}")
+          break
+      if not deleted:
+        errors.append(f"{key}: not found")
 
     self._clear_description()
     self.load_table_data()
 
     if errors:
-      messagebox.showerror("Delete Error", "Some analyses could not be deleted:\n\n" + "\n".join(errors))
+      messagebox.showerror(
+        _("common.delete_error"),
+        _("analysis.msg.delete_partial") + "\n".join(errors),
+      )

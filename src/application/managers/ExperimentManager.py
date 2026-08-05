@@ -14,6 +14,7 @@ from application.db.models import Experiment as ExperimentRow
 from application.db.paths import get_experiment_dir, get_experiments_dir
 from application.db.storage import FileIntegrityError, FileStore, StoredFile
 from application.enums import ExperimentStatus, ProblemType
+from application.i18n import _
 from application.managers.DatasetManager import DatasetMetadata
 from application.managers.model.base import ModelAPI
 from application.managers.results import ExportResult, ImageResult, ScalarResult, StoredImageResult, TextResult
@@ -56,9 +57,7 @@ class ExperimentMetadata(BaseModel):
     store = FileStore(get_experiment_dir(self.id))
 
     if not store.verify_integrity(self.model_pickle_filename, self.model_pickle_md5):
-      raise FileIntegrityError(
-        f"O modelo treinado do experimento '{self.name}' está corrompido ou foi alterado externamente (MD5 não corresponde)."
-      )
+      raise FileIntegrityError(_("experiment.err.model_integrity").format(name=self.name))
 
     return str(store.resolve_path(self.model_pickle_filename))
 
@@ -129,7 +128,7 @@ class ExperimentManager:
       row = session.get(ExperimentRow, target_id)
 
       if row is None:
-        raise ValueError(f"Experimento com ID {target_id} não encontrado.")
+        raise ValueError(_("experiment.err.not_found").format(id=target_id))
 
       for field in ("name", "model_name", "hyperparameters", "status", "selected_analyses"):
         value = updates.get(field)
@@ -171,7 +170,7 @@ class ExperimentManager:
       row = session.get(ExperimentRow, exp_id)
 
       if row is None:
-        raise ValueError(f"Experimento com ID {exp_id} não encontrado.")
+        raise ValueError(_("experiment.err.not_found").format(id=exp_id))
 
       existing = list(row.result_artifacts or [])
       existing.extend(a.model_dump(mode="json") for a in new_artifacts)
@@ -203,7 +202,7 @@ class ExperimentManager:
       row = session.get(ExperimentRow, exp_id)
 
       if row is None:
-        raise ValueError(f"Experimento com ID {exp_id} não encontrado.")
+        raise ValueError(_("experiment.err.not_found").format(id=exp_id))
 
       artifacts = [ResultArtifact.model_validate(a) for a in (row.result_artifacts or [])]
 
@@ -215,9 +214,7 @@ class ExperimentManager:
     store = FileStore(get_experiment_dir(exp_id))
 
     if not store.verify_integrity(log_artifact.storage_filename, log_artifact.md5_hash):
-      raise FileIntegrityError(
-        f"Os logs do experimento #{exp_id} estão corrompidos ou foram alterados externamente (MD5 não corresponde)."
-      )
+      raise FileIntegrityError(_("experiment.err.logs_integrity").format(id=exp_id))
 
     return store.resolve_path(log_artifact.storage_filename).read_text(encoding="utf-8")
 
@@ -264,7 +261,7 @@ class ExperimentManager:
       row = session.get(ExperimentRow, exp_id)
 
       if row is None:
-        raise ValueError(f"Experimento com ID {exp_id} não encontrado.")
+        raise ValueError(_("experiment.err.not_found").format(id=exp_id))
 
       artifacts = [ResultArtifact.model_validate(a) for a in (row.result_artifacts or [])]
 
@@ -276,9 +273,7 @@ class ExperimentManager:
         continue
 
       if not store.verify_integrity(artifact.storage_filename, artifact.md5_hash):
-        raise FileIntegrityError(
-          f"O artefato '{artifact.name}' do experimento #{exp_id} está corrompido ou foi alterado externamente (MD5 não corresponde)."
-        )
+        raise FileIntegrityError(_("experiment.err.artifact_integrity").format(name=artifact.name, id=exp_id))
 
       path = store.resolve_path(artifact.storage_filename)
 
@@ -309,7 +304,7 @@ class ExperimentManager:
       row = session.get(ExperimentRow, exp_id)
 
       if row is None:
-        raise ValueError(f"Experimento com ID {exp_id} não encontrado.")
+        raise ValueError(_("experiment.err.not_found").format(id=exp_id))
 
       row.model_pickle_filename = stored.storage_filename
       row.model_pickle_md5 = stored.md5_hash

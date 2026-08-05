@@ -1,6 +1,7 @@
 SVM_REGISTRY_INSTANCE =  {
   "module": "sklearn.svm",
   "class": "SVC",
+  "title": {"en_US": "SVM", "pt_BR": "SVM"},
   "description": "A machine learning model that finds the best line or boundary (hyperplane) to separate different categories of data.",
   "params": [
     {
