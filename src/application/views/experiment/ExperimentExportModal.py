@@ -128,10 +128,12 @@ class ExperimentExportModal(tk.Toplevel):
           result.include_in_zip(zf)
 
         if self.inc_dataset_var.get():
-          ds_path = self.experiment_data.dataset.path
+          for file_meta in self.experiment_data.dataset.files:
+            ds_path = file_meta.path
 
-          if ds_path and os.path.exists(ds_path):
-            zf.write(ds_path, os.path.basename(ds_path))
+            if ds_path and os.path.exists(ds_path):
+              arcname = f"{file_meta.role.value.lower()}_{file_meta.original_filename}"
+              zf.write(ds_path, arcname)
 
         if self.inc_model_var.get():
           model_filename = f"model_{self.experiment_data.model_name.replace(' ', '_')}.pkl"

@@ -199,20 +199,44 @@ msgstr "Adicionado em"
 msgid "dataset.col.file_path"
 msgstr "Caminho do arquivo"
 
+msgid "dataset.col.layout"
+msgstr "Layout"
+
 msgid "dataset.col.target"
 msgstr "Alvo"
 
-msgid "dataset.err.integrity"
-msgstr "Dataset '{name}' está corrompido ou foi alterado externamente (MD5 não corresponde)."
+msgid "dataset.err.file_integrity"
+msgstr "Arquivo do dataset '{name}' está corrompido ou foi alterado externamente (MD5 não corresponde)."
+
+msgid "dataset.err.invalid_target_index"
+msgstr "O alvo deve ser um índice de coluna não negativo."
+
+msgid "dataset.err.layout_files_mismatch"
+msgstr "Arquivos não correspondem ao layout {layout}."
+
+msgid "dataset.err.missing_role"
+msgstr "Dataset está sem o arquivo obrigatório com papel '{role}'."
+
+msgid "dataset.err.ncols_mismatch"
+msgstr "Arquivos de treino e teste devem ter o mesmo número de colunas (treino={train}, teste={test})."
 
 msgid "dataset.err.not_found"
 msgstr "Dataset com ID {id} não encontrado."
 
 msgid "dataset.err.supervised_requires_target"
-msgstr "Datasets supervisionados exigem uma coluna alvo válida."
+msgstr "Datasets supervisionados exigem um índice de coluna alvo válido."
+
+msgid "dataset.err.target_out_of_range"
+msgstr "Índice alvo {index} está fora do intervalo para {ncols} colunas."
 
 msgid "dataset.err.unsupervised_no_target"
 msgstr "Datasets não supervisionados não usam alvo; deixe vazio."
+
+msgid "dataset.err.unsupervised_requires_nosplit"
+msgstr "Datasets não supervisionados só suportam o layout NoSplit."
+
+msgid "dataset.err.unsupported_layout"
+msgstr "Layout de dataset não suportado: {layout}"
 
 msgid "dataset.err.unsupported_problem_type"
 msgstr "Tipo de problema não suportado: {problem_type}"
@@ -224,13 +248,22 @@ msgid "dataset.form.edit_title"
 msgstr "Editar Dataset"
 
 msgid "dataset.form.err_name_file"
-msgstr "Nome e arquivo são obrigatórios."
+msgstr "Nome e arquivo(s) são obrigatórios."
 
 msgid "dataset.form.err_target_required"
-msgstr "A variável alvo é obrigatória para datasets supervisionados."
+msgstr "O índice da coluna alvo é obrigatório para datasets supervisionados."
+
+msgid "dataset.form.err_train_test_files"
+msgstr "Arquivos CSV de treino e teste são obrigatórios para TrainTestSplit."
 
 msgid "dataset.form.file"
 msgstr "Arquivo (CSV):"
+
+msgid "dataset.form.has_header"
+msgstr "Cabeçalho presente"
+
+msgid "dataset.form.layout"
+msgstr "Layout do dataset:"
 
 msgid "dataset.form.name"
 msgstr "Nome do Dataset:"
@@ -242,10 +275,16 @@ msgid "dataset.form.save"
 msgstr "Salvar Dataset"
 
 msgid "dataset.form.target"
-msgstr "Variável alvo:"
+msgstr "Índice da coluna alvo:"
 
 msgid "dataset.form.target_unused"
-msgstr "Variável alvo: (não usada)"
+msgstr "Índice da coluna alvo: (não usado)"
+
+msgid "dataset.form.test_file"
+msgstr "Arquivo de teste (CSV):"
+
+msgid "dataset.form.train_file"
+msgstr "Arquivo de treino (CSV):"
 
 msgid "dataset.form.update"
 msgstr "Atualizar Dataset"
@@ -285,6 +324,12 @@ msgstr "escalar"
 
 msgid "enum.analysis_output_kind.text"
 msgstr "texto"
+
+msgid "enum.dataset_layout.nosplit"
+msgstr "Sem split"
+
+msgid "enum.dataset_layout.train_test_split"
+msgstr "Treino/Teste"
 
 msgid "enum.experiment_status.nok"
 msgstr "NOK"
@@ -331,6 +376,9 @@ msgstr "Nome do experimento"
 msgid "experiment.err.artifact_integrity"
 msgstr "O artefato '{name}' do experimento #{id} está corrompido ou foi alterado externamente (MD5 não corresponde)."
 
+msgid "experiment.err.invalid_test_size"
+msgstr "O tamanho do teste deve ser um número entre 0 e 1 (exclusive)."
+
 msgid "experiment.err.logs_integrity"
 msgstr "Os logs do experimento #{id} estão corrompidos ou foram alterados externamente (MD5 não corresponde)."
 
@@ -341,10 +389,10 @@ msgid "experiment.err.not_found"
 msgstr "Experimento com ID {id} não encontrado."
 
 msgid "experiment.err.supervised_requires_target"
-msgstr "Experimentos supervisionados exigem uma coluna alvo no dataset."
+msgstr "Experimentos supervisionados exigem um índice de coluna alvo no dataset."
 
-msgid "experiment.err.target_column_missing"
-msgstr "Coluna alvo '{column}' não encontrada no dataset."
+msgid "experiment.err.target_index_missing"
+msgstr "Índice de coluna alvo {index} está fora do intervalo neste dataset."
 
 msgid "experiment.export.as_zip"
 msgstr "💾 Export as ZIP"
@@ -385,6 +433,9 @@ msgstr "{name} (Cópia)"
 msgid "experiment.form.default_name"
 msgstr "Experimento #{n}"
 
+msgid "experiment.form.err_invalid_test_size"
+msgstr "O tamanho do teste deve ser um número entre 0 e 1 (exclusive)."
+
 msgid "experiment.form.err_need_analysis"
 msgstr "Selecione pelo menos uma análise."
 
@@ -411,6 +462,21 @@ msgstr "Selecione um dataset para escolher análises."
 
 msgid "experiment.form.select_model"
 msgstr "Selecionar modelo:"
+
+msgid "experiment.form.split"
+msgstr "Split treino/teste"
+
+msgid "experiment.form.split_hint_configure"
+msgstr "Este dataset tem um único arquivo. Configure como fazer o split para avaliação."
+
+msgid "experiment.form.split_hint_preset"
+msgstr "Este dataset já fornece arquivos de treino e teste."
+
+msgid "experiment.form.split_mode_train_test"
+msgstr "Modo: Treino/Teste"
+
+msgid "experiment.form.test_size"
+msgstr "Tamanho do teste (0–1):"
 
 msgid "experiment.form.title"
 msgstr "Novo experimento"

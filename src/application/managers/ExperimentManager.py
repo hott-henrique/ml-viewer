@@ -5,11 +5,12 @@ import typing as t
 from datetime import datetime
 from pathlib import Path
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from application.db.database import SessionLocal
+from application.db.models import Dataset as DatasetRow
 from application.db.models import Experiment as ExperimentRow
 from application.db.paths import get_experiment_dir, get_experiments_dir
 from application.db.storage import FileIntegrityError, FileStore, StoredFile
@@ -30,6 +31,18 @@ HyperParamValue = int | float | bool | str
 
 ArtifactKind = t.Literal["log", "text", "image", "scalar"]
 
+class ExperimentSplitConfig(BaseModel):
+  version: t.Literal[1] = 1
+  mode: t.Literal["TrainTest"] = "TrainTest"
+  test_size: float = 0.2
+
+  @field_validator("test_size")
+  @classmethod
+  def _validate_test_size(cls, value: float) -> float:
+    if not 0.0 < value < 1.0:
+      raise ValueError(_("experiment.err.invalid_test_size"))
+    return value
+
 class ResultArtifact(BaseModel):
   name: str
   kind: ArtifactKind
@@ -49,6 +62,7 @@ class ExperimentMetadata(BaseModel):
   date: str
   selected_analyses: list[str] = Field(default_factory=list)
   result_artifacts: list[ResultArtifact] = Field(default_factory=list)
+  split_config: t.Optional[ExperimentSplitConfig] = None
   model_pickle_filename: t.Optional[str] = None
   model_pickle_md5: t.Optional[str] = None
   model_pickle_size: t.Optional[int] = None
@@ -72,6 +86,10 @@ class ExperimentMetadata(BaseModel):
   @classmethod
   def from_row(cls, row: ExperimentRow) -> "ExperimentMetadata":
     dataset = DatasetMetadata.from_row(row.dataset)
+    split_config = None
+
+    if row.split_config:
+      split_config = ExperimentSplitConfig.model_validate(row.split_config)
 
     return cls(
       id=row.id,
@@ -85,12 +103,16 @@ class ExperimentMetadata(BaseModel):
       date=row.created_at,
       selected_analyses=list(row.selected_analyses or []),
       result_artifacts=[ResultArtifact.model_validate(a) for a in (row.result_artifacts or [])],
+      split_config=split_config,
       model_pickle_filename=row.model_pickle_filename,
       model_pickle_md5=row.model_pickle_md5,
       model_pickle_size=row.model_pickle_size,
     )
 
-BASE_QUERY = select(ExperimentRow).options(selectinload(ExperimentRow.dataset))
+BASE_QUERY = (
+  select(ExperimentRow)
+  .options(selectinload(ExperimentRow.dataset).selectinload(DatasetRow.files))
+)
 
 class ExperimentManager:
 
@@ -108,7 +130,16 @@ class ExperimentManager:
                      model_name: str,
                      hyperparams: dict[str, HyperParamValue],
                      status: ExperimentStatus = ExperimentStatus.PENDING,
-                     selected_analyses: t.Optional[list[str]] = None) -> ExperimentMetadata:
+                     selected_analyses: t.Optional[list[str]] = None,
+                     split_config: t.Optional[ExperimentSplitConfig | dict[str, t.Any]] = None) -> ExperimentMetadata:
+    parsed_split: t.Optional[dict[str, t.Any]] = None
+
+    if split_config is not None:
+      if isinstance(split_config, ExperimentSplitConfig):
+        parsed_split = split_config.model_dump(mode="json")
+      else:
+        parsed_split = ExperimentSplitConfig.model_validate(split_config).model_dump(mode="json")
+
     with SessionLocal() as session:
       row = ExperimentRow(
         name=name,
@@ -118,6 +149,7 @@ class ExperimentManager:
         status=status,
         selected_analyses=list(selected_analyses or []),
         result_artifacts=[],
+        split_config=parsed_split,
         created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
       )
 

@@ -258,25 +258,57 @@ MESSAGES: dict[str, dict[str, str]] = {
     "en_US": 'File Path',
     "pt_BR": 'Caminho do arquivo',
   },
+  'dataset.col.layout': {
+    "en_US": 'Layout',
+    "pt_BR": 'Layout',
+  },
   'dataset.col.target': {
     "en_US": 'Target',
     "pt_BR": 'Alvo',
   },
-  'dataset.err.integrity': {
-    "en_US": "Dataset '{name}' is corrupted or was modified externally (MD5 mismatch).",
-    "pt_BR": "Dataset '{name}' está corrompido ou foi alterado externamente (MD5 não corresponde).",
+  'dataset.err.file_integrity': {
+    "en_US": "Dataset file '{name}' is corrupted or was modified externally (MD5 mismatch).",
+    "pt_BR": "Arquivo do dataset '{name}' está corrompido ou foi alterado externamente (MD5 não corresponde).",
+  },
+  'dataset.err.invalid_target_index': {
+    "en_US": 'Target must be a non-negative column index.',
+    "pt_BR": 'O alvo deve ser um índice de coluna não negativo.',
+  },
+  'dataset.err.layout_files_mismatch': {
+    "en_US": 'Files do not match layout {layout}.',
+    "pt_BR": 'Arquivos não correspondem ao layout {layout}.',
+  },
+  'dataset.err.missing_role': {
+    "en_US": "Dataset is missing required file role '{role}'.",
+    "pt_BR": "Dataset está sem o arquivo obrigatório com papel '{role}'.",
+  },
+  'dataset.err.ncols_mismatch': {
+    "en_US": 'Train and test files must have the same number of columns (train={train}, test={test}).',
+    "pt_BR": 'Arquivos de treino e teste devem ter o mesmo número de colunas (treino={train}, teste={test}).',
   },
   'dataset.err.not_found': {
     "en_US": 'Dataset with ID {id} was not found.',
     "pt_BR": 'Dataset com ID {id} não encontrado.',
   },
   'dataset.err.supervised_requires_target': {
-    "en_US": 'Supervised datasets require a valid target column.',
-    "pt_BR": 'Datasets supervisionados exigem uma coluna alvo válida.',
+    "en_US": 'Supervised datasets require a valid target column index.',
+    "pt_BR": 'Datasets supervisionados exigem um índice de coluna alvo válido.',
+  },
+  'dataset.err.target_out_of_range': {
+    "en_US": 'Target index {index} is out of range for {ncols} columns.',
+    "pt_BR": 'Índice alvo {index} está fora do intervalo para {ncols} colunas.',
   },
   'dataset.err.unsupervised_no_target': {
     "en_US": 'Unsupervised datasets do not use a target; leave it empty.',
     "pt_BR": 'Datasets não supervisionados não usam alvo; deixe vazio.',
+  },
+  'dataset.err.unsupervised_requires_nosplit': {
+    "en_US": 'Unsupervised datasets only support the NoSplit layout.',
+    "pt_BR": 'Datasets não supervisionados só suportam o layout NoSplit.',
+  },
+  'dataset.err.unsupported_layout': {
+    "en_US": 'Unsupported dataset layout: {layout}',
+    "pt_BR": 'Layout de dataset não suportado: {layout}',
   },
   'dataset.err.unsupported_problem_type': {
     "en_US": 'Unsupported problem type: {problem_type}',
@@ -291,16 +323,28 @@ MESSAGES: dict[str, dict[str, str]] = {
     "pt_BR": 'Editar Dataset',
   },
   'dataset.form.err_name_file': {
-    "en_US": 'Name and File are required.',
-    "pt_BR": 'Nome e arquivo são obrigatórios.',
+    "en_US": 'Name and file(s) are required.',
+    "pt_BR": 'Nome e arquivo(s) são obrigatórios.',
   },
   'dataset.form.err_target_required': {
-    "en_US": 'Target Variable is required for supervised datasets.',
-    "pt_BR": 'A variável alvo é obrigatória para datasets supervisionados.',
+    "en_US": 'Target column index is required for supervised datasets.',
+    "pt_BR": 'O índice da coluna alvo é obrigatório para datasets supervisionados.',
+  },
+  'dataset.form.err_train_test_files': {
+    "en_US": 'Train and test CSV files are required for TrainTestSplit.',
+    "pt_BR": 'Arquivos CSV de treino e teste são obrigatórios para TrainTestSplit.',
   },
   'dataset.form.file': {
     "en_US": 'File (CSV):',
     "pt_BR": 'Arquivo (CSV):',
+  },
+  'dataset.form.has_header': {
+    "en_US": 'Header row present',
+    "pt_BR": 'Cabeçalho presente',
+  },
+  'dataset.form.layout': {
+    "en_US": 'Dataset layout:',
+    "pt_BR": 'Layout do dataset:',
   },
   'dataset.form.name': {
     "en_US": 'Dataset Name:',
@@ -315,12 +359,20 @@ MESSAGES: dict[str, dict[str, str]] = {
     "pt_BR": 'Salvar Dataset',
   },
   'dataset.form.target': {
-    "en_US": 'Target Variable:',
-    "pt_BR": 'Variável alvo:',
+    "en_US": 'Target column index:',
+    "pt_BR": 'Índice da coluna alvo:',
   },
   'dataset.form.target_unused': {
-    "en_US": 'Target Variable: (not used)',
-    "pt_BR": 'Variável alvo: (não usada)',
+    "en_US": 'Target column index: (not used)',
+    "pt_BR": 'Índice da coluna alvo: (não usado)',
+  },
+  'dataset.form.test_file': {
+    "en_US": 'Test file (CSV):',
+    "pt_BR": 'Arquivo de teste (CSV):',
+  },
+  'dataset.form.train_file': {
+    "en_US": 'Train file (CSV):',
+    "pt_BR": 'Arquivo de treino (CSV):',
   },
   'dataset.form.update': {
     "en_US": 'Update Dataset',
@@ -373,6 +425,14 @@ MESSAGES: dict[str, dict[str, str]] = {
   'enum.analysis_output_kind.text': {
     "en_US": 'text',
     "pt_BR": 'texto',
+  },
+  'enum.dataset_layout.nosplit': {
+    "en_US": 'NoSplit',
+    "pt_BR": 'Sem split',
+  },
+  'enum.dataset_layout.train_test_split': {
+    "en_US": 'TrainTestSplit',
+    "pt_BR": 'Treino/Teste',
   },
   'enum.experiment_status.nok': {
     "en_US": 'NOK',
@@ -447,12 +507,16 @@ MESSAGES: dict[str, dict[str, str]] = {
     "pt_BR": 'Experimento com ID {id} não encontrado.',
   },
   'experiment.err.supervised_requires_target': {
-    "en_US": 'Supervised experiments require a dataset target column.',
-    "pt_BR": 'Experimentos supervisionados exigem uma coluna alvo no dataset.',
+    "en_US": 'Supervised experiments require a dataset target column index.',
+    "pt_BR": 'Experimentos supervisionados exigem um índice de coluna alvo no dataset.',
   },
-  'experiment.err.target_column_missing': {
-    "en_US": "Target column '{column}' not found in dataset.",
-    "pt_BR": "Coluna alvo '{column}' não encontrada no dataset.",
+  'experiment.err.invalid_test_size': {
+    "en_US": 'Test size must be a number between 0 and 1 (exclusive).',
+    "pt_BR": 'O tamanho do teste deve ser um número entre 0 e 1 (exclusive).',
+  },
+  'experiment.err.target_index_missing': {
+    "en_US": 'Target column index {index} is out of range for this dataset.',
+    "pt_BR": 'Índice de coluna alvo {index} está fora do intervalo neste dataset.',
   },
   'experiment.export.as_zip': {
     "en_US": '💾 Export as ZIP',
@@ -510,6 +574,10 @@ MESSAGES: dict[str, dict[str, str]] = {
     "en_US": 'Select at least one analysis.',
     "pt_BR": 'Selecione pelo menos uma análise.',
   },
+  'experiment.form.err_invalid_test_size': {
+    "en_US": 'Test size must be a number between 0 and 1 (exclusive).',
+    "pt_BR": 'O tamanho do teste deve ser um número entre 0 e 1 (exclusive).',
+  },
   'experiment.form.err_required': {
     "en_US": 'Name, Dataset, and Model are required.',
     "pt_BR": 'Nome, dataset e modelo são obrigatórios.',
@@ -541,6 +609,26 @@ MESSAGES: dict[str, dict[str, str]] = {
   'experiment.form.select_model': {
     "en_US": 'Select Model:',
     "pt_BR": 'Selecionar modelo:',
+  },
+  'experiment.form.split': {
+    "en_US": 'Train/Test Split',
+    "pt_BR": 'Split treino/teste',
+  },
+  'experiment.form.split_hint_configure': {
+    "en_US": 'This dataset has a single file. Configure how to split it for evaluation.',
+    "pt_BR": 'Este dataset tem um único arquivo. Configure como fazer o split para avaliação.',
+  },
+  'experiment.form.split_hint_preset': {
+    "en_US": 'This dataset already provides train and test files.',
+    "pt_BR": 'Este dataset já fornece arquivos de treino e teste.',
+  },
+  'experiment.form.split_mode_train_test': {
+    "en_US": 'Mode: Train/Test',
+    "pt_BR": 'Modo: Treino/Teste',
+  },
+  'experiment.form.test_size': {
+    "en_US": 'Test size (0–1):',
+    "pt_BR": 'Tamanho do teste (0–1):',
   },
   'experiment.form.title': {
     "en_US": 'New Experiment',

@@ -26,3 +26,12 @@ class AnalysisOutputKind(StrEnum):
   SCALAR = "scalar"
   TEXT = "text"
   IMAGE = "image"
+
+class DatasetLayout(StrEnum):
+  NO_SPLIT = "NoSplit"
+  TRAIN_TEST_SPLIT = "TrainTestSplit"
+
+class DatasetFileRole(StrEnum):
+  FULL = "Full"
+  TRAIN = "Train"
+  TEST = "Test"

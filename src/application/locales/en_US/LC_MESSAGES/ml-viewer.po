@@ -199,20 +199,44 @@ msgstr "Added On"
 msgid "dataset.col.file_path"
 msgstr "File Path"
 
+msgid "dataset.col.layout"
+msgstr "Layout"
+
 msgid "dataset.col.target"
 msgstr "Target"
 
-msgid "dataset.err.integrity"
-msgstr "Dataset '{name}' is corrupted or was modified externally (MD5 mismatch)."
+msgid "dataset.err.file_integrity"
+msgstr "Dataset file '{name}' is corrupted or was modified externally (MD5 mismatch)."
+
+msgid "dataset.err.invalid_target_index"
+msgstr "Target must be a non-negative column index."
+
+msgid "dataset.err.layout_files_mismatch"
+msgstr "Files do not match layout {layout}."
+
+msgid "dataset.err.missing_role"
+msgstr "Dataset is missing required file role '{role}'."
+
+msgid "dataset.err.ncols_mismatch"
+msgstr "Train and test files must have the same number of columns (train={train}, test={test})."
 
 msgid "dataset.err.not_found"
 msgstr "Dataset with ID {id} was not found."
 
 msgid "dataset.err.supervised_requires_target"
-msgstr "Supervised datasets require a valid target column."
+msgstr "Supervised datasets require a valid target column index."
+
+msgid "dataset.err.target_out_of_range"
+msgstr "Target index {index} is out of range for {ncols} columns."
 
 msgid "dataset.err.unsupervised_no_target"
 msgstr "Unsupervised datasets do not use a target; leave it empty."
+
+msgid "dataset.err.unsupervised_requires_nosplit"
+msgstr "Unsupervised datasets only support the NoSplit layout."
+
+msgid "dataset.err.unsupported_layout"
+msgstr "Unsupported dataset layout: {layout}"
 
 msgid "dataset.err.unsupported_problem_type"
 msgstr "Unsupported problem type: {problem_type}"
@@ -224,13 +248,22 @@ msgid "dataset.form.edit_title"
 msgstr "Edit Dataset"
 
 msgid "dataset.form.err_name_file"
-msgstr "Name and File are required."
+msgstr "Name and file(s) are required."
 
 msgid "dataset.form.err_target_required"
-msgstr "Target Variable is required for supervised datasets."
+msgstr "Target column index is required for supervised datasets."
+
+msgid "dataset.form.err_train_test_files"
+msgstr "Train and test CSV files are required for TrainTestSplit."
 
 msgid "dataset.form.file"
 msgstr "File (CSV):"
+
+msgid "dataset.form.has_header"
+msgstr "Header row present"
+
+msgid "dataset.form.layout"
+msgstr "Dataset layout:"
 
 msgid "dataset.form.name"
 msgstr "Dataset Name:"
@@ -242,10 +275,16 @@ msgid "dataset.form.save"
 msgstr "Save Dataset"
 
 msgid "dataset.form.target"
-msgstr "Target Variable:"
+msgstr "Target column index:"
 
 msgid "dataset.form.target_unused"
-msgstr "Target Variable: (not used)"
+msgstr "Target column index: (not used)"
+
+msgid "dataset.form.test_file"
+msgstr "Test file (CSV):"
+
+msgid "dataset.form.train_file"
+msgstr "Train file (CSV):"
 
 msgid "dataset.form.update"
 msgstr "Update Dataset"
@@ -285,6 +324,12 @@ msgstr "scalar"
 
 msgid "enum.analysis_output_kind.text"
 msgstr "text"
+
+msgid "enum.dataset_layout.nosplit"
+msgstr "NoSplit"
+
+msgid "enum.dataset_layout.train_test_split"
+msgstr "TrainTestSplit"
 
 msgid "enum.experiment_status.nok"
 msgstr "NOK"
@@ -331,6 +376,9 @@ msgstr "Experiment Name"
 msgid "experiment.err.artifact_integrity"
 msgstr "Artifact '{name}' for experiment #{id} is corrupted or was modified externally (MD5 mismatch)."
 
+msgid "experiment.err.invalid_test_size"
+msgstr "Test size must be a number between 0 and 1 (exclusive)."
+
 msgid "experiment.err.logs_integrity"
 msgstr "Logs for experiment #{id} are corrupted or were modified externally (MD5 mismatch)."
 
@@ -341,10 +389,10 @@ msgid "experiment.err.not_found"
 msgstr "Experiment with ID {id} was not found."
 
 msgid "experiment.err.supervised_requires_target"
-msgstr "Supervised experiments require a dataset target column."
+msgstr "Supervised experiments require a dataset target column index."
 
-msgid "experiment.err.target_column_missing"
-msgstr "Target column '{column}' not found in dataset."
+msgid "experiment.err.target_index_missing"
+msgstr "Target column index {index} is out of range for this dataset."
 
 msgid "experiment.export.as_zip"
 msgstr "💾 Export as ZIP"
@@ -385,6 +433,9 @@ msgstr "{name} (Copy)"
 msgid "experiment.form.default_name"
 msgstr "Experiment #{n}"
 
+msgid "experiment.form.err_invalid_test_size"
+msgstr "Test size must be a number between 0 and 1 (exclusive)."
+
 msgid "experiment.form.err_need_analysis"
 msgstr "Select at least one analysis."
 
@@ -411,6 +462,21 @@ msgstr "Select a dataset to choose analyses."
 
 msgid "experiment.form.select_model"
 msgstr "Select Model:"
+
+msgid "experiment.form.split"
+msgstr "Train/Test Split"
+
+msgid "experiment.form.split_hint_configure"
+msgstr "This dataset has a single file. Configure how to split it for evaluation."
+
+msgid "experiment.form.split_hint_preset"
+msgstr "This dataset already provides train and test files."
+
+msgid "experiment.form.split_mode_train_test"
+msgstr "Mode: Train/Test"
+
+msgid "experiment.form.test_size"
+msgstr "Test size (0–1):"
 
 msgid "experiment.form.title"
 msgstr "New Experiment"

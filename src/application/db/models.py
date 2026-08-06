@@ -1,11 +1,17 @@
 import typing as t
 
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy import JSON, ForeignKey
+from sqlalchemy import JSON, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from application.db.database import Base
-from application.enums import AnalysisOutputKind, ExperimentStatus, ProblemType
+from application.enums import (
+  AnalysisOutputKind,
+  DatasetFileRole,
+  DatasetLayout,
+  ExperimentStatus,
+  ProblemType,
+)
 
 HyperParamValue = int | float | bool | str
 
@@ -19,14 +25,33 @@ class Dataset(Base):
   id: Mapped[int] = mapped_column(primary_key=True)
   name: Mapped[str]
   problem_type: Mapped[ProblemType] = mapped_column(_str_enum(ProblemType))
-  target: Mapped[t.Optional[str]] = mapped_column(default=None)
+  target: Mapped[t.Optional[int]] = mapped_column(default=None)
+  has_header: Mapped[bool] = mapped_column(default=True)
+  layout: Mapped[DatasetLayout] = mapped_column(_str_enum(DatasetLayout), default=DatasetLayout.NO_SPLIT)
+  created_at: Mapped[str]
+
+  files: Mapped[list["DatasetFile"]] = relationship(
+    back_populates="dataset",
+    cascade="all, delete-orphan",
+  )
+  experiments: Mapped[list["Experiment"]] = relationship(back_populates="dataset")
+
+class DatasetFile(Base):
+  __tablename__ = "dataset_files"
+  __table_args__ = (
+    UniqueConstraint("dataset_id", "role", "ordinal", name="uq_dataset_file_role_ordinal"),
+  )
+
+  id: Mapped[int] = mapped_column(primary_key=True)
+  dataset_id: Mapped[int] = mapped_column(ForeignKey("datasets.id", ondelete="CASCADE"))
+  role: Mapped[DatasetFileRole] = mapped_column(_str_enum(DatasetFileRole))
+  ordinal: Mapped[int] = mapped_column(default=0)
   original_filename: Mapped[str]
   storage_filename: Mapped[str]
   md5_hash: Mapped[str]
   size_bytes: Mapped[int]
-  created_at: Mapped[str]
 
-  experiments: Mapped[list["Experiment"]] = relationship(back_populates="dataset")
+  dataset: Mapped["Dataset"] = relationship(back_populates="files")
 
 class Experiment(Base):
   __tablename__ = "experiments"
@@ -39,6 +64,7 @@ class Experiment(Base):
   status: Mapped[ExperimentStatus] = mapped_column(_str_enum(ExperimentStatus))
   selected_analyses: Mapped[list[str]] = mapped_column(JSON, default=list)
   result_artifacts: Mapped[list[dict[str, t.Any]]] = mapped_column(JSON, default=list)
+  split_config: Mapped[t.Optional[dict[str, t.Any]]] = mapped_column(JSON, default=None)
   model_pickle_filename: Mapped[t.Optional[str]] = mapped_column(default=None)
   model_pickle_md5: Mapped[t.Optional[str]] = mapped_column(default=None)
   model_pickle_size: Mapped[t.Optional[int]] = mapped_column(default=None)

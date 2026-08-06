@@ -2,36 +2,36 @@ import typing as t
 from datetime import datetime
 from pathlib import Path
 
-from pydantic import BaseModel, field_validator
+import pandas as pd
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from application.db.database import SessionLocal
 from application.db.models import Dataset as DatasetRow
+from application.db.models import DatasetFile as DatasetFileRow
 from application.db.paths import get_datasets_dir
-from application.db.storage import FileIntegrityError, FileStore
-from application.enums import ProblemType
+from application.db.storage import FileIntegrityError, FileStore, StoredFile
+from application.enums import DatasetFileRole, DatasetLayout, ProblemType
 from application.i18n import _
 
 SUPERVISED_TYPES = {ProblemType.CLASSIFICATION, ProblemType.REGRESSION}
 UNSUPERVISED_TYPES = {ProblemType.CLUSTERING, ProblemType.DIMENSIONALITY_REDUCTION}
 
-def normalize_target(target: str | None) -> str | None:
-  if target is None:
-    return None
+LAYOUT_ROLES: dict[DatasetLayout, frozenset[tuple[DatasetFileRole, int]]] = {
+  DatasetLayout.NO_SPLIT: frozenset({(DatasetFileRole.FULL, 0)}),
+  DatasetLayout.TRAIN_TEST_SPLIT: frozenset({
+    (DatasetFileRole.TRAIN, 0),
+    (DatasetFileRole.TEST, 0),
+  }),
+}
 
-  cleaned = target.strip()
-
-  if cleaned == "":
-    return None
-
-  return cleaned
-
-def validate_problem_target(problem_type: ProblemType, target: str | None) -> str | None:
-  target = normalize_target(target)
-
+def validate_problem_target(problem_type: ProblemType, target: int | None) -> int | None:
   if problem_type in SUPERVISED_TYPES:
     if target is None:
       raise ValueError(_("dataset.err.supervised_requires_target"))
+    if not isinstance(target, int) or target < 0:
+      raise ValueError(_("dataset.err.invalid_target_index"))
     return target
 
   if problem_type in UNSUPERVISED_TYPES:
@@ -41,37 +41,82 @@ def validate_problem_target(problem_type: ProblemType, target: str | None) -> st
 
   raise ValueError(_("dataset.err.unsupported_problem_type").format(problem_type=problem_type))
 
-class DatasetMetadata(BaseModel):
-  id: int
-  name: str
-  type: ProblemType
-  target: t.Optional[str] = None
+def read_dataset_frame(path: str | Path, has_header: bool, *, nrows: int | None = None) -> pd.DataFrame:
+  """Load a CSV respecting the dataset-level header flag."""
+  header: int | None = 0 if has_header else None
+  return pd.read_csv(path, header=header, nrows=nrows)
+
+def peek_ncols(path: str | Path, has_header: bool) -> int:
+  df = read_dataset_frame(path, has_header, nrows=0)
+  return df.shape[1]
+
+class DatasetFileMeta(BaseModel):
+  role: DatasetFileRole
+  ordinal: int = 0
   original_filename: str
   storage_filename: str
   md5_hash: str
   size_bytes: int
-  date: str
-
-  @field_validator("target", mode="before")
-  @classmethod
-  def _reject_blank_target(cls, value: t.Any) -> t.Any:
-    if value is None:
-      return None
-
-    if isinstance(value, str) and value.strip() == "":
-      return None
-
-    return value
 
   @property
   def path(self) -> str:
-    """Resolves the on-disk location of the managed dataset file, verifying its MD5 first."""
     store = FileStore(get_datasets_dir())
 
     if not store.verify_integrity(self.storage_filename, self.md5_hash):
-      raise FileIntegrityError(_("dataset.err.integrity").format(name=self.name))
+      raise FileIntegrityError(_("dataset.err.file_integrity").format(name=self.original_filename))
 
     return str(store.resolve_path(self.storage_filename))
+
+  @classmethod
+  def from_row(cls, row: DatasetFileRow) -> "DatasetFileMeta":
+    return cls(
+      role=row.role,
+      ordinal=row.ordinal,
+      original_filename=row.original_filename,
+      storage_filename=row.storage_filename,
+      md5_hash=row.md5_hash,
+      size_bytes=row.size_bytes,
+    )
+
+class DatasetMetadata(BaseModel):
+  id: int
+  name: str
+  type: ProblemType
+  target: t.Optional[int] = None
+  has_header: bool = True
+  layout: DatasetLayout = DatasetLayout.NO_SPLIT
+  files: list[DatasetFileMeta] = Field(default_factory=list)
+  date: str
+
+  def file_for(self, role: DatasetFileRole, ordinal: int = 0) -> DatasetFileMeta:
+    for file_meta in self.files:
+      if file_meta.role == role and file_meta.ordinal == ordinal:
+        return file_meta
+
+    raise ValueError(_("dataset.err.missing_role").format(role=role.value))
+
+  def path_for(self, role: DatasetFileRole, ordinal: int = 0) -> str:
+    return self.file_for(role, ordinal).path
+
+  @property
+  def path(self) -> str:
+    """Primary path: Full for NoSplit, Train for TrainTestSplit."""
+    if self.layout == DatasetLayout.TRAIN_TEST_SPLIT:
+      return self.path_for(DatasetFileRole.TRAIN)
+
+    return self.path_for(DatasetFileRole.FULL)
+
+  @property
+  def full_path(self) -> str:
+    return self.path_for(DatasetFileRole.FULL)
+
+  @property
+  def train_path(self) -> str:
+    return self.path_for(DatasetFileRole.TRAIN)
+
+  @property
+  def test_path(self) -> str:
+    return self.path_for(DatasetFileRole.TEST)
 
   @classmethod
   def from_row(cls, row: DatasetRow) -> "DatasetMetadata":
@@ -79,20 +124,54 @@ class DatasetMetadata(BaseModel):
       id=row.id,
       name=row.name,
       type=row.problem_type,
-      target=normalize_target(row.target),
-      original_filename=row.original_filename,
-      storage_filename=row.storage_filename,
-      md5_hash=row.md5_hash,
-      size_bytes=row.size_bytes,
+      target=row.target,
+      has_header=bool(row.has_header),
+      layout=row.layout,
+      files=[DatasetFileMeta.from_row(f) for f in (row.files or [])],
       date=row.created_at,
     )
+
+def _validate_layout_and_files(
+  problem_type: ProblemType,
+  layout: DatasetLayout,
+  file_specs: list[tuple[DatasetFileRole, int, Path]],
+  has_header: bool,
+) -> None:
+  if problem_type in UNSUPERVISED_TYPES and layout != DatasetLayout.NO_SPLIT:
+    raise ValueError(_("dataset.err.unsupervised_requires_nosplit"))
+
+  expected = LAYOUT_ROLES.get(layout)
+
+  if expected is None:
+    raise ValueError(_("dataset.err.unsupported_layout").format(layout=layout.value))
+
+  actual = frozenset((role, ordinal) for role, ordinal, _ in file_specs)
+
+  if actual != expected:
+    raise ValueError(_("dataset.err.layout_files_mismatch").format(layout=layout.value))
+
+  if layout == DatasetLayout.TRAIN_TEST_SPLIT:
+    paths_by_role = {role: path for role, _ordinal, path in file_specs}
+    train_cols = peek_ncols(paths_by_role[DatasetFileRole.TRAIN], has_header)
+    test_cols = peek_ncols(paths_by_role[DatasetFileRole.TEST], has_header)
+
+    if train_cols != test_cols:
+      raise ValueError(_("dataset.err.ncols_mismatch").format(train=train_cols, test=test_cols))
+
+def _store_files(
+  store: FileStore,
+  file_specs: list[tuple[DatasetFileRole, int, Path]],
+) -> list[tuple[DatasetFileRole, int, StoredFile]]:
+  return [(role, ordinal, store.save(path)) for role, ordinal, path in file_specs]
+
+BASE_QUERY = select(DatasetRow).options(selectinload(DatasetRow.files))
 
 class DatasetManager:
 
   @classmethod
   def get_all(cls) -> list[DatasetMetadata]:
     with SessionLocal() as session:
-      rows = session.scalars(select(DatasetRow).order_by(DatasetRow.id)).all()
+      rows = session.scalars(BASE_QUERY.order_by(DatasetRow.id)).all()
 
       return [DatasetMetadata.from_row(row) for row in rows]
 
@@ -100,31 +179,62 @@ class DatasetManager:
   def add_dataset(
     cls,
     name: str,
-    filepath: str,
     problem_type: str | ProblemType,
-    target: str | None = None,
+    *,
+    layout: DatasetLayout | str = DatasetLayout.NO_SPLIT,
+    has_header: bool = True,
+    target: int | None = None,
+    files: dict[str, str] | None = None,
+    filepath: str | None = None,
   ) -> DatasetMetadata:
+    """Create a dataset.
+
+    ``files`` maps role value → source path, e.g. ``{"Full": "..."}`` or
+    ``{"Train": "...", "Test": "..."}``. Legacy ``filepath`` is treated as Full.
+    """
     problem = ProblemType(problem_type)
+    layout_enum = DatasetLayout(layout)
     normalized_target = validate_problem_target(problem, target)
 
+    file_specs = cls._build_file_specs(layout_enum, files=files, filepath=filepath)
+    _validate_layout_and_files(problem, layout_enum, file_specs, has_header)
+
+    if normalized_target is not None:
+      primary = file_specs[0][2]
+      ncols = peek_ncols(primary, has_header)
+
+      if normalized_target >= ncols:
+        raise ValueError(_("dataset.err.target_out_of_range").format(index=normalized_target, ncols=ncols))
+
     store = FileStore(get_datasets_dir())
-    stored = store.save(Path(filepath))
+    stored_files = _store_files(store, file_specs)
 
     with SessionLocal() as session:
       row = DatasetRow(
         name=name,
         problem_type=problem,
         target=normalized_target,
-        original_filename=stored.original_filename,
-        storage_filename=stored.storage_filename,
-        md5_hash=stored.md5_hash,
-        size_bytes=stored.size_bytes,
+        has_header=has_header,
+        layout=layout_enum,
         created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
       )
-
       session.add(row)
+      session.flush()
+
+      for role, ordinal, stored in stored_files:
+        session.add(DatasetFileRow(
+          dataset_id=row.id,
+          role=role,
+          ordinal=ordinal,
+          original_filename=stored.original_filename,
+          storage_filename=stored.storage_filename,
+          md5_hash=stored.md5_hash,
+          size_bytes=stored.size_bytes,
+        ))
+
       session.commit()
-      session.refresh(row)
+
+      row = session.scalars(BASE_QUERY.where(DatasetRow.id == row.id)).one()
 
       return DatasetMetadata.from_row(row)
 
@@ -134,7 +244,7 @@ class DatasetManager:
     store = FileStore(get_datasets_dir())
 
     with SessionLocal() as session:
-      row = session.get(DatasetRow, target_id)
+      row = session.scalars(BASE_QUERY.where(DatasetRow.id == target_id)).one_or_none()
 
       if row is None:
         raise ValueError(_("dataset.err.not_found").format(id=target_id))
@@ -148,40 +258,106 @@ class DatasetManager:
         problem = ProblemType(payload["type"])
         row.problem_type = problem
 
+      if "has_header" in payload and payload["has_header"] is not None:
+        row.has_header = bool(payload["has_header"])
+
+      layout = row.layout
+
+      if payload.get("layout") is not None:
+        layout = DatasetLayout(payload["layout"])
+        row.layout = layout
+
       if "target" in payload or payload.get("type") is not None:
         incoming_target = payload["target"] if "target" in payload else row.target
         row.target = validate_problem_target(problem, incoming_target)
 
-      new_path = payload.get("path")
-      current_path = str(store.resolve_path(row.storage_filename))
+      files_payload = payload.get("files")
+      filepath = payload.get("path") or payload.get("filepath")
+      old_storage = [f.storage_filename for f in row.files]
 
-      if new_path is not None and new_path != current_path:
-        old_storage_filename = row.storage_filename
-        stored = store.save(Path(new_path))
+      if files_payload is not None or filepath is not None:
+        file_specs = cls._build_file_specs(layout, files=files_payload, filepath=filepath)
+        _validate_layout_and_files(problem, layout, file_specs, row.has_header)
 
-        row.original_filename = stored.original_filename
-        row.storage_filename = stored.storage_filename
-        row.md5_hash = stored.md5_hash
-        row.size_bytes = stored.size_bytes
+        if row.target is not None:
+          ncols = peek_ncols(file_specs[0][2], row.has_header)
 
-        store.delete(old_storage_filename)
+          if row.target >= ncols:
+            raise ValueError(_("dataset.err.target_out_of_range").format(index=row.target, ncols=ncols))
+
+        stored_files = _store_files(store, file_specs)
+
+        for existing in list(row.files):
+          session.delete(existing)
+
+        session.flush()
+
+        for role, ordinal, stored in stored_files:
+          session.add(DatasetFileRow(
+            dataset_id=row.id,
+            role=role,
+            ordinal=ordinal,
+            original_filename=stored.original_filename,
+            storage_filename=stored.storage_filename,
+            md5_hash=stored.md5_hash,
+            size_bytes=stored.size_bytes,
+          ))
+      else:
+        _validate_layout_and_files(
+          problem,
+          layout,
+          [(f.role, f.ordinal, store.resolve_path(f.storage_filename)) for f in row.files],
+          row.has_header,
+        )
+        old_storage = []
 
       session.commit()
-      session.refresh(row)
 
-      return DatasetMetadata.from_row(row)
+      row = session.scalars(BASE_QUERY.where(DatasetRow.id == target_id)).one()
+      metadata = DatasetMetadata.from_row(row)
+
+    for storage_filename in old_storage:
+      store.delete(storage_filename)
+
+    return metadata
 
   @classmethod
   def delete_dataset(cls, target_id: str | int) -> None:
+    store = FileStore(get_datasets_dir())
+
     with SessionLocal() as session:
-      row = session.get(DatasetRow, int(target_id))
+      row = session.scalars(BASE_QUERY.where(DatasetRow.id == int(target_id))).one_or_none()
 
       if row is None:
         return
 
-      storage_filename = row.storage_filename
-
+      storage_filenames = [f.storage_filename for f in row.files]
       session.delete(row)
       session.commit()
 
-    FileStore(get_datasets_dir()).delete(storage_filename)
+    for storage_filename in storage_filenames:
+      store.delete(storage_filename)
+
+  @staticmethod
+  def _build_file_specs(
+    layout: DatasetLayout,
+    *,
+    files: dict[str, str] | None = None,
+    filepath: str | None = None,
+  ) -> list[tuple[DatasetFileRole, int, Path]]:
+    if files:
+      specs: list[tuple[DatasetFileRole, int, Path]] = []
+
+      for role_key, path_str in files.items():
+        role = DatasetFileRole(role_key)
+        specs.append((role, 0, Path(path_str)))
+
+      return specs
+
+    if filepath is not None:
+      if layout != DatasetLayout.NO_SPLIT:
+        raise ValueError(_("dataset.err.layout_files_mismatch").format(layout=layout.value))
+
+      return [(DatasetFileRole.FULL, 0, Path(filepath))]
+
+    raise ValueError(_("dataset.form.err_name_file"))

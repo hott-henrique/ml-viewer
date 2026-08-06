@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 
 from application.components import SortableTreeview
+from application.enums import DatasetLayout
 from application.i18n import _, localize_enum
 from application.managers import DatasetManager
 from application.views.dataset import DatasetFormModal
@@ -22,7 +23,7 @@ class DatasetView(ttk.Frame):
     table_frame = ttk.Frame(self)
     table_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
-    columns = ("id", "name", "type", "target", "date", "path")
+    columns = ("id", "name", "type", "layout", "target", "date", "path")
     self.tree = SortableTreeview(table_frame, columns=columns, height=12)
 
     self.tree.set_heading("id", _("common.id"), sortable=False)
@@ -30,15 +31,17 @@ class DatasetView(ttk.Frame):
 
     self.tree.set_heading("name", _("common.name"))
     self.tree.set_heading("type", _("common.type"))
+    self.tree.set_heading("layout", _("dataset.col.layout"))
     self.tree.set_heading("target", _("dataset.col.target"))
     self.tree.set_heading("date", _("dataset.col.added_on"))
     self.tree.set_heading("path", _("dataset.col.file_path"))
 
-    self.tree.column("name", width=120)
+    self.tree.column("name", width=110)
     self.tree.column("type", width=90)
-    self.tree.column("target", width=90)
-    self.tree.column("date", width=130)
-    self.tree.column("path", width=250)
+    self.tree.column("layout", width=110)
+    self.tree.column("target", width=60)
+    self.tree.column("date", width=120)
+    self.tree.column("path", width=220)
 
     scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
     self.tree.configure(yscrollcommand=scrollbar.set)
@@ -58,7 +61,15 @@ class DatasetView(ttk.Frame):
       self.tree.insert(
         "",
         tk.END,
-        values=(ds.id, ds.name, localize_enum(ds.type), ds.target or "—", ds.date, ds.path),
+        values=(
+          ds.id,
+          ds.name,
+          localize_enum(ds.type),
+          localize_enum(ds.layout),
+          "—" if ds.target is None else ds.target,
+          ds.date,
+          ds.path,
+        ),
       )
 
   def _selected_rows(self) -> list[tuple]:
@@ -99,9 +110,14 @@ class DatasetView(ttk.Frame):
     dataset_data = {
       "id": dataset_id,
       "name": dataset.name,
-      "type": dataset.type,
+      "type": dataset.type.value,
       "target": dataset.target,
+      "has_header": dataset.has_header,
+      "layout": dataset.layout.value,
       "path": dataset.path,
+      "full_path": dataset.path if dataset.layout == DatasetLayout.NO_SPLIT else "",
+      "train_path": dataset.train_path if dataset.layout == DatasetLayout.TRAIN_TEST_SPLIT else "",
+      "test_path": dataset.test_path if dataset.layout == DatasetLayout.TRAIN_TEST_SPLIT else "",
     }
 
     DatasetFormModal(self, on_save=self._on_dataset_saved, dataset_data=dataset_data)
@@ -148,9 +164,11 @@ class DatasetView(ttk.Frame):
       else:
         DatasetManager.add_dataset(
           name=dataset_payload["name"],
-          filepath=dataset_payload["path"],
           problem_type=dataset_payload["type"],
+          layout=dataset_payload["layout"],
+          has_header=dataset_payload["has_header"],
           target=dataset_payload.get("target"),
+          files=dataset_payload.get("files"),
         )
     except Exception as e:
       messagebox.showerror(_("common.error"), str(e))

@@ -8,9 +8,9 @@ from sklearn.model_selection import train_test_split
 from application.components import HyperParamForm, SortableTreeview
 from application.db.paths import get_experiments_dir
 from application.db.storage_usage import dir_size_bytes, format_bytes
-from application.enums import ExperimentStatus, ProblemType
+from application.enums import DatasetLayout, ExperimentStatus, ProblemType
 from application.i18n import _, display_title, localize_enum
-from application.managers.DatasetManager import DatasetMetadata
+from application.managers.DatasetManager import DatasetMetadata, read_dataset_frame
 from application.managers.model.base import ModelAPI
 from application.managers.results import (
   ClusteringAnalyzer,
@@ -26,6 +26,7 @@ from application.views.experiment import ExperimentFormModal, ExperimentExportMo
 from application.views.experiment.ExperimentExportModal import ExperimentExportData
 from application.managers import AnalysisManager, ExperimentManager, ModelManager
 from application.managers.DatasetManager import SUPERVISED_TYPES
+from application.managers.ExperimentManager import ExperimentSplitConfig
 
 class ExperimentView(ttk.Frame):
 
@@ -226,15 +227,23 @@ class ExperimentView(ttk.Frame):
 
     return results
 
+  def _features_and_target(self, df: pd.DataFrame, target_idx: int) -> tuple[pd.DataFrame, pd.Series]:
+    if target_idx < 0 or target_idx >= df.shape[1]:
+      raise ValueError(_("experiment.err.target_index_missing").format(index=target_idx))
+
+    y = df.iloc[:, target_idx]
+    X = pd.get_dummies(df.drop(df.columns[target_idx], axis=1))
+    return X, y
+
   def _on_experiment_saved(self, payload: dict[str, t.Any]) -> None:
     self.config(cursor="watch")
     self.update()
 
     dataset_info: DatasetMetadata = payload["dataset"]
     prob_type = dataset_info.type
-    target_col = dataset_info.target
-    filepath = dataset_info.path
+    target_idx = dataset_info.target
     selected_analyses: list[str] = list(payload.get("analyses") or [])
+    split_config: t.Optional[ExperimentSplitConfig] = payload.get("split_config")
 
     status = ExperimentStatus.PENDING
     results: list[ExportResult] = []
@@ -242,21 +251,28 @@ class ExperimentView(ttk.Frame):
     trained_model: t.Optional[ModelAPI] = None
 
     try:
-      df = pd.read_csv(filepath).dropna()
-      X = pd.get_dummies(df)
       model = ModelManager.instantiate(prob_type, payload["model_name"], payload["hyperparams"])
 
       if prob_type in SUPERVISED_TYPES:
-        if not target_col:
+        if target_idx is None:
           raise ValueError(_("experiment.err.supervised_requires_target"))
 
-        if target_col not in df.columns:
-          raise ValueError(_("experiment.err.target_column_missing").format(column=target_col))
+        if dataset_info.layout == DatasetLayout.TRAIN_TEST_SPLIT:
+          train_df = read_dataset_frame(dataset_info.train_path, dataset_info.has_header).dropna()
+          test_df = read_dataset_frame(dataset_info.test_path, dataset_info.has_header).dropna()
+          X_train, y_train = self._features_and_target(train_df, target_idx)
+          X_test, y_test = self._features_and_target(test_df, target_idx)
+        else:
+          df = read_dataset_frame(dataset_info.full_path, dataset_info.has_header).dropna()
+          X, y = self._features_and_target(df, target_idx)
+          cfg = split_config or ExperimentSplitConfig()
+          X_train, X_test, y_train, y_test = train_test_split(
+            X,
+            y,
+            test_size=cfg.test_size,
+            random_state=42,
+          )
 
-        X = pd.get_dummies(df.drop(columns=[target_col]))
-        y = df[target_col]
-
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
         model.fit(X_train, y_train)
         trained_model = model
         preds = model.predict(X_test)
@@ -268,6 +284,8 @@ class ExperimentView(ttk.Frame):
         )
 
       elif prob_type == ProblemType.CLUSTERING:
+        df = read_dataset_frame(dataset_info.full_path, dataset_info.has_header).dropna()
+        X = pd.get_dummies(df)
         model.fit(X)
         trained_model = model
         labels = model.predict(X)
@@ -279,6 +297,8 @@ class ExperimentView(ttk.Frame):
         )
 
       elif prob_type == ProblemType.DIMENSIONALITY_REDUCTION:
+        df = read_dataset_frame(dataset_info.full_path, dataset_info.has_header).dropna()
+        X = pd.get_dummies(df)
         model.fit(X)
         trained_model = model
         embedding = model.transform(X)
@@ -309,6 +329,7 @@ class ExperimentView(ttk.Frame):
       hyperparams=payload["hyperparams"],
       status=status,
       selected_analyses=selected_analyses,
+      split_config=split_config,
     )
 
     ExperimentManager.save_logs(new_experiment.id, logs)
