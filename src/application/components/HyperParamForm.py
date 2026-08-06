@@ -47,6 +47,7 @@ class HyperParamForm(ttk.Frame):
     master: t.Optional[tk.Misc] = None,
     on_change: t.Optional[t.Callable[[dict[str, t.Any]], None]] = None,
     is_readonly: bool = False,
+    canvas_height: int = 180,
   ) -> None:
     super().__init__(master)
     self.on_change = on_change 
@@ -56,7 +57,7 @@ class HyperParamForm(ttk.Frame):
     
     self.param_definitions: list[HyperParamConfig] = []
 
-    self.canvas = tk.Canvas(self, height=180, highlightthickness=0)
+    self.canvas = tk.Canvas(self, height=canvas_height, highlightthickness=0)
     self.scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
     self.canvas.configure(yscrollcommand=self.scrollbar.set)
 

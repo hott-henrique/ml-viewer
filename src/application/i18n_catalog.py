@@ -610,6 +610,10 @@ MESSAGES: dict[str, dict[str, str]] = {
     "en_US": 'Select Model:',
     "pt_BR": 'Selecionar modelo:',
   },
+  'experiment.form.analysis_params': {
+    "en_US": 'Analysis parameters',
+    "pt_BR": 'Parâmetros da análise',
+  },
   'experiment.form.split': {
     "en_US": 'Train/Test Split',
     "pt_BR": 'Split treino/teste',

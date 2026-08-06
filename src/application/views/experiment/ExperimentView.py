@@ -199,6 +199,7 @@ class ExperimentView(ttk.Frame):
     problem_type: ProblemType,
     analysis_names: list[str],
     *,
+    analysis_params: t.Optional[dict[str, dict[str, t.Any]]] = None,
     y_true: t.Any = None,
     y_pred: t.Any = None,
     X: t.Any = None,
@@ -208,9 +209,10 @@ class ExperimentView(ttk.Frame):
   ) -> list[ExportResult]:
     results: list[ExportResult] = []
     registry = AnalysisManager.registry(problem_type)
+    params_by_name = analysis_params or {}
 
     for name in analysis_names:
-      analyzer = AnalysisManager.instantiate(problem_type, name)
+      analyzer = AnalysisManager.instantiate(problem_type, name, params_by_name.get(name))
 
       if isinstance(analyzer, SupervisedAnalyzer):
         result = analyzer.analyze(y_true, y_pred)
@@ -243,6 +245,7 @@ class ExperimentView(ttk.Frame):
     prob_type = dataset_info.type
     target_idx = dataset_info.target
     selected_analyses: list[str] = list(payload.get("analyses") or [])
+    analysis_params: dict[str, dict[str, t.Any]] = dict(payload.get("analysis_params") or {})
     split_config: t.Optional[ExperimentSplitConfig] = payload.get("split_config")
 
     status = ExperimentStatus.PENDING
@@ -279,6 +282,7 @@ class ExperimentView(ttk.Frame):
         results = self._run_analyses(
           prob_type,
           selected_analyses,
+          analysis_params=analysis_params,
           y_true=y_test,
           y_pred=preds,
         )
@@ -292,6 +296,7 @@ class ExperimentView(ttk.Frame):
         results = self._run_analyses(
           prob_type,
           selected_analyses,
+          analysis_params=analysis_params,
           X=X,
           labels=labels,
         )
@@ -305,6 +310,7 @@ class ExperimentView(ttk.Frame):
         results = self._run_analyses(
           prob_type,
           selected_analyses,
+          analysis_params=analysis_params,
           X=X,
           embedding=embedding,
           model=model,
@@ -329,6 +335,7 @@ class ExperimentView(ttk.Frame):
       hyperparams=payload["hyperparams"],
       status=status,
       selected_analyses=selected_analyses,
+      analysis_params=analysis_params,
       split_config=split_config,
     )
 

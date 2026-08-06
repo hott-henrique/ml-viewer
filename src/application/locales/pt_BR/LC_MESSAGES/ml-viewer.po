@@ -427,6 +427,9 @@ msgstr "Experimento exportado com sucesso para:\n{path}"
 msgid "experiment.export.title"
 msgstr "Exportar: {name}"
 
+msgid "experiment.form.analysis_params"
+msgstr "Parâmetros da análise"
+
 msgid "experiment.form.copy_name"
 msgstr "{name} (Cópia)"
 

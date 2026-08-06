@@ -16,6 +16,7 @@ from application.db.storage import FileStore
 from application.enums import AnalysisOutputKind, ProblemType
 from application.i18n import TranslatableStr, _
 from application.managers.analysis.natives import NATIVE_ANALYSIS_REGISTRY
+from application.managers.model.ModelManager import HyperParamConfig
 from application.managers.results.base import (
   ClusteringAnalyzer,
   DimensionalityReductionAnalyzer,
@@ -31,6 +32,7 @@ class AnalysisConfig(BaseModel):
   title: t.Optional[TranslatableStr] = None
   output_kind: AnalysisOutputKind
   description: TranslatableStr = ""
+  params: list[HyperParamConfig] = Field(default_factory=list)
   module: t.Optional[str] = None
   custom_module: t.Optional[t.Any] = None
   plugin_path: t.Optional[str] = None
@@ -50,7 +52,11 @@ class AnalysisManager:
     return list(AnalysisManager.registry(problem_type).keys())
 
   @staticmethod
-  def instantiate(problem_type: ProblemType | str, name: str) -> ResultAnalyzer:
+  def instantiate(
+    problem_type: ProblemType | str,
+    name: str,
+    params: t.Optional[dict[str, t.Any]] = None,
+  ) -> ResultAnalyzer:
     registry = AnalysisManager.registry(problem_type)
 
     if name not in registry:
@@ -66,7 +72,7 @@ class AnalysisManager:
     else:
       raise ValueError(f"Configuration for '{name}' must have either 'module' or be a local class.")
 
-    instance = analysis_class()
+    instance = analysis_class(**(params or {}))
 
     if not callable(getattr(instance, "analyze", None)):
       raise ValueError(f"Analysis class '{config.class_name}' must implement analyze(...).")
@@ -116,6 +122,7 @@ class AnalysisManager:
           output_kind=config.output_kind,
           title=config.title,
           description=config.description,
+          params=[p.model_dump(mode="json") for p in config.params],
           is_native=True,
           created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         ))
@@ -139,6 +146,7 @@ class AnalysisManager:
 
     title: t.Optional[TranslatableStr] = row.title
     description: TranslatableStr = row.description or ""
+    params = [HyperParamConfig.model_validate(p) for p in (row.params or [])]
 
     if row.is_native:
       native_data = NATIVE_ANALYSIS_REGISTRY.get(row.problem_type, {}).get(row.name)
@@ -146,6 +154,7 @@ class AnalysisManager:
       if native_data is not None:
         title = native_data.get("title", title)
         description = native_data.get("description", description)
+        params = [HyperParamConfig.model_validate(p) for p in native_data.get("params", [])]
 
     config = AnalysisConfig(
       class_name=row.class_name,
@@ -153,6 +162,7 @@ class AnalysisManager:
       output_kind=row.output_kind,
       title=title,
       description=description,
+      params=params,
       module=row.module,
       custom_module=custom_module,
       plugin_path=plugin_path,
@@ -218,6 +228,7 @@ class AnalysisManager:
             output_kind=config.output_kind,
             title=config.title,
             description=config.description,
+            params=[p.model_dump(mode="json") for p in config.params],
             storage_filename=stored.storage_filename,
             original_filename=stored.original_filename,
             md5_hash=stored.md5_hash,

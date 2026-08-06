@@ -21,7 +21,7 @@ class ExperimentFormModal(tk.Toplevel):
     super().__init__(parent)
 
     self.title(_("experiment.form.title"))
-    self.geometry("520x780")
+    self.geometry("560x820")
     self.resizable(False, False)
     self.grab_set()
 
@@ -29,6 +29,8 @@ class ExperimentFormModal(tk.Toplevel):
     self.initial_data = initial_data
     self.datasets = DatasetManager.get_all()
     self.analysis_vars: dict[str, tk.BooleanVar] = {}
+    self.analysis_param_forms: dict[str, HyperParamForm] = {}
+    self._analysis_param_frames: dict[str, ttk.Frame] = {}
 
     if self.initial_data:
       init_name = _("experiment.form.copy_name").format(name=self.initial_data.name)
@@ -59,18 +61,25 @@ class ExperimentFormModal(tk.Toplevel):
     main_frame = ttk.Frame(self, padding=(25, 20))
     main_frame.pack(fill=tk.BOTH, expand=True)
 
-    ttk.Label(main_frame, text=_("experiment.form.name"), foreground="#333333").pack(anchor=tk.W)
-    ttk.Entry(main_frame, textvariable=self.name_var).pack(fill=tk.X, pady=(0, 12))
+    ttk.Button(main_frame, text=_("experiment.form.run"), command=self._handle_save).pack(
+      side=tk.BOTTOM, fill=tk.X, ipady=6, pady=(8, 0)
+    )
 
-    ttk.Label(main_frame, text=_("experiment.form.select_dataset"), foreground="#333333").pack(anchor=tk.W)
+    body = ttk.Frame(main_frame)
+    body.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+    ttk.Label(body, text=_("experiment.form.name"), foreground="#333333").pack(anchor=tk.W)
+    ttk.Entry(body, textvariable=self.name_var).pack(fill=tk.X, pady=(0, 12))
+
+    ttk.Label(body, text=_("experiment.form.select_dataset"), foreground="#333333").pack(anchor=tk.W)
     self._dataset_display_to_ds = {self._dataset_display(ds): ds for ds in self.datasets}
     dataset_names = list(self._dataset_display_to_ds.keys())
 
-    self.ds_combo = ttk.Combobox(main_frame, textvariable=self.dataset_var, values=dataset_names, state="readonly")
+    self.ds_combo = ttk.Combobox(body, textvariable=self.dataset_var, values=dataset_names, state="readonly")
     self.ds_combo.pack(fill=tk.X, pady=(0, 12))
     self.ds_combo.bind("<<ComboboxSelected>>", self._on_dataset_selected)
 
-    self.split_frame = ttk.LabelFrame(main_frame, text=_("experiment.form.split"))
+    self.split_frame = ttk.LabelFrame(body, text=_("experiment.form.split"))
     self.split_frame.pack(fill=tk.X, pady=(0, 12))
 
     split_inner = ttk.Frame(self.split_frame, padding=(8, 6))
@@ -85,30 +94,43 @@ class ExperimentFormModal(tk.Toplevel):
     self.split_hint = ttk.Label(split_inner, text="", foreground="#666666", wraplength=440)
     self.split_hint.pack(anchor=tk.W, pady=(6, 0))
 
-    ttk.Label(main_frame, text=_("experiment.form.select_model"), foreground="#333333").pack(anchor=tk.W)
-    self.model_combo = ttk.Combobox(main_frame, textvariable=self._model_display_var, state="readonly")
+    ttk.Label(body, text=_("experiment.form.select_model"), foreground="#333333").pack(anchor=tk.W)
+    self.model_combo = ttk.Combobox(body, textvariable=self._model_display_var, state="readonly")
     self.model_combo.pack(fill=tk.X, pady=(0, 12))
     self.model_combo.bind("<<ComboboxSelected>>", self._on_model_selected)
 
-    self.param_frame = ttk.LabelFrame(main_frame, text=_("experiment.form.hyperparams"))
-    self.param_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 12))
+    self.param_frame = ttk.LabelFrame(body, text=_("experiment.form.hyperparams"))
+    self.param_frame.pack(fill=tk.X, pady=(0, 12))
 
-    self.hyperparam_form = HyperParamForm(self.param_frame, is_readonly=False)
-    self.hyperparam_form.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+    self.hyperparam_form = HyperParamForm(self.param_frame, is_readonly=False, canvas_height=120)
+    self.hyperparam_form.pack(fill=tk.X, padx=5, pady=5)
 
-    self.analyses_frame = ttk.LabelFrame(main_frame, text=_("nav.analyses"))
-    self.analyses_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 12))
+    self.analyses_frame = ttk.LabelFrame(body, text=_("nav.analyses"))
+    self.analyses_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 0))
 
-    self.analyses_inner = ttk.Frame(self.analyses_frame)
-    self.analyses_inner.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+    analyses_canvas = tk.Canvas(self.analyses_frame, highlightthickness=0, height=180)
+    analyses_scroll = ttk.Scrollbar(self.analyses_frame, orient="vertical", command=analyses_canvas.yview)
+    analyses_canvas.configure(yscrollcommand=analyses_scroll.set)
+    analyses_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+    analyses_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+    self.analyses_inner = ttk.Frame(analyses_canvas)
+    self._analyses_canvas_window = analyses_canvas.create_window((0, 0), window=self.analyses_inner, anchor="nw")
+
+    def _on_analyses_configure(_event: t.Optional[tk.Event] = None) -> None:
+      analyses_canvas.configure(scrollregion=analyses_canvas.bbox("all"))
+
+    def _on_analyses_canvas_configure(event: tk.Event) -> None:
+      analyses_canvas.itemconfig(self._analyses_canvas_window, width=event.width)
+
+    self.analyses_inner.bind("<Configure>", _on_analyses_configure)
+    analyses_canvas.bind("<Configure>", _on_analyses_canvas_configure)
 
     ttk.Label(
       self.analyses_inner,
       text=_("experiment.form.select_dataset_for_analyses"),
       foreground="#666666",
     ).pack(anchor=tk.W)
-
-    ttk.Button(main_frame, text=_("experiment.form.run"), command=self._handle_save).pack(fill=tk.X, ipady=6)
 
     self._update_split_visibility()
 
@@ -138,6 +160,8 @@ class ExperimentFormModal(tk.Toplevel):
       child.destroy()
 
     self.analysis_vars = {}
+    self.analysis_param_forms = {}
+    self._analysis_param_frames = {}
 
     if not self.selected_dataset:
       ttk.Label(
@@ -153,6 +177,8 @@ class ExperimentFormModal(tk.Toplevel):
       ttk.Label(self.analyses_inner, text=_("experiment.form.no_analyses"), foreground="#666666").pack(anchor=tk.W)
       return
 
+    saved_params = dict(self.initial_data.analysis_params) if self.initial_data else {}
+
     for name, config in registry.items():
       default_checked = True if preselected is None else name in preselected
 
@@ -160,14 +186,62 @@ class ExperimentFormModal(tk.Toplevel):
         default_checked = False
 
       var = tk.BooleanVar(value=default_checked)
-
       self.analysis_vars[name] = var
 
+      block = ttk.Frame(self.analyses_inner)
+      block.pack(fill=tk.X, anchor=tk.W, pady=4)
+
       ttk.Checkbutton(
-        self.analyses_inner,
+        block,
         text=display_title(config.title, name),
         variable=var,
-      ).pack(anchor=tk.W, pady=2)
+        command=lambda n=name: self._sync_analysis_param_visibility(n),
+      ).pack(anchor=tk.W)
+
+      if config.params:
+        params_frame = ttk.LabelFrame(block, text=_("experiment.form.analysis_params"))
+        form = HyperParamForm(params_frame, is_readonly=False, canvas_height=88)
+        form.pack(fill=tk.X, padx=4, pady=4)
+        form.render_form(config.params)
+
+        for pname, pvalue in saved_params.get(name, {}).items():
+          if pname in form.param_vars:
+            form.param_vars[pname].set(str(pvalue))
+
+        self.analysis_param_forms[name] = form
+        self._analysis_param_frames[name] = params_frame
+        self._sync_analysis_param_visibility(name)
+
+  def _sync_analysis_param_visibility(self, name: str) -> None:
+    frame = self._analysis_param_frames.get(name)
+    var = self.analysis_vars.get(name)
+
+    if frame is None or var is None:
+      return
+
+    if var.get():
+      frame.pack(fill=tk.X, padx=(16, 0), pady=(2, 0))
+    else:
+      frame.pack_forget()
+
+  def _collect_analysis_params(self) -> dict[str, dict[str, t.Any]]:
+    collected: dict[str, dict[str, t.Any]] = {}
+
+    for name, var in self.analysis_vars.items():
+      if not var.get():
+        continue
+
+      form = self.analysis_param_forms.get(name)
+
+      if form is None:
+        continue
+
+      values = form.get_parsed_values()
+
+      if values:
+        collected[name] = values
+
+    return collected
 
   def _apply_autofill(self) -> None:
     if not self.initial_data:
@@ -263,6 +337,7 @@ class ExperimentFormModal(tk.Toplevel):
     try:
       params = self.hyperparam_form.get_parsed_values()
       split_config = self._parse_split_config()
+      analysis_params = self._collect_analysis_params()
     except ValueError as e:
       messagebox.showerror(_("common.validation_error"), str(e), parent=self)
       return
@@ -273,6 +348,7 @@ class ExperimentFormModal(tk.Toplevel):
       "model_name": self.model_var.get(),
       "hyperparams": params,
       "analyses": selected_analyses,
+      "analysis_params": analysis_params,
       "split_config": split_config,
     }
 

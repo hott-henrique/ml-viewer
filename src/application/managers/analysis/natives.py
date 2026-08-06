@@ -13,7 +13,7 @@ from sklearn.metrics import (
 )
 import numpy as np
 
-from application.enums import AnalysisOutputKind, ProblemType
+from application.enums import AnalysisOutputKind, ParamType, ProblemType
 from application.managers.results.base import (
   ClusteringAnalyzer,
   DimensionalityReductionAnalyzer,
@@ -27,36 +27,73 @@ from application.managers.results.base import (
 # --- Supervised ---
 
 class AccuracyAnalysis(SupervisedAnalyzer):
+  def __init__(self, **params: t.Any) -> None:
+    pass
+
   def analyze(self, y_true: t.Any, y_pred: t.Any) -> ExportResult:
     return ScalarResult("accuracy.json", float(accuracy_score(y_true, y_pred)), label="Accuracy")
 
 class ClassificationReportAnalysis(SupervisedAnalyzer):
+  def __init__(self, digits: int = 2, zero_division: int = 0, **params: t.Any) -> None:
+    self.digits = int(digits)
+    self.zero_division = int(zero_division)
+
   def analyze(self, y_true: t.Any, y_pred: t.Any) -> ExportResult:
-    report = classification_report(y_true, y_pred, zero_division=0)
+    report = classification_report(
+      y_true,
+      y_pred,
+      digits=self.digits,
+      zero_division=self.zero_division,
+    )
     return TextResult("classification_report.txt", report, label="Classification Report")
 
 class ConfusionMatrixAnalysis(SupervisedAnalyzer):
+  def __init__(self, cmap: str = "Blues", normalize: str = "none", **params: t.Any) -> None:
+    self.cmap = cmap
+    self.normalize = None if normalize == "none" else normalize
+
   def analyze(self, y_true: t.Any, y_pred: t.Any) -> ExportResult:
     fig = Figure(figsize=(5, 4), dpi=100)
     ax = fig.add_subplot(111)
-    ConfusionMatrixDisplay.from_predictions(y_true, y_pred, ax=ax, cmap="Blues")
+    ConfusionMatrixDisplay.from_predictions(
+      y_true,
+      y_pred,
+      ax=ax,
+      cmap=self.cmap,
+      normalize=self.normalize,
+    )
     ax.set_title("Confusion Matrix")
     fig.tight_layout()
     return ImageResult("confusion_matrix.png", fig, label="Confusion Matrix")
 
 class MseAnalysis(SupervisedAnalyzer):
+  def __init__(self, squared: bool = True, **params: t.Any) -> None:
+    self.squared = bool(squared)
+
   def analyze(self, y_true: t.Any, y_pred: t.Any) -> ExportResult:
-    return ScalarResult("mse.json", float(mean_squared_error(y_true, y_pred)), label="Mean Squared Error")
+    value = float(mean_squared_error(y_true, y_pred))
+
+    if not self.squared:
+      value = float(np.sqrt(value))
+
+    label = "Mean Squared Error" if self.squared else "Root Mean Squared Error"
+    return ScalarResult("mse.json", value, label=label)
 
 class R2Analysis(SupervisedAnalyzer):
+  def __init__(self, **params: t.Any) -> None:
+    pass
+
   def analyze(self, y_true: t.Any, y_pred: t.Any) -> ExportResult:
     return ScalarResult("r2.json", float(r2_score(y_true, y_pred)), label="R2 Score")
 
 class ActualVsPredictedAnalysis(SupervisedAnalyzer):
+  def __init__(self, alpha: float = 0.7, **params: t.Any) -> None:
+    self.alpha = float(alpha)
+
   def analyze(self, y_true: t.Any, y_pred: t.Any) -> ExportResult:
     fig = Figure(figsize=(5, 4), dpi=100)
     ax = fig.add_subplot(111)
-    ax.scatter(y_true, y_pred, alpha=0.7, edgecolors="k", color="#0984e3")
+    ax.scatter(y_true, y_pred, alpha=self.alpha, edgecolors="k", color="#0984e3")
     ax.plot([y_true.min(), y_true.max()], [y_true.min(), y_true.max()], "r--", lw=2)
     ax.set_xlabel("Actual Values")
     ax.set_ylabel("Predicted Values")
@@ -67,6 +104,9 @@ class ActualVsPredictedAnalysis(SupervisedAnalyzer):
 # --- Clustering ---
 
 class SilhouetteScoreAnalysis(ClusteringAnalyzer):
+  def __init__(self, metric: str = "euclidean", **params: t.Any) -> None:
+    self.metric = metric
+
   def analyze(self, X: t.Any, labels: t.Any) -> ExportResult:
     unique = np.unique(labels)
 
@@ -75,11 +115,14 @@ class SilhouetteScoreAnalysis(ClusteringAnalyzer):
 
     return ScalarResult(
       "silhouette_score.json",
-      float(silhouette_score(X, labels)),
+      float(silhouette_score(X, labels, metric=self.metric)),
       label="Silhouette Score",
     )
 
 class DaviesBouldinAnalysis(ClusteringAnalyzer):
+  def __init__(self, **params: t.Any) -> None:
+    pass
+
   def analyze(self, X: t.Any, labels: t.Any) -> ExportResult:
     unique = np.unique(labels)
 
@@ -93,6 +136,9 @@ class DaviesBouldinAnalysis(ClusteringAnalyzer):
     )
 
 class ClusterSizesAnalysis(ClusteringAnalyzer):
+  def __init__(self, **params: t.Any) -> None:
+    pass
+
   def analyze(self, X: t.Any, labels: t.Any) -> ExportResult:
     unique, counts = np.unique(labels, return_counts=True)
     lines = [f"Cluster {label}: {count} samples" for label, count in zip(unique, counts)]
@@ -100,6 +146,9 @@ class ClusterSizesAnalysis(ClusteringAnalyzer):
     return TextResult("cluster_sizes.txt", content, label="Cluster Sizes")
 
 class Clusters2DScatterAnalysis(ClusteringAnalyzer):
+  def __init__(self, random_state: int = 42, **params: t.Any) -> None:
+    self.random_state = int(random_state)
+
   def analyze(self, X: t.Any, labels: t.Any) -> ExportResult:
     X_arr = np.asarray(X)
 
@@ -107,7 +156,7 @@ class Clusters2DScatterAnalysis(ClusteringAnalyzer):
       raise ValueError("X must be a 2D feature matrix.")
 
     if X_arr.shape[1] > 2:
-      coords = PCA(n_components=2, random_state=42).fit_transform(X_arr)
+      coords = PCA(n_components=2, random_state=self.random_state).fit_transform(X_arr)
       xlabel, ylabel = "PC1", "PC2"
     else:
       coords = X_arr[:, :2] if X_arr.shape[1] == 2 else np.column_stack([X_arr[:, 0], np.zeros(len(X_arr))])
@@ -126,6 +175,9 @@ class Clusters2DScatterAnalysis(ClusteringAnalyzer):
 # --- Dimensionality Reduction ---
 
 class ExplainedVarianceRatioAnalysis(DimensionalityReductionAnalyzer):
+  def __init__(self, **params: t.Any) -> None:
+    pass
+
   def analyze(self, X: t.Any, embedding: t.Any, model: t.Any = None) -> ExportResult:
     if model is None or not hasattr(model, "explained_variance_ratio_"):
       raise ValueError("Explained variance requires a fitted model with explained_variance_ratio_.")
@@ -134,25 +186,41 @@ class ExplainedVarianceRatioAnalysis(DimensionalityReductionAnalyzer):
     return ScalarResult("explained_variance_ratio.json", total, label="Explained Variance Ratio (sum)")
 
 class EmbeddingScatterAnalysis(DimensionalityReductionAnalyzer):
+  def __init__(self, x_component: int = 0, y_component: int = 1, **params: t.Any) -> None:
+    self.x_component = int(x_component)
+    self.y_component = int(y_component)
+
   def analyze(self, X: t.Any, embedding: t.Any, model: t.Any = None) -> ExportResult:
     emb = np.asarray(embedding)
 
     if emb.ndim != 2 or emb.shape[1] < 1:
       raise ValueError("Embedding must be a 2D matrix with at least one component.")
 
-    x = emb[:, 0]
-    y = emb[:, 1] if emb.shape[1] > 1 else np.zeros(len(emb))
+    if self.x_component < 0 or self.x_component >= emb.shape[1]:
+      raise ValueError(f"x_component {self.x_component} is out of range for {emb.shape[1]} components.")
+
+    x = emb[:, self.x_component]
+
+    if self.y_component < 0 or self.y_component >= emb.shape[1]:
+      y = np.zeros(len(emb))
+      ylabel = "(padded)"
+    else:
+      y = emb[:, self.y_component]
+      ylabel = f"Component {self.y_component + 1}"
 
     fig = Figure(figsize=(5, 4), dpi=100)
     ax = fig.add_subplot(111)
     ax.scatter(x, y, alpha=0.7, edgecolors="k", color="#0984e3")
-    ax.set_xlabel("Component 1")
-    ax.set_ylabel("Component 2" if emb.shape[1] > 1 else "(padded)")
+    ax.set_xlabel(f"Component {self.x_component + 1}")
+    ax.set_ylabel(ylabel)
     ax.set_title("Embedding Scatter")
     fig.tight_layout()
     return ImageResult("embedding_scatter.png", fig, label="Embedding Scatter")
 
 class ComponentSummaryAnalysis(DimensionalityReductionAnalyzer):
+  def __init__(self, **params: t.Any) -> None:
+    pass
+
   def analyze(self, X: t.Any, embedding: t.Any, model: t.Any = None) -> ExportResult:
     emb = np.asarray(embedding)
     lines = [
@@ -169,6 +237,10 @@ class ComponentSummaryAnalysis(DimensionalityReductionAnalyzer):
 
     return TextResult("component_summary.txt", "\n".join(lines), label="Component Summary")
 
+# --- Registry ---
+
+_P = ParamType
+
 NATIVE_ANALYSIS_REGISTRY: dict[ProblemType, dict[str, dict[str, t.Any]]] = {
   ProblemType.CLASSIFICATION: {
     "Accuracy": {
@@ -181,6 +253,7 @@ NATIVE_ANALYSIS_REGISTRY: dict[ProblemType, dict[str, dict[str, t.Any]]] = {
         "en_US": "Overall classification accuracy (fraction of correct predictions).",
         "pt_BR": "Acurácia geral da classificação (fração de previsões corretas).",
       },
+      "params": [],
     },
     "Classification Report": {
       "type": ProblemType.CLASSIFICATION,
@@ -192,6 +265,29 @@ NATIVE_ANALYSIS_REGISTRY: dict[ProblemType, dict[str, dict[str, t.Any]]] = {
         "en_US": "Precision, recall, F1 and support per class.",
         "pt_BR": "Precisão, recall, F1 e suporte por classe.",
       },
+      "params": [
+        {
+          "name": "digits",
+          "type": _P.INT,
+          "default": 2,
+          "label": {"en_US": "Decimal digits", "pt_BR": "Casas decimais"},
+          "description": {
+            "en_US": "Number of decimal digits for floating-point values in the report.",
+            "pt_BR": "Número de casas decimais nos valores do relatório.",
+          },
+        },
+        {
+          "name": "zero_division",
+          "type": _P.CATEGORICAL,
+          "options": ["0", "1"],
+          "default": "0",
+          "label": {"en_US": "Zero division", "pt_BR": "Divisão por zero"},
+          "description": {
+            "en_US": "Value to return when there is a zero division (e.g. no predicted samples).",
+            "pt_BR": "Valor retornado quando há divisão por zero (ex.: nenhuma previsão da classe).",
+          },
+        },
+      ],
     },
     "Confusion Matrix": {
       "type": ProblemType.CLASSIFICATION,
@@ -203,6 +299,30 @@ NATIVE_ANALYSIS_REGISTRY: dict[ProblemType, dict[str, dict[str, t.Any]]] = {
         "en_US": "Confusion matrix heatmap of true vs predicted labels.",
         "pt_BR": "Mapa de calor da matriz de confusão entre rótulos reais e previstos.",
       },
+      "params": [
+        {
+          "name": "cmap",
+          "type": _P.CATEGORICAL,
+          "options": ["Blues", "Viridis", "Oranges", "Greens", "Purples"],
+          "default": "Blues",
+          "label": {"en_US": "Colormap", "pt_BR": "Mapa de cores"},
+          "description": {
+            "en_US": "Matplotlib colormap used for the heatmap.",
+            "pt_BR": "Mapa de cores do Matplotlib usado no heatmap.",
+          },
+        },
+        {
+          "name": "normalize",
+          "type": _P.CATEGORICAL,
+          "options": ["none", "true", "pred", "all"],
+          "default": "none",
+          "label": {"en_US": "Normalize", "pt_BR": "Normalizar"},
+          "description": {
+            "en_US": "Normalize matrix by true labels, predictions, all, or leave as counts.",
+            "pt_BR": "Normalizar pela verdade, previsões, tudo, ou manter contagens.",
+          },
+        },
+      ],
     },
   },
   ProblemType.REGRESSION: {
@@ -216,6 +336,18 @@ NATIVE_ANALYSIS_REGISTRY: dict[ProblemType, dict[str, dict[str, t.Any]]] = {
         "en_US": "Mean squared error between actual and predicted values.",
         "pt_BR": "Erro quadrático médio entre valores reais e previstos.",
       },
+      "params": [
+        {
+          "name": "squared",
+          "type": _P.BOOL,
+          "default": True,
+          "label": {"en_US": "Squared (MSE)", "pt_BR": "Ao quadrado (MSE)"},
+          "description": {
+            "en_US": "If True, report MSE; if False, report RMSE.",
+            "pt_BR": "Se verdadeiro, reporta MSE; se falso, reporta RMSE.",
+          },
+        },
+      ],
     },
     "R2 Score": {
       "type": ProblemType.REGRESSION,
@@ -227,6 +359,7 @@ NATIVE_ANALYSIS_REGISTRY: dict[ProblemType, dict[str, dict[str, t.Any]]] = {
         "en_US": "Coefficient of determination (R²).",
         "pt_BR": "Coeficiente de determinação (R²).",
       },
+      "params": [],
     },
     "Actual vs Predicted": {
       "type": ProblemType.REGRESSION,
@@ -238,6 +371,18 @@ NATIVE_ANALYSIS_REGISTRY: dict[ProblemType, dict[str, dict[str, t.Any]]] = {
         "en_US": "Scatter plot of actual versus predicted values.",
         "pt_BR": "Gráfico de dispersão entre valores reais e previstos.",
       },
+      "params": [
+        {
+          "name": "alpha",
+          "type": _P.FLOAT,
+          "default": 0.7,
+          "label": {"en_US": "Point opacity", "pt_BR": "Opacidade dos pontos"},
+          "description": {
+            "en_US": "Alpha transparency of scatter points (0–1).",
+            "pt_BR": "Transparência alfa dos pontos (0–1).",
+          },
+        },
+      ],
     },
   },
   ProblemType.CLUSTERING: {
@@ -251,6 +396,19 @@ NATIVE_ANALYSIS_REGISTRY: dict[ProblemType, dict[str, dict[str, t.Any]]] = {
         "en_US": "Mean silhouette coefficient of all samples (higher is better).",
         "pt_BR": "Coeficiente médio de silhueta de todas as amostras (quanto maior, melhor).",
       },
+      "params": [
+        {
+          "name": "metric",
+          "type": _P.CATEGORICAL,
+          "options": ["euclidean", "cosine", "manhattan"],
+          "default": "euclidean",
+          "label": {"en_US": "Distance metric", "pt_BR": "Métrica de distância"},
+          "description": {
+            "en_US": "Distance metric passed to silhouette_score.",
+            "pt_BR": "Métrica de distância passada ao silhouette_score.",
+          },
+        },
+      ],
     },
     "Davies-Bouldin Index": {
       "type": ProblemType.CLUSTERING,
@@ -262,6 +420,7 @@ NATIVE_ANALYSIS_REGISTRY: dict[ProblemType, dict[str, dict[str, t.Any]]] = {
         "en_US": "Average similarity between clusters (lower is better).",
         "pt_BR": "Similaridade média entre clusters (quanto menor, melhor).",
       },
+      "params": [],
     },
     "Cluster Sizes": {
       "type": ProblemType.CLUSTERING,
@@ -273,6 +432,7 @@ NATIVE_ANALYSIS_REGISTRY: dict[ProblemType, dict[str, dict[str, t.Any]]] = {
         "en_US": "Number of samples assigned to each cluster.",
         "pt_BR": "Número de amostras atribuídas a cada cluster.",
       },
+      "params": [],
     },
     "Clusters 2D Scatter": {
       "type": ProblemType.CLUSTERING,
@@ -284,6 +444,18 @@ NATIVE_ANALYSIS_REGISTRY: dict[ProblemType, dict[str, dict[str, t.Any]]] = {
         "en_US": "2D scatter of clusters (PCA projection when needed).",
         "pt_BR": "Dispersão 2D dos clusters (projeção PCA quando necessário).",
       },
+      "params": [
+        {
+          "name": "random_state",
+          "type": _P.INT,
+          "default": 42,
+          "label": {"en_US": "PCA random state", "pt_BR": "Semente aleatória do PCA"},
+          "description": {
+            "en_US": "Random seed used when projecting with PCA.",
+            "pt_BR": "Semente aleatória usada na projeção com PCA.",
+          },
+        },
+      ],
     },
   },
   ProblemType.DIMENSIONALITY_REDUCTION: {
@@ -297,6 +469,7 @@ NATIVE_ANALYSIS_REGISTRY: dict[ProblemType, dict[str, dict[str, t.Any]]] = {
         "en_US": "Sum of explained variance ratios of retained components.",
         "pt_BR": "Soma das razões de variância explicada dos componentes retidos.",
       },
+      "params": [],
     },
     "Embedding Scatter": {
       "type": ProblemType.DIMENSIONALITY_REDUCTION,
@@ -305,9 +478,31 @@ NATIVE_ANALYSIS_REGISTRY: dict[ProblemType, dict[str, dict[str, t.Any]]] = {
       "output_kind": AnalysisOutputKind.IMAGE,
       "title": {"en_US": "Embedding Scatter", "pt_BR": "Dispersão do Embedding"},
       "description": {
-        "en_US": "Scatter of the first two embedding components.",
-        "pt_BR": "Dispersão dos dois primeiros componentes do embedding.",
+        "en_US": "Scatter of selected embedding components.",
+        "pt_BR": "Dispersão dos componentes selecionados do embedding.",
       },
+      "params": [
+        {
+          "name": "x_component",
+          "type": _P.INT,
+          "default": 0,
+          "label": {"en_US": "X component index", "pt_BR": "Índice do componente X"},
+          "description": {
+            "en_US": "Zero-based index of the component used on the X axis.",
+            "pt_BR": "Índice (base 0) do componente usado no eixo X.",
+          },
+        },
+        {
+          "name": "y_component",
+          "type": _P.INT,
+          "default": 1,
+          "label": {"en_US": "Y component index", "pt_BR": "Índice do componente Y"},
+          "description": {
+            "en_US": "Zero-based index of the component used on the Y axis.",
+            "pt_BR": "Índice (base 0) do componente usado no eixo Y.",
+          },
+        },
+      ],
     },
     "Component Summary": {
       "type": ProblemType.DIMENSIONALITY_REDUCTION,
@@ -319,6 +514,7 @@ NATIVE_ANALYSIS_REGISTRY: dict[ProblemType, dict[str, dict[str, t.Any]]] = {
         "en_US": "Embedding shape and per-component explained variance when available.",
         "pt_BR": "Formato do embedding e variância explicada por componente, quando disponível.",
       },
+      "params": [],
     },
   },
 }
