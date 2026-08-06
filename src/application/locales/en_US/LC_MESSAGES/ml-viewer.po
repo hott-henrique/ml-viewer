@@ -511,6 +511,9 @@ msgstr "No Results"
 msgid "experiment.msg.pipeline_error"
 msgstr "Error executing pipeline:\n\n{error}\n\nTry checking if your hyperparameters are valid."
 
+msgid "experiment.msg.select_at_least_one_results"
+msgstr "Select at least one experiment to view results."
+
 msgid "experiment.msg.select_delete"
 msgstr "Select at least one experiment to delete."
 
@@ -519,9 +522,6 @@ msgstr "Select exactly one experiment to duplicate."
 
 msgid "experiment.msg.select_one_export"
 msgstr "Select exactly one experiment to export."
-
-msgid "experiment.msg.select_one_results"
-msgstr "Select exactly one experiment to view results."
 
 msgid "experiment.results.title"
 msgstr "Results: {name}"

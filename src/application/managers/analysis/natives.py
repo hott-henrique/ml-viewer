@@ -33,11 +33,7 @@ class AccuracyAnalysis(SupervisedAnalyzer):
 class ClassificationReportAnalysis(SupervisedAnalyzer):
   def analyze(self, y_true: t.Any, y_pred: t.Any) -> ExportResult:
     report = classification_report(y_true, y_pred, zero_division=0)
-    return TextResult(
-      "classification_report.txt",
-      f"Classification Report:\n{report}",
-      label="Classification Report",
-    )
+    return TextResult("classification_report.txt", report, label="Classification Report")
 
 class ConfusionMatrixAnalysis(SupervisedAnalyzer):
   def analyze(self, y_true: t.Any, y_pred: t.Any) -> ExportResult:

@@ -686,9 +686,9 @@ MESSAGES: dict[str, dict[str, str]] = {
     "en_US": 'Select exactly one experiment to export.',
     "pt_BR": 'Selecione exatamente um experimento para exportar.',
   },
-  'experiment.msg.select_one_results': {
-    "en_US": 'Select exactly one experiment to view results.',
-    "pt_BR": 'Selecione exatamente um experimento para ver os resultados.',
+  'experiment.msg.select_at_least_one_results': {
+    "en_US": 'Select at least one experiment to view results.',
+    "pt_BR": 'Selecione pelo menos um experimento para ver os resultados.',
   },
   'experiment.results.title': {
     "en_US": 'Results: {name}',

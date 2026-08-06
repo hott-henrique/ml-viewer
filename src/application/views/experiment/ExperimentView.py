@@ -359,21 +359,39 @@ class ExperimentView(ttk.Frame):
     self._show_results_popup(experiment_data, status, results, trained_model, logs=logs)
 
   def view_results(self) -> None:
-    experiment = self._get_selected_experiment()
+    experiments = self._get_selected_experiments()
 
-    if experiment is None:
-      messagebox.showwarning(_("common.warning"), _("experiment.msg.select_one_results"))
+    if not experiments:
+      messagebox.showwarning(_("common.warning"), _("experiment.msg.select_at_least_one_results"))
       return
 
-    results = ExperimentManager.load_results(experiment.id)
-    logs = ExperimentManager.load_logs(experiment.id)
+    to_open: list[tuple] = []
 
-    if not results and not logs:
+    for experiment in experiments:
+      results = ExperimentManager.load_results(experiment.id)
+      logs = ExperimentManager.load_logs(experiment.id)
+
+      if not results and not logs:
+        continue
+
+      to_open.append((experiment, results, logs))
+
+    if not to_open:
       messagebox.showinfo(_("experiment.msg.no_results_title"), _("experiment.msg.no_results_body"))
       return
 
-    experiment_data = ExperimentExportData.from_experiment_metadata(experiment)
-    self._show_results_popup(experiment_data, experiment.status, results, logs=logs)
+    modal = len(to_open) == 1
+
+    for index, (experiment, results, logs) in enumerate(to_open):
+      experiment_data = ExperimentExportData.from_experiment_metadata(experiment)
+      self._show_results_popup(
+        experiment_data,
+        experiment.status,
+        results,
+        logs=logs,
+        modal=modal,
+        geometry_offset=index,
+      )
 
   def export_selected(self) -> None:
     experiment = self._get_selected_experiment()
@@ -425,12 +443,19 @@ class ExperimentView(ttk.Frame):
     results: list[ExportResult],
     trained_model: t.Optional[ModelAPI] = None,
     logs: str = "",
+    *,
+    modal: bool = True,
+    geometry_offset: int = 0,
   ) -> None:
     popup = tk.Toplevel(self)
     popup.title(_("experiment.results.title").format(name=experiment_data.name))
-    popup.geometry("640x680")
+    x = 40 + geometry_offset * 30
+    y = 40 + geometry_offset * 30
+    popup.geometry(f"640x680+{x}+{y}")
     popup.resizable(False, False)
-    popup.grab_set()
+
+    if modal:
+      popup.grab_set()
 
     main_frame = ttk.Frame(popup, padding=(20, 20))
     main_frame.pack(fill=tk.BOTH, expand=True)
