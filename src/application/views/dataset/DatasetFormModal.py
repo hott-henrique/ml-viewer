@@ -8,7 +8,9 @@ from application.i18n import _, localize_enum
 from application.managers.DatasetManager import (
   SUPERVISED_TYPES,
   UNSUPERVISED_TYPES,
-  peek_ncols,
+  format_target_display,
+  parse_target_display,
+  peek_column_names,
 )
 
 class DatasetFormModal(tk.Toplevel):
@@ -219,15 +221,28 @@ class DatasetFormModal(tk.Toplevel):
       return
 
     try:
-      ncols = peek_ncols(filepath, self.has_header_var.get())
-      indices = [str(i) for i in range(ncols)]
-      self.target_selector["values"] = indices
+      has_header = self.has_header_var.get()
+      names = peek_column_names(filepath, has_header)
+      labels = [
+        format_target_display(i, names if has_header else None)
+        for i in range(len(names))
+      ]
+      self.target_selector["values"] = labels
 
-      if self._is_supervised() and indices:
+      if self._is_supervised() and labels:
         current = self.target_var.get()
+        if current in labels:
+          return
 
-        if current not in indices:
-          self.target_var.set(indices[-1])
+        try:
+          idx = parse_target_display(current) if current else -1
+          if 0 <= idx < len(labels):
+            self.target_var.set(labels[idx])
+            return
+        except ValueError:
+          pass
+
+        self.target_var.set(labels[-1])
     except Exception as e:
       self.target_selector["values"] = []
       self.target_var.set("")
@@ -264,7 +279,11 @@ class DatasetFormModal(tk.Toplevel):
         messagebox.showerror(_("common.error"), _("dataset.form.err_target_required"), parent=self)
         return
 
-      target_value = int(raw)
+      try:
+        target_value = parse_target_display(raw)
+      except ValueError:
+        messagebox.showerror(_("common.error"), _("dataset.form.err_target_required"), parent=self)
+        return
 
     dataset_payload = {
       "id": self.dataset_id,

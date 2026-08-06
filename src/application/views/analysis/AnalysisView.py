@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
-from application.components import SortableTreeview
+from application.components import HyperParamForm, SortableTreeview
 from application.enums import ProblemType
 from application.i18n import _, display_title, localize_enum, resolve_text
 from application.managers import AnalysisManager
@@ -32,7 +32,7 @@ class AnalysisView(ttk.Frame):
     self.tree.set_heading("key", _("common.id"), sortable=False)
     self.tree.column("key", width=0, stretch=tk.NO)
 
-    self.tree.set_heading("name", _("analysis.col.name"))
+    self.tree.set_heading("name", _("common.name"))
     self.tree.set_heading("type", _("model.col.problem_type"))
     self.tree.set_heading("output", _("analysis.col.output_kind"))
     self.tree.set_heading("source", _("common.source"))
@@ -50,8 +50,21 @@ class AnalysisView(ttk.Frame):
     self.tree.bind("<<TreeviewSelect>>", self.on_analysis_selected)
     self.tree.bind_context_menu(self._build_context_menu)
 
-    desc_frame = ttk.LabelFrame(self, text=_("common.description"))
-    desc_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=15)
+    details_frame = ttk.Frame(self)
+    details_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=15)
+
+    details_frame.columnconfigure(0, weight=1)
+    details_frame.columnconfigure(1, weight=2)
+    details_frame.rowconfigure(0, weight=1)
+
+    param_frame = ttk.LabelFrame(details_frame, text=_("analysis.params.readonly"))
+    param_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+
+    self.param_form = HyperParamForm(param_frame, is_readonly=True)
+    self.param_form.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+    desc_frame = ttk.LabelFrame(details_frame, text=_("common.description"))
+    desc_frame.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
 
     self.desc_text = tk.Text(desc_frame, wrap=tk.WORD, state=tk.DISABLED, bg="#f5f5f5", height=6)
     self.desc_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
@@ -105,6 +118,7 @@ class AnalysisView(ttk.Frame):
     rows = self._selected_rows()
 
     if len(rows) != 1:
+      self.param_form.render_form([])
       self._clear_description()
       return
 
@@ -119,6 +133,11 @@ class AnalysisView(ttk.Frame):
       config = AnalysisManager.registry(problem_type).get(key)
       if config:
         break
+
+    if config:
+      self.param_form.render_form(config.params)
+    else:
+      self.param_form.render_form([])
 
     self.desc_text.config(state=tk.NORMAL)
     self.desc_text.delete(1.0, tk.END)
@@ -192,6 +211,7 @@ class AnalysisView(ttk.Frame):
       if not deleted:
         errors.append(f"{key}: not found")
 
+    self.param_form.render_form([])
     self._clear_description()
     self.load_table_data()
 

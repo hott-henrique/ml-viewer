@@ -34,9 +34,6 @@ msgstr "🔄 Atualizar"
 msgid "action.view_results"
 msgstr "📊 Ver resultados"
 
-msgid "analysis.col.name"
-msgstr "Nome"
-
 msgid "analysis.col.output_kind"
 msgstr "Tipo de saída"
 
@@ -57,6 +54,9 @@ msgstr "Selecione pelo menos uma análise para excluir."
 
 msgid "analysis.msg.skip_native"
 msgstr "({n} análise(s) nativa(s) serão ignoradas.)"
+
+msgid "analysis.params.readonly"
+msgstr "Parâmetros"
 
 msgid "analysis.view.title"
 msgstr "Biblioteca de Análises"
@@ -196,9 +196,6 @@ msgstr "Aviso"
 msgid "dataset.col.added_on"
 msgstr "Adicionado em"
 
-msgid "dataset.col.file_path"
-msgstr "Caminho do arquivo"
-
 msgid "dataset.col.layout"
 msgstr "Layout"
 
@@ -275,10 +272,10 @@ msgid "dataset.form.save"
 msgstr "Salvar Dataset"
 
 msgid "dataset.form.target"
-msgstr "Índice da coluna alvo:"
+msgstr "Coluna alvo:"
 
 msgid "dataset.form.target_unused"
-msgstr "Índice da coluna alvo: (não usado)"
+msgstr "Coluna alvo: (não usado)"
 
 msgid "dataset.form.test_file"
 msgstr "Arquivo de teste (CSV):"
@@ -370,9 +367,6 @@ msgstr "Disco"
 msgid "experiment.col.model"
 msgstr "Modelo"
 
-msgid "experiment.col.name"
-msgstr "Nome do experimento"
-
 msgid "experiment.err.artifact_integrity"
 msgstr "O artefato '{name}' do experimento #{id} está corrompido ou foi alterado externamente (MD5 não corresponde)."
 
@@ -428,7 +422,7 @@ msgid "experiment.export.title"
 msgstr "Exportar: {name}"
 
 msgid "experiment.form.analysis_params"
-msgstr "Parâmetros da análise"
+msgstr "Parâmetros"
 
 msgid "experiment.form.copy_name"
 msgstr "{name} (Cópia)"
@@ -446,7 +440,7 @@ msgid "experiment.form.err_required"
 msgstr "Nome, dataset e modelo são obrigatórios."
 
 msgid "experiment.form.hyperparams"
-msgstr "Configuração de hiperparâmetros"
+msgstr "Hiperparâmetros"
 
 msgid "experiment.form.name"
 msgstr "Nome do experimento:"
@@ -540,9 +534,6 @@ msgstr "⏳ Pending"
 
 msgid "experiment.view.title"
 msgstr "🧪 Experimentos"
-
-msgid "model.col.name"
-msgstr "Nome do modelo"
 
 msgid "model.col.problem_type"
 msgstr "Tipo de problema"

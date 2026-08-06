@@ -50,6 +50,19 @@ def peek_ncols(path: str | Path, has_header: bool) -> int:
   df = read_dataset_frame(path, has_header, nrows=0)
   return df.shape[1]
 
+def peek_column_names(path: str | Path, has_header: bool) -> list[str]:
+  df = read_dataset_frame(path, has_header, nrows=0)
+  return [str(c) for c in df.columns]
+
+def format_target_display(index: int, names: list[str] | None = None) -> str:
+  if names is not None and 0 <= index < len(names):
+    return f"{index} — {names[index]}"
+  return str(index)
+
+def parse_target_display(raw: str) -> int:
+  token = raw.split("—", 1)[0].strip()
+  return int(token)
+
 class DatasetFileMeta(BaseModel):
   role: DatasetFileRole
   ordinal: int = 0

@@ -34,9 +34,6 @@ msgstr "🔄 Update"
 msgid "action.view_results"
 msgstr "📊 View Results"
 
-msgid "analysis.col.name"
-msgstr "Analysis Name"
-
 msgid "analysis.col.output_kind"
 msgstr "Output Kind"
 
@@ -57,6 +54,9 @@ msgstr "Please select at least one analysis to delete."
 
 msgid "analysis.msg.skip_native"
 msgstr "({n} native analysis(es) will be skipped.)"
+
+msgid "analysis.params.readonly"
+msgstr "Parameters"
 
 msgid "analysis.view.title"
 msgstr "Analyses Library"
@@ -196,9 +196,6 @@ msgstr "Warning"
 msgid "dataset.col.added_on"
 msgstr "Added On"
 
-msgid "dataset.col.file_path"
-msgstr "File Path"
-
 msgid "dataset.col.layout"
 msgstr "Layout"
 
@@ -275,10 +272,10 @@ msgid "dataset.form.save"
 msgstr "Save Dataset"
 
 msgid "dataset.form.target"
-msgstr "Target column index:"
+msgstr "Target column:"
 
 msgid "dataset.form.target_unused"
-msgstr "Target column index: (not used)"
+msgstr "Target column: (not used)"
 
 msgid "dataset.form.test_file"
 msgstr "Test file (CSV):"
@@ -370,9 +367,6 @@ msgstr "Disk"
 msgid "experiment.col.model"
 msgstr "Model"
 
-msgid "experiment.col.name"
-msgstr "Experiment Name"
-
 msgid "experiment.err.artifact_integrity"
 msgstr "Artifact '{name}' for experiment #{id} is corrupted or was modified externally (MD5 mismatch)."
 
@@ -428,7 +422,7 @@ msgid "experiment.export.title"
 msgstr "Export: {name}"
 
 msgid "experiment.form.analysis_params"
-msgstr "Analysis parameters"
+msgstr "Parameters"
 
 msgid "experiment.form.copy_name"
 msgstr "{name} (Copy)"
@@ -446,7 +440,7 @@ msgid "experiment.form.err_required"
 msgstr "Name, Dataset, and Model are required."
 
 msgid "experiment.form.hyperparams"
-msgstr "Hyperparameters Config"
+msgstr "Hyperparameters"
 
 msgid "experiment.form.name"
 msgstr "Experiment Name:"
@@ -540,9 +534,6 @@ msgstr "⏳ Pending"
 
 msgid "experiment.view.title"
 msgstr "🧪 Experiments"
-
-msgid "model.col.name"
-msgstr "Model Name"
 
 msgid "model.col.problem_type"
 msgstr "Problem Type"

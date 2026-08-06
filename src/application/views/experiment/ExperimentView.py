@@ -60,7 +60,7 @@ class ExperimentView(ttk.Frame):
     self.tree.column("id", width=0, stretch=tk.NO)
     self.tree.column("disk_bytes", width=0, stretch=tk.NO)
 
-    self.tree.set_heading("name", _("experiment.col.name"))
+    self.tree.set_heading("name", _("common.name"))
     self.tree.set_heading("dataset", _("experiment.col.dataset"))
     self.tree.set_heading("model", _("experiment.col.model"))
     self.tree.set_heading("status", _("common.status"))

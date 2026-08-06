@@ -5,6 +5,7 @@ from application.components import SortableTreeview
 from application.enums import DatasetLayout
 from application.i18n import _, localize_enum
 from application.managers import DatasetManager
+from application.managers.DatasetManager import format_target_display, peek_column_names
 from application.views.dataset import DatasetFormModal
 
 class DatasetView(ttk.Frame):
@@ -23,7 +24,7 @@ class DatasetView(ttk.Frame):
     table_frame = ttk.Frame(self)
     table_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
-    columns = ("id", "name", "type", "layout", "target", "date", "path")
+    columns = ("id", "name", "type", "layout", "target", "date")
     self.tree = SortableTreeview(table_frame, columns=columns, height=12)
 
     self.tree.set_heading("id", _("common.id"), sortable=False)
@@ -34,14 +35,12 @@ class DatasetView(ttk.Frame):
     self.tree.set_heading("layout", _("dataset.col.layout"))
     self.tree.set_heading("target", _("dataset.col.target"))
     self.tree.set_heading("date", _("dataset.col.added_on"))
-    self.tree.set_heading("path", _("dataset.col.file_path"))
 
     self.tree.column("name", width=110)
     self.tree.column("type", width=90)
     self.tree.column("layout", width=110)
-    self.tree.column("target", width=60)
+    self.tree.column("target", width=120)
     self.tree.column("date", width=120)
-    self.tree.column("path", width=220)
 
     scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
     self.tree.configure(yscrollcommand=scrollbar.set)
@@ -52,6 +51,19 @@ class DatasetView(ttk.Frame):
     self.tree.bind_context_menu(self._build_context_menu)
 
     self.load_table_data()
+
+  def _format_target_cell(self, ds) -> str:
+    if ds.target is None:
+      return "—"
+
+    if not ds.has_header:
+      return str(ds.target)
+
+    try:
+      names = peek_column_names(ds.path, True)
+      return format_target_display(ds.target, names)
+    except Exception:
+      return str(ds.target)
 
   def load_table_data(self) -> None:
     for item in self.tree.get_children():
@@ -66,9 +78,8 @@ class DatasetView(ttk.Frame):
           ds.name,
           localize_enum(ds.type),
           localize_enum(ds.layout),
-          "—" if ds.target is None else ds.target,
+          self._format_target_cell(ds),
           ds.date,
-          ds.path,
         ),
       )
 

@@ -38,13 +38,13 @@ MESSAGES: dict[str, dict[str, str]] = {
     "en_US": '📊 View Results',
     "pt_BR": '📊 Ver resultados',
   },
-  'analysis.col.name': {
-    "en_US": 'Analysis Name',
-    "pt_BR": 'Nome',
-  },
   'analysis.col.output_kind': {
     "en_US": 'Output Kind',
     "pt_BR": 'Tipo de saída',
+  },
+  'analysis.params.readonly': {
+    "en_US": 'Parameters',
+    "pt_BR": 'Parâmetros',
   },
   'analysis.err.native_cannot_delete': {
     "en_US": 'Native analyses cannot be deleted.',
@@ -254,10 +254,6 @@ MESSAGES: dict[str, dict[str, str]] = {
     "en_US": 'Added On',
     "pt_BR": 'Adicionado em',
   },
-  'dataset.col.file_path': {
-    "en_US": 'File Path',
-    "pt_BR": 'Caminho do arquivo',
-  },
   'dataset.col.layout': {
     "en_US": 'Layout',
     "pt_BR": 'Layout',
@@ -359,12 +355,12 @@ MESSAGES: dict[str, dict[str, str]] = {
     "pt_BR": 'Salvar Dataset',
   },
   'dataset.form.target': {
-    "en_US": 'Target column index:',
-    "pt_BR": 'Índice da coluna alvo:',
+    "en_US": 'Target column:',
+    "pt_BR": 'Coluna alvo:',
   },
   'dataset.form.target_unused': {
-    "en_US": 'Target column index: (not used)',
-    "pt_BR": 'Índice da coluna alvo: (não usado)',
+    "en_US": 'Target column: (not used)',
+    "pt_BR": 'Coluna alvo: (não usado)',
   },
   'dataset.form.test_file': {
     "en_US": 'Test file (CSV):',
@@ -486,10 +482,6 @@ MESSAGES: dict[str, dict[str, str]] = {
     "en_US": 'Model',
     "pt_BR": 'Modelo',
   },
-  'experiment.col.name': {
-    "en_US": 'Experiment Name',
-    "pt_BR": 'Nome do experimento',
-  },
   'experiment.err.artifact_integrity': {
     "en_US": "Artifact '{name}' for experiment #{id} is corrupted or was modified externally (MD5 mismatch).",
     "pt_BR": "O artefato '{name}' do experimento #{id} está corrompido ou foi alterado externamente (MD5 não corresponde).",
@@ -583,8 +575,8 @@ MESSAGES: dict[str, dict[str, str]] = {
     "pt_BR": 'Nome, dataset e modelo são obrigatórios.',
   },
   'experiment.form.hyperparams': {
-    "en_US": 'Hyperparameters Config',
-    "pt_BR": 'Configuração de hiperparâmetros',
+    "en_US": 'Hyperparameters',
+    "pt_BR": 'Hiperparâmetros',
   },
   'experiment.form.name': {
     "en_US": 'Experiment Name:',
@@ -611,8 +603,8 @@ MESSAGES: dict[str, dict[str, str]] = {
     "pt_BR": 'Selecionar modelo:',
   },
   'experiment.form.analysis_params': {
-    "en_US": 'Analysis parameters',
-    "pt_BR": 'Parâmetros da análise',
+    "en_US": 'Parameters',
+    "pt_BR": 'Parâmetros',
   },
   'experiment.form.split': {
     "en_US": 'Train/Test Split',
@@ -713,10 +705,6 @@ MESSAGES: dict[str, dict[str, str]] = {
   'experiment.view.title': {
     "en_US": '🧪 Experiments',
     "pt_BR": '🧪 Experimentos',
-  },
-  'model.col.name': {
-    "en_US": 'Model Name',
-    "pt_BR": 'Nome do modelo',
   },
   'model.col.problem_type': {
     "en_US": 'Problem Type',

@@ -33,7 +33,7 @@ class ModelView(ttk.Frame):
     self.tree.set_heading("key", _("common.id"), sortable=False)
     self.tree.column("key", width=0, stretch=tk.NO)
 
-    self.tree.set_heading("name", _("model.col.name"))
+    self.tree.set_heading("name", _("common.name"))
     self.tree.set_heading("type", _("model.col.problem_type"))
     self.tree.set_heading("source", _("common.source"))
 
