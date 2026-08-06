@@ -33,8 +33,8 @@ class ClassificationAnalyzer(ResultAnalyzer):
     fig.tight_layout()
 
     return [
-      TextResult("metrics_and_logs.txt", content),
-      ImageResult("confusion_matrix.png", fig),
+      TextResult("metrics_and_logs.txt", content, label="Metrics and Logs"),
+      ImageResult("confusion_matrix.png", fig, label="Confusion Matrix"),
     ]
 
 class RegressionAnalyzer(ResultAnalyzer):
@@ -62,6 +62,6 @@ class RegressionAnalyzer(ResultAnalyzer):
     fig.tight_layout()
 
     return [
-      TextResult("metrics_and_logs.txt", content),
-      ImageResult("actual_vs_predicted.png", fig),
+      TextResult("metrics_and_logs.txt", content, label="Metrics and Logs"),
+      ImageResult("actual_vs_predicted.png", fig, label="Actual vs Predicted"),
     ]

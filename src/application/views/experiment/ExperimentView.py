@@ -206,18 +206,23 @@ class ExperimentView(ttk.Frame):
     model: t.Any = None,
   ) -> list[ExportResult]:
     results: list[ExportResult] = []
+    registry = AnalysisManager.registry(problem_type)
 
     for name in analysis_names:
       analyzer = AnalysisManager.instantiate(problem_type, name)
 
       if isinstance(analyzer, SupervisedAnalyzer):
-        results.append(analyzer.analyze(y_true, y_pred))
+        result = analyzer.analyze(y_true, y_pred)
       elif isinstance(analyzer, ClusteringAnalyzer):
-        results.append(analyzer.analyze(X, labels))
+        result = analyzer.analyze(X, labels)
       elif isinstance(analyzer, DimensionalityReductionAnalyzer):
-        results.append(analyzer.analyze(X, embedding, model))
+        result = analyzer.analyze(X, embedding, model)
       else:
         raise TypeError(f"Unsupported analyzer type: {type(analyzer)!r}")
+
+      config = registry.get(name)
+      result.label = display_title(config.title if config else None, name)
+      results.append(result)
 
     return results
 
@@ -340,13 +345,14 @@ class ExperimentView(ttk.Frame):
       return
 
     results = ExperimentManager.load_results(experiment.id)
+    logs = ExperimentManager.load_logs(experiment.id)
 
-    if not results:
+    if not results and not logs:
       messagebox.showinfo(_("experiment.msg.no_results_title"), _("experiment.msg.no_results_body"))
       return
 
     experiment_data = ExperimentExportData.from_experiment_metadata(experiment)
-    self._show_results_popup(experiment_data, experiment.status, results)
+    self._show_results_popup(experiment_data, experiment.status, results, logs=logs)
 
   def export_selected(self) -> None:
     experiment = self._get_selected_experiment()
@@ -360,7 +366,7 @@ class ExperimentView(ttk.Frame):
     logs = ExperimentManager.load_logs(experiment.id)
 
     if logs:
-      results = [TextResult("logs.txt", logs), *results]
+      results = [TextResult("logs.txt", logs, label=_("common.logs")), *results]
 
     ExperimentExportModal(self, experiment_data, results)
 
@@ -408,17 +414,35 @@ class ExperimentView(ttk.Frame):
     main_frame = ttk.Frame(popup, padding=(20, 20))
     main_frame.pack(fill=tk.BOTH, expand=True)
 
-    header_text = _("experiment.results.success") if status == ExperimentStatus.OK else _("experiment.results.failed")
-    fg_color = "#27ae60" if status == ExperimentStatus.OK else "#c0392b"
-
-    ttk.Label(main_frame, text=header_text, font=("", 14, "bold"), foreground=fg_color).pack(anchor=tk.W, pady=(0, 10))
-
     notebook = ttk.Notebook(main_frame)
     notebook.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
 
     scalars = [r for r in results if isinstance(r, ScalarResult)]
     texts = [r for r in results if isinstance(r, TextResult)]
     images = [r for r in results if isinstance(r, (ImageResult, StoredImageResult))]
+
+    def add_text_tab(title: str, content: str) -> None:
+      tab = ttk.Frame(notebook)
+      notebook.add(tab, text=title)
+
+      scrollbar = ttk.Scrollbar(tab, orient="vertical")
+      scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+      text_widget = tk.Text(
+        tab,
+        wrap=tk.WORD,
+        bg="#1e1e1e",
+        fg="#d4d4d4",
+        font=("Consolas", 10),
+        relief="flat",
+        yscrollcommand=scrollbar.set,
+      )
+      text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+      scrollbar.config(command=text_widget.yview)
+      text_widget.insert(tk.END, content)
+      text_widget.config(state=tk.DISABLED)
+
+    add_text_tab(_("common.logs"), logs)
 
     if scalars:
       tab_metrics = ttk.Frame(notebook)
@@ -434,40 +458,16 @@ class ExperimentView(ttk.Frame):
       for scalar in scalars:
         tree.insert("", tk.END, values=(scalar.label, scalar.value))
 
-    report_text = "\n\n".join(r.content for r in texts)
+    for text_result in texts:
+      add_text_tab(text_result.label, text_result.content)
 
-    if status != ExperimentStatus.OK and not report_text and logs:
-      report_text = logs
+    for image_result in images:
+      tab_chart = ttk.Frame(notebook)
+      notebook.add(tab_chart, text=image_result.label)
 
-    if report_text or status != ExperimentStatus.OK:
-      tab_text = ttk.Frame(notebook)
-      notebook.add(tab_text, text=_("common.report"))
-
-      scrollbar = ttk.Scrollbar(tab_text, orient="vertical")
-      scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
-      text_widget = tk.Text(
-        tab_text,
-        wrap=tk.WORD,
-        bg="#1e1e1e",
-        fg="#d4d4d4",
-        font=("Consolas", 10),
-        relief="flat",
-        yscrollcommand=scrollbar.set,
-      )
-      text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-      scrollbar.config(command=text_widget.yview)
-      text_widget.insert(tk.END, report_text or _("experiment.results.no_text"))
-      text_widget.config(state=tk.DISABLED)
-
-    if status == ExperimentStatus.OK:
-      for image_result in images:
-        tab_chart = ttk.Frame(notebook)
-        notebook.add(tab_chart, text=image_result.name)
-
-        canvas = FigureCanvasTkAgg(image_result.figure, master=tab_chart)
-        canvas.draw()
-        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+      canvas = FigureCanvasTkAgg(image_result.figure, master=tab_chart)
+      canvas.draw()
+      canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
     def open_export() -> None:
       from application.views.experiment import ExperimentExportModal

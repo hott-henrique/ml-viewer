@@ -10,19 +10,24 @@ from matplotlib.figure import Figure
 
 ScalarValue = int | float | bool
 
+def fallback_result_label(name: str) -> str:
+  """Humanize a result filename when no label was persisted (e.g. confusion_matrix.png → Confusion Matrix)."""
+  return Path(name).stem.replace("_", " ").title()
+
 class ExportResult(ABC):
   """Base abstraction for a single piece of analysis output that knows how to include itself in an export ZIP."""
 
-  def __init__(self, name: str) -> None:
+  def __init__(self, name: str, label: str) -> None:
     self.name = name
+    self.label = label
 
   @abstractmethod
   def include_in_zip(self, zf: zipfile.ZipFile) -> None:
     ...
 
 class TextResult(ExportResult):
-  def __init__(self, name: str, content: str) -> None:
-    super().__init__(name)
+  def __init__(self, name: str, content: str, label: str) -> None:
+    super().__init__(name, label)
     self.content = content
 
   def include_in_zip(self, zf: zipfile.ZipFile) -> None:
@@ -30,9 +35,8 @@ class TextResult(ExportResult):
 
 class ScalarResult(ExportResult):
   def __init__(self, name: str, value: ScalarValue, label: str) -> None:
-    super().__init__(name)
+    super().__init__(name, label)
     self.value = value
-    self.label = label
 
   def to_json(self) -> str:
     return json.dumps({"label": self.label, "value": self.value}, indent=2)
@@ -45,9 +49,26 @@ class ScalarResult(ExportResult):
   def include_in_zip(self, zf: zipfile.ZipFile) -> None:
     zf.writestr(self.name, self.to_json())
 
+  @property
+  def metric_id(self) -> str:
+    """Stable metric id (analysis key), not the on-disk filename."""
+    return Path(self.name).stem
+
+def write_metrics_json(zf: zipfile.ZipFile, scalars: list[ScalarResult]) -> None:
+  """Write all scalar metrics into a single metrics.json entry in the ZIP."""
+  if not scalars:
+    return
+  payload = {
+    "metrics": [
+      {"id": s.metric_id, "label": s.label, "value": s.value}
+      for s in scalars
+    ]
+  }
+  zf.writestr("metrics.json", json.dumps(payload, indent=2))
+
 class ImageResult(ExportResult):
-  def __init__(self, name: str, figure: Figure) -> None:
-    super().__init__(name)
+  def __init__(self, name: str, figure: Figure, label: str) -> None:
+    super().__init__(name, label)
     self.figure = figure
 
   def include_in_zip(self, zf: zipfile.ZipFile) -> None:
@@ -58,8 +79,8 @@ class ImageResult(ExportResult):
 class StoredImageResult(ExportResult):
   """Disk-backed image result loaded from a persisted PNG file."""
 
-  def __init__(self, name: str, path: Path) -> None:
-    super().__init__(name)
+  def __init__(self, name: str, path: Path, label: str) -> None:
+    super().__init__(name, label)
     self.path = path
 
   @property

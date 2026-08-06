@@ -17,7 +17,14 @@ from application.enums import ExperimentStatus, ProblemType
 from application.i18n import _
 from application.managers.DatasetManager import DatasetMetadata
 from application.managers.model.base import ModelAPI
-from application.managers.results import ExportResult, ImageResult, ScalarResult, StoredImageResult, TextResult
+from application.managers.results import (
+  ExportResult,
+  ImageResult,
+  ScalarResult,
+  StoredImageResult,
+  TextResult,
+  fallback_result_label,
+)
 
 HyperParamValue = int | float | bool | str
 
@@ -28,6 +35,7 @@ class ResultArtifact(BaseModel):
   kind: ArtifactKind
   storage_filename: str
   md5_hash: str
+  label: t.Optional[str] = None
 
 class ExperimentMetadata(BaseModel):
   id: int
@@ -232,6 +240,7 @@ class ExperimentManager:
           kind="text",
           storage_filename=stored.storage_filename,
           md5_hash=stored.md5_hash,
+          label=result.label,
         ))
       elif isinstance(result, ScalarResult):
         stored = cls._store_text_file(store, result.name, result.to_json())
@@ -240,6 +249,7 @@ class ExperimentManager:
           kind="scalar",
           storage_filename=stored.storage_filename,
           md5_hash=stored.md5_hash,
+          label=result.label,
         ))
       elif isinstance(result, ImageResult):
         stored = cls._store_image_result(store, result)
@@ -248,6 +258,7 @@ class ExperimentManager:
           kind="image",
           storage_filename=stored.storage_filename,
           md5_hash=stored.md5_hash,
+          label=result.label,
         ))
       else:
         raise TypeError(f"Unsupported result type for persistence: {type(result)!r}")
@@ -277,12 +288,17 @@ class ExperimentManager:
 
       path = store.resolve_path(artifact.storage_filename)
 
+      label = artifact.label or fallback_result_label(artifact.name)
+
       if artifact.kind == "text":
-        loaded.append(TextResult(artifact.name, path.read_text(encoding="utf-8")))
+        loaded.append(TextResult(artifact.name, path.read_text(encoding="utf-8"), label=label))
       elif artifact.kind == "scalar":
-        loaded.append(ScalarResult.from_json(artifact.name, path.read_text(encoding="utf-8")))
+        scalar = ScalarResult.from_json(artifact.name, path.read_text(encoding="utf-8"))
+        if artifact.label:
+          scalar.label = artifact.label
+        loaded.append(scalar)
       elif artifact.kind == "image":
-        loaded.append(StoredImageResult(artifact.name, path))
+        loaded.append(StoredImageResult(artifact.name, path, label=label))
 
     return loaded
 

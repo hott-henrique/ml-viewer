@@ -14,7 +14,7 @@ from application.managers import ModelManager
 from application.managers.DatasetManager import DatasetMetadata
 from application.managers.ExperimentManager import ExperimentMetadata
 from application.managers.model.base import ModelAPI
-from application.managers.results import ExportResult
+from application.managers.results import ExportResult, ScalarResult, write_metrics_json
 
 HyperParamValue = int | float | bool | str
 
@@ -119,7 +119,12 @@ class ExperimentExportModal(tk.Toplevel):
       with zipfile.ZipFile(filepath, 'w', zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("experiment_config.json", json.dumps(self.experiment_data.model_dump(mode="json"), indent=4))
 
+        scalars = [r for r in self.results if isinstance(r, ScalarResult)]
+        write_metrics_json(zf, scalars)
+
         for result in self.results:
+          if isinstance(result, ScalarResult):
+            continue
           result.include_in_zip(zf)
 
         if self.inc_dataset_var.get():

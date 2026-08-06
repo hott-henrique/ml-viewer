@@ -8,6 +8,8 @@ from application.managers.results.base import (
   StoredImageResult,
   SupervisedAnalyzer,
   TextResult,
+  fallback_result_label,
+  write_metrics_json,
 )
 
 __all__ = [
@@ -20,4 +22,6 @@ __all__ = [
   "ClusteringAnalyzer",
   "DimensionalityReductionAnalyzer",
   "ResultAnalyzer",
+  "fallback_result_label",
+  "write_metrics_json",
 ]

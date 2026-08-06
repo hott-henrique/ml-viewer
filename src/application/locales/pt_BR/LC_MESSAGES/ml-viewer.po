@@ -133,6 +133,9 @@ msgstr "Importar"
 msgid "common.import_error"
 msgstr "Erro de importação"
 
+msgid "common.logs"
+msgstr "Logs"
+
 msgid "common.metric"
 msgstr "Métrica"
 
@@ -156,9 +159,6 @@ msgstr "Nenhum arquivo selecionado"
 
 msgid "common.output_results"
 msgstr "Saída / Resultados"
-
-msgid "common.report"
-msgstr "Relatório"
 
 msgid "common.select_csv"
 msgstr "Selecionar CSV"
@@ -456,15 +456,6 @@ msgstr "Selecione exatamente um experimento para exportar."
 
 msgid "experiment.msg.select_one_results"
 msgstr "Selecione exatamente um experimento para ver os resultados."
-
-msgid "experiment.results.failed"
-msgstr "🚨 Execution Failed!"
-
-msgid "experiment.results.no_text"
-msgstr "(Sem relatório de texto)"
-
-msgid "experiment.results.success"
-msgstr "✅ Execution Successful!"
 
 msgid "experiment.results.title"
 msgstr "Resultados: {name}"

@@ -33,7 +33,11 @@ class AccuracyAnalysis(SupervisedAnalyzer):
 class ClassificationReportAnalysis(SupervisedAnalyzer):
   def analyze(self, y_true: t.Any, y_pred: t.Any) -> ExportResult:
     report = classification_report(y_true, y_pred, zero_division=0)
-    return TextResult("classification_report.txt", f"Classification Report:\n{report}")
+    return TextResult(
+      "classification_report.txt",
+      f"Classification Report:\n{report}",
+      label="Classification Report",
+    )
 
 class ConfusionMatrixAnalysis(SupervisedAnalyzer):
   def analyze(self, y_true: t.Any, y_pred: t.Any) -> ExportResult:
@@ -42,7 +46,7 @@ class ConfusionMatrixAnalysis(SupervisedAnalyzer):
     ConfusionMatrixDisplay.from_predictions(y_true, y_pred, ax=ax, cmap="Blues")
     ax.set_title("Confusion Matrix")
     fig.tight_layout()
-    return ImageResult("confusion_matrix.png", fig)
+    return ImageResult("confusion_matrix.png", fig, label="Confusion Matrix")
 
 class MseAnalysis(SupervisedAnalyzer):
   def analyze(self, y_true: t.Any, y_pred: t.Any) -> ExportResult:
@@ -62,7 +66,7 @@ class ActualVsPredictedAnalysis(SupervisedAnalyzer):
     ax.set_ylabel("Predicted Values")
     ax.set_title("Actual vs Predicted")
     fig.tight_layout()
-    return ImageResult("actual_vs_predicted.png", fig)
+    return ImageResult("actual_vs_predicted.png", fig, label="Actual vs Predicted")
 
 # --- Clustering ---
 
@@ -97,7 +101,7 @@ class ClusterSizesAnalysis(ClusteringAnalyzer):
     unique, counts = np.unique(labels, return_counts=True)
     lines = [f"Cluster {label}: {count} samples" for label, count in zip(unique, counts)]
     content = f"Total samples: {len(labels)}\nClusters: {len(unique)}\n\n" + "\n".join(lines)
-    return TextResult("cluster_sizes.txt", content)
+    return TextResult("cluster_sizes.txt", content, label="Cluster Sizes")
 
 class Clusters2DScatterAnalysis(ClusteringAnalyzer):
   def analyze(self, X: t.Any, labels: t.Any) -> ExportResult:
@@ -121,7 +125,7 @@ class Clusters2DScatterAnalysis(ClusteringAnalyzer):
     ax.set_title("Clusters (2D)")
     fig.colorbar(scatter, ax=ax, label="Cluster")
     fig.tight_layout()
-    return ImageResult("clusters_2d.png", fig)
+    return ImageResult("clusters_2d.png", fig, label="Clusters 2D Scatter")
 
 # --- Dimensionality Reduction ---
 
@@ -150,7 +154,7 @@ class EmbeddingScatterAnalysis(DimensionalityReductionAnalyzer):
     ax.set_ylabel("Component 2" if emb.shape[1] > 1 else "(padded)")
     ax.set_title("Embedding Scatter")
     fig.tight_layout()
-    return ImageResult("embedding_scatter.png", fig)
+    return ImageResult("embedding_scatter.png", fig, label="Embedding Scatter")
 
 class ComponentSummaryAnalysis(DimensionalityReductionAnalyzer):
   def analyze(self, X: t.Any, embedding: t.Any, model: t.Any = None) -> ExportResult:
@@ -167,7 +171,7 @@ class ComponentSummaryAnalysis(DimensionalityReductionAnalyzer):
       for i, ratio in enumerate(ratios):
         lines.append(f"  C{i + 1}: {float(ratio):.4f}")
 
-    return TextResult("component_summary.txt", "\n".join(lines))
+    return TextResult("component_summary.txt", "\n".join(lines), label="Component Summary")
 
 NATIVE_ANALYSIS_REGISTRY: dict[ProblemType, dict[str, dict[str, t.Any]]] = {
   ProblemType.CLASSIFICATION: {

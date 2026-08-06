@@ -170,6 +170,10 @@ MESSAGES: dict[str, dict[str, str]] = {
     "en_US": 'Import Error',
     "pt_BR": 'Erro de importação',
   },
+  'common.logs': {
+    "en_US": 'Logs',
+    "pt_BR": 'Logs',
+  },
   'common.metric': {
     "en_US": 'Metric',
     "pt_BR": 'Métrica',
@@ -201,10 +205,6 @@ MESSAGES: dict[str, dict[str, str]] = {
   'common.output_results': {
     "en_US": 'Output / Results',
     "pt_BR": 'Saída / Resultados',
-  },
-  'common.report': {
-    "en_US": 'Report',
-    "pt_BR": 'Relatório',
   },
   'common.select_csv': {
     "en_US": 'Select CSV',
@@ -601,18 +601,6 @@ MESSAGES: dict[str, dict[str, str]] = {
   'experiment.msg.select_one_results': {
     "en_US": 'Select exactly one experiment to view results.',
     "pt_BR": 'Selecione exatamente um experimento para ver os resultados.',
-  },
-  'experiment.results.failed': {
-    "en_US": '🚨 Execution Failed!',
-    "pt_BR": '🚨 Execution Failed!',
-  },
-  'experiment.results.no_text': {
-    "en_US": '(No text report)',
-    "pt_BR": '(Sem relatório de texto)',
-  },
-  'experiment.results.success': {
-    "en_US": '✅ Execution Successful!',
-    "pt_BR": '✅ Execution Successful!',
   },
   'experiment.results.title': {
     "en_US": 'Results: {name}',
