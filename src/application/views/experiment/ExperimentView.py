@@ -1,5 +1,6 @@
 import typing as t
 import tkinter as tk
+from pathlib import Path
 from tkinter import ttk, messagebox
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import pandas as pd
@@ -9,7 +10,7 @@ from application.components import HyperParamForm, SortableTreeview
 from application.db.paths import get_experiments_dir
 from application.db.storage_usage import dir_size_bytes, format_bytes
 from application.enums import DatasetLayout, ExperimentStatus, ProblemType
-from application.i18n import _, display_title, localize_enum
+from application.i18n import _, display_title
 from application.managers.DatasetManager import DatasetMetadata, read_dataset_frame
 from application.managers.model.base import ModelAPI
 from application.managers.results import (
@@ -26,7 +27,7 @@ from application.views.experiment import ExperimentFormModal, ExperimentExportMo
 from application.views.experiment.ExperimentExportModal import ExperimentExportData
 from application.managers import AnalysisManager, ExperimentManager, ModelManager
 from application.managers.DatasetManager import SUPERVISED_TYPES
-from application.managers.ExperimentManager import ExperimentSplitConfig
+from application.managers.ExperimentManager import AnalysisRunSpec, ExperimentSplitConfig
 
 class ExperimentView(ttk.Frame):
 
@@ -197,9 +198,8 @@ class ExperimentView(ttk.Frame):
   def _run_analyses(
     self,
     problem_type: ProblemType,
-    analysis_names: list[str],
+    analyses: list[AnalysisRunSpec],
     *,
-    analysis_params: t.Optional[dict[str, dict[str, t.Any]]] = None,
     y_true: t.Any = None,
     y_pred: t.Any = None,
     X: t.Any = None,
@@ -208,11 +208,10 @@ class ExperimentView(ttk.Frame):
     model: t.Any = None,
   ) -> list[ExportResult]:
     results: list[ExportResult] = []
-    registry = AnalysisManager.registry(problem_type)
-    params_by_name = analysis_params or {}
+    stem_counts: dict[str, int] = {}
 
-    for name in analysis_names:
-      analyzer = AnalysisManager.instantiate(problem_type, name, params_by_name.get(name))
+    for spec in analyses:
+      analyzer = AnalysisManager.instantiate(problem_type, spec.name, spec.params)
 
       if isinstance(analyzer, SupervisedAnalyzer):
         result = analyzer.analyze(y_true, y_pred)
@@ -223,8 +222,16 @@ class ExperimentView(ttk.Frame):
       else:
         raise TypeError(f"Unsupported analyzer type: {type(analyzer)!r}")
 
-      config = registry.get(name)
-      result.label = display_title(config.title if config else None, name)
+      result.label = spec.label
+
+      path = Path(result.name)
+      stem = path.stem
+      count = stem_counts.get(stem, 0)
+      stem_counts[stem] = count + 1
+
+      if count > 0:
+        result.name = f"{stem}_{count}{path.suffix}"
+
       results.append(result)
 
     return results
@@ -244,8 +251,7 @@ class ExperimentView(ttk.Frame):
     dataset_info: DatasetMetadata = payload["dataset"]
     prob_type = dataset_info.type
     target_idx = dataset_info.target
-    selected_analyses: list[str] = list(payload.get("analyses") or [])
-    analysis_params: dict[str, dict[str, t.Any]] = dict(payload.get("analysis_params") or {})
+    analyses = [AnalysisRunSpec.model_validate(a) for a in (payload.get("analyses") or [])]
     split_config: t.Optional[ExperimentSplitConfig] = payload.get("split_config")
 
     status = ExperimentStatus.PENDING
@@ -281,8 +287,7 @@ class ExperimentView(ttk.Frame):
         preds = model.predict(X_test)
         results = self._run_analyses(
           prob_type,
-          selected_analyses,
-          analysis_params=analysis_params,
+          analyses,
           y_true=y_test,
           y_pred=preds,
         )
@@ -295,8 +300,7 @@ class ExperimentView(ttk.Frame):
         labels = model.predict(X)
         results = self._run_analyses(
           prob_type,
-          selected_analyses,
-          analysis_params=analysis_params,
+          analyses,
           X=X,
           labels=labels,
         )
@@ -309,8 +313,7 @@ class ExperimentView(ttk.Frame):
         embedding = model.transform(X)
         results = self._run_analyses(
           prob_type,
-          selected_analyses,
-          analysis_params=analysis_params,
+          analyses,
           X=X,
           embedding=embedding,
           model=model,
@@ -334,8 +337,7 @@ class ExperimentView(ttk.Frame):
       model_name=payload["model_name"],
       hyperparams=payload["hyperparams"],
       status=status,
-      selected_analyses=selected_analyses,
-      analysis_params=analysis_params,
+      analyses=analyses,
       split_config=split_config,
     )
 
@@ -458,8 +460,9 @@ class ExperimentView(ttk.Frame):
     popup.title(_("experiment.results.title").format(name=experiment_data.name))
     x = 40 + geometry_offset * 30
     y = 40 + geometry_offset * 30
-    popup.geometry(f"640x680+{x}+{y}")
-    popup.resizable(False, False)
+    popup.geometry(f"760x680+{x}+{y}")
+    popup.minsize(560, 420)
+    popup.resizable(True, True)
 
     if modal:
       popup.grab_set()
@@ -467,22 +470,52 @@ class ExperimentView(ttk.Frame):
     main_frame = ttk.Frame(popup, padding=(20, 20))
     main_frame.pack(fill=tk.BOTH, expand=True)
 
-    notebook = ttk.Notebook(main_frame)
-    notebook.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
+    body = ttk.Frame(main_frame)
+    body.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
+    body.columnconfigure(1, weight=1)
+    body.rowconfigure(0, weight=1)
+
+    list_frame = ttk.Frame(body)
+    list_frame.grid(row=0, column=0, sticky="nsw", padx=(0, 10))
+    list_frame.rowconfigure(0, weight=1)
+
+    listbox = tk.Listbox(list_frame, exportselection=False, width=28, activestyle="dotbox")
+    list_scroll = ttk.Scrollbar(list_frame, orient="vertical", command=listbox.yview)
+    listbox.configure(yscrollcommand=list_scroll.set)
+    listbox.grid(row=0, column=0, sticky="ns")
+    list_scroll.grid(row=0, column=1, sticky="ns")
+
+    content_frame = ttk.Frame(body)
+    content_frame.grid(row=0, column=1, sticky="nsew")
 
     scalars = [r for r in results if isinstance(r, ScalarResult)]
     texts = [r for r in results if isinstance(r, TextResult)]
     images = [r for r in results if isinstance(r, (ImageResult, StoredImageResult))]
 
-    def add_text_tab(title: str, content: str) -> None:
-      tab = ttk.Frame(notebook)
-      notebook.add(tab, text=title)
+    entries: list[tuple[str, str, t.Any]] = [("logs", _("common.logs"), logs)]
 
-      scrollbar = ttk.Scrollbar(tab, orient="vertical")
+    if scalars:
+      entries.append(("metrics", _("common.metrics"), scalars))
+
+    for text_result in texts:
+      entries.append(("text", text_result.label, text_result.content))
+
+    for image_result in images:
+      entries.append(("image", image_result.label, image_result))
+
+    for _kind, title, _payload in entries:
+      listbox.insert(tk.END, title)
+
+    def clear_content() -> None:
+      for child in content_frame.winfo_children():
+        child.destroy()
+
+    def show_text(content: str) -> None:
+      scrollbar = ttk.Scrollbar(content_frame, orient="vertical")
       scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
       text_widget = tk.Text(
-        tab,
+        content_frame,
         wrap=tk.WORD,
         bg="#1e1e1e",
         fg="#d4d4d4",
@@ -495,32 +528,41 @@ class ExperimentView(ttk.Frame):
       text_widget.insert(tk.END, content)
       text_widget.config(state=tk.DISABLED)
 
-    add_text_tab(_("common.logs"), logs)
-
-    if scalars:
-      tab_metrics = ttk.Frame(notebook)
-      notebook.add(tab_metrics, text=_("common.metrics"))
-
-      tree = ttk.Treeview(tab_metrics, columns=("metric", "value"), show="headings", height=8)
+    def show_metrics(scalar_results: list[ScalarResult]) -> None:
+      tree = ttk.Treeview(content_frame, columns=("metric", "value"), show="headings")
       tree.heading("metric", text=_("common.metric"))
       tree.heading("value", text=_("common.value"))
       tree.column("metric", width=220)
       tree.column("value", width=160)
       tree.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-      for scalar in scalars:
+      for scalar in scalar_results:
         tree.insert("", tk.END, values=(scalar.label, scalar.value))
 
-    for text_result in texts:
-      add_text_tab(text_result.label, text_result.content)
-
-    for image_result in images:
-      tab_chart = ttk.Frame(notebook)
-      notebook.add(tab_chart, text=image_result.label)
-
-      canvas = FigureCanvasTkAgg(image_result.figure, master=tab_chart)
+    def show_image(image_result: ImageResult | StoredImageResult) -> None:
+      canvas = FigureCanvasTkAgg(image_result.figure, master=content_frame)
       canvas.draw()
       canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+    def on_select(_event: t.Optional[tk.Event] = None) -> None:
+      selection = listbox.curselection()
+
+      if not selection:
+        return
+
+      kind, _title, payload = entries[int(selection[0])]
+      clear_content()
+
+      if kind in ("logs", "text"):
+        show_text(str(payload))
+      elif kind == "metrics":
+        show_metrics(payload)
+      elif kind == "image":
+        show_image(payload)
+
+    listbox.bind("<<ListboxSelect>>", on_select)
+    listbox.selection_set(0)
+    on_select()
 
     def open_export() -> None:
       from application.views.experiment import ExperimentExportModal

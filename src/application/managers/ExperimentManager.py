@@ -31,6 +31,11 @@ HyperParamValue = int | float | bool | str
 
 ArtifactKind = t.Literal["log", "text", "image", "scalar"]
 
+class AnalysisRunSpec(BaseModel):
+  name: str
+  label: str
+  params: dict[str, HyperParamValue] = Field(default_factory=dict)
+
 class ExperimentSplitConfig(BaseModel):
   version: t.Literal[1] = 1
   mode: t.Literal["TrainTest"] = "TrainTest"
@@ -60,8 +65,7 @@ class ExperimentMetadata(BaseModel):
   hyperparameters: dict[str, HyperParamValue]
   status: ExperimentStatus
   date: str
-  selected_analyses: list[str] = Field(default_factory=list)
-  analysis_params: dict[str, dict[str, HyperParamValue]] = Field(default_factory=dict)
+  analyses: list[AnalysisRunSpec] = Field(default_factory=list)
   result_artifacts: list[ResultArtifact] = Field(default_factory=list)
   split_config: t.Optional[ExperimentSplitConfig] = None
   model_pickle_filename: t.Optional[str] = None
@@ -102,8 +106,7 @@ class ExperimentMetadata(BaseModel):
       hyperparameters=row.hyperparameters,
       status=row.status,
       date=row.created_at,
-      selected_analyses=list(row.selected_analyses or []),
-      analysis_params=dict(row.analysis_params or {}),
+      analyses=[AnalysisRunSpec.model_validate(a) for a in (row.analyses or [])],
       result_artifacts=[ResultArtifact.model_validate(a) for a in (row.result_artifacts or [])],
       split_config=split_config,
       model_pickle_filename=row.model_pickle_filename,
@@ -132,8 +135,7 @@ class ExperimentManager:
                      model_name: str,
                      hyperparams: dict[str, HyperParamValue],
                      status: ExperimentStatus = ExperimentStatus.PENDING,
-                     selected_analyses: t.Optional[list[str]] = None,
-                     analysis_params: t.Optional[dict[str, dict[str, HyperParamValue]]] = None,
+                     analyses: t.Optional[list[AnalysisRunSpec | dict[str, t.Any]]] = None,
                      split_config: t.Optional[ExperimentSplitConfig | dict[str, t.Any]] = None) -> ExperimentMetadata:
     parsed_split: t.Optional[dict[str, t.Any]] = None
 
@@ -143,6 +145,11 @@ class ExperimentManager:
       else:
         parsed_split = ExperimentSplitConfig.model_validate(split_config).model_dump(mode="json")
 
+    parsed_analyses = [
+      AnalysisRunSpec.model_validate(a).model_dump(mode="json")
+      for a in (analyses or [])
+    ]
+
     with SessionLocal() as session:
       row = ExperimentRow(
         name=name,
@@ -150,8 +157,7 @@ class ExperimentManager:
         model_name=model_name,
         hyperparameters=hyperparams,
         status=status,
-        selected_analyses=list(selected_analyses or []),
-        analysis_params=dict(analysis_params or {}),
+        analyses=parsed_analyses,
         result_artifacts=[],
         split_config=parsed_split,
         created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -174,10 +180,15 @@ class ExperimentManager:
       if row is None:
         raise ValueError(_("experiment.err.not_found").format(id=target_id))
 
-      for field in ("name", "model_name", "hyperparameters", "status", "selected_analyses", "analysis_params"):
+      for field in ("name", "model_name", "hyperparameters", "status", "analyses"):
         value = updates.get(field)
 
         if value is not None:
+          if field == "analyses":
+            value = [
+              AnalysisRunSpec.model_validate(a).model_dump(mode="json")
+              for a in value
+            ]
           setattr(row, field, value)
 
       session.commit()

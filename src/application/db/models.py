@@ -62,8 +62,7 @@ class Experiment(Base):
   model_name: Mapped[str]
   hyperparameters: Mapped[dict[str, HyperParamValue]] = mapped_column(JSON)
   status: Mapped[ExperimentStatus] = mapped_column(_str_enum(ExperimentStatus))
-  selected_analyses: Mapped[list[str]] = mapped_column(JSON, default=list)
-  analysis_params: Mapped[dict[str, dict[str, HyperParamValue]]] = mapped_column(JSON, default=dict)
+  analyses: Mapped[list[dict[str, t.Any]]] = mapped_column(JSON, default=list)
   result_artifacts: Mapped[list[dict[str, t.Any]]] = mapped_column(JSON, default=list)
   split_config: Mapped[t.Optional[dict[str, t.Any]]] = mapped_column(JSON, default=None)
   model_pickle_filename: Mapped[t.Optional[str]] = mapped_column(default=None)

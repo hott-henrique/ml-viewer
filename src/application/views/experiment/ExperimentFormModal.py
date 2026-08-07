@@ -8,7 +8,137 @@ from application.components import HyperParamForm
 from application.enums import DatasetLayout
 from application.i18n import _, display_title, localize_enum
 from application.managers.DatasetManager import SUPERVISED_TYPES, DatasetMetadata
-from application.managers.ExperimentManager import ExperimentMetadata, ExperimentSplitConfig
+from application.managers.ExperimentManager import AnalysisRunSpec, ExperimentMetadata, ExperimentSplitConfig
+
+class AnalysisInstanceModal(tk.Toplevel):
+  """Add or edit one analysis instance (name, label, params)."""
+
+  def __init__(
+    self,
+    parent: tk.Misc,
+    problem_type,
+    *,
+    initial: t.Optional[AnalysisRunSpec] = None,
+    existing_labels: t.Optional[set[str]] = None,
+    on_save: t.Callable[[AnalysisRunSpec], None],
+  ) -> None:
+    super().__init__(parent)
+
+    self.title(_("experiment.form.edit_analysis") if initial else _("experiment.form.add_analysis"))
+    self.geometry("440x420")
+    self.resizable(False, False)
+    self.grab_set()
+
+    self.problem_type = problem_type
+    self.on_save = on_save
+    self.initial = initial
+    self.existing_labels = {label.casefold() for label in (existing_labels or set())}
+    self.registry = AnalysisManager.registry(problem_type)
+
+    self._display_to_name = {
+      display_title(config.title, name): name
+      for name, config in self.registry.items()
+    }
+    self._name_to_display = {v: k for k, v in self._display_to_name.items()}
+
+    init_name = initial.name if initial else ""
+    init_label = initial.label if initial else ""
+    init_display = self._name_to_display.get(init_name, "")
+
+    self.analysis_display_var = tk.StringVar(value=init_display)
+    self.label_var = tk.StringVar(value=init_label)
+
+    self._build_ui()
+
+    if init_name:
+      self._on_analysis_selected(preserve_label=True, params=initial.params if initial else None)
+    elif self._display_to_name:
+      first = next(iter(self._display_to_name))
+      self.analysis_display_var.set(first)
+      self._on_analysis_selected(preserve_label=False)
+
+  def _build_ui(self) -> None:
+    main = ttk.Frame(self, padding=(20, 16))
+    main.pack(fill=tk.BOTH, expand=True)
+
+    ttk.Label(main, text=_("experiment.form.select_analysis"), foreground="#333333").pack(anchor=tk.W)
+    self.analysis_combo = ttk.Combobox(
+      main,
+      textvariable=self.analysis_display_var,
+      values=list(self._display_to_name.keys()),
+      state="readonly",
+    )
+    self.analysis_combo.pack(fill=tk.X, pady=(0, 12))
+    self.analysis_combo.bind("<<ComboboxSelected>>", lambda _e: self._on_analysis_selected(preserve_label=False))
+
+    ttk.Label(main, text=_("experiment.form.analysis_label"), foreground="#333333").pack(anchor=tk.W)
+    ttk.Entry(main, textvariable=self.label_var).pack(fill=tk.X, pady=(0, 12))
+
+    self.params_frame = ttk.LabelFrame(main, text=_("experiment.form.analysis_params"))
+    self.params_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 12))
+
+    self.param_form = HyperParamForm(self.params_frame, is_readonly=False, canvas_height=140)
+    self.param_form.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
+
+    btns = ttk.Frame(main)
+    btns.pack(fill=tk.X)
+    ttk.Button(btns, text=_("common.cancel"), command=self.destroy).pack(side=tk.RIGHT, padx=(8, 0))
+    ttk.Button(btns, text=_("experiment.form.save_analysis"), command=self._handle_save).pack(side=tk.RIGHT)
+
+  def _selected_analysis_name(self) -> str:
+    return self._display_to_name.get(self.analysis_display_var.get(), "")
+
+  def _on_analysis_selected(
+    self,
+    preserve_label: bool = False,
+    params: t.Optional[dict[str, t.Any]] = None,
+  ) -> None:
+    name = self._selected_analysis_name()
+    config = self.registry.get(name)
+
+    if config is None:
+      self.param_form.render_form([])
+      return
+
+    if not preserve_label:
+      self.label_var.set(display_title(config.title, name))
+
+    self.param_form.render_form(config.params)
+
+    if params:
+      for pname, pvalue in params.items():
+        if pname in self.param_form.param_vars:
+          self.param_form.param_vars[pname].set(str(pvalue))
+
+  def _handle_save(self) -> None:
+    name = self._selected_analysis_name()
+    label = self.label_var.get().strip()
+
+    if not name:
+      messagebox.showerror(_("common.error"), _("experiment.form.err_need_analysis"), parent=self)
+      return
+
+    if not label:
+      messagebox.showerror(_("common.error"), _("experiment.form.err_analysis_label"), parent=self)
+      return
+
+    if label.casefold() in self.existing_labels:
+      messagebox.showerror(
+        _("common.error"),
+        _("experiment.form.err_duplicate_analysis_label").format(label=label),
+        parent=self,
+      )
+      return
+
+    try:
+      params = self.param_form.get_parsed_values()
+    except ValueError as e:
+      messagebox.showerror(_("common.validation_error"), str(e), parent=self)
+      return
+
+    self.on_save(AnalysisRunSpec(name=name, label=label, params=params))
+    self.destroy()
+
 
 class ExperimentFormModal(tk.Toplevel):
 
@@ -28,9 +158,7 @@ class ExperimentFormModal(tk.Toplevel):
     self.on_save = on_save
     self.initial_data = initial_data
     self.datasets = DatasetManager.get_all()
-    self.analysis_vars: dict[str, tk.BooleanVar] = {}
-    self.analysis_param_forms: dict[str, HyperParamForm] = {}
-    self._analysis_param_frames: dict[str, ttk.Frame] = {}
+    self.analysis_instances: list[AnalysisRunSpec] = []
 
     if self.initial_data:
       init_name = _("experiment.form.copy_name").format(name=self.initial_data.name)
@@ -126,12 +254,7 @@ class ExperimentFormModal(tk.Toplevel):
     self.analyses_inner.bind("<Configure>", _on_analyses_configure)
     analyses_canvas.bind("<Configure>", _on_analyses_canvas_configure)
 
-    ttk.Label(
-      self.analyses_inner,
-      text=_("experiment.form.select_dataset_for_analyses"),
-      foreground="#666666",
-    ).pack(anchor=tk.W)
-
+    self._render_analysis_list()
     self._update_split_visibility()
 
   def _needs_experiment_split(self) -> bool:
@@ -155,13 +278,15 @@ class ExperimentFormModal(tk.Toplevel):
       if self.selected_dataset.layout == DatasetLayout.TRAIN_TEST_SPLIT:
         self.split_hint.config(text=_("experiment.form.split_hint_preset"))
 
-  def _render_analyses(self, preselected: t.Optional[list[str]] = None) -> None:
+  def _render_analysis_list(self) -> None:
     for child in self.analyses_inner.winfo_children():
       child.destroy()
 
-    self.analysis_vars = {}
-    self.analysis_param_forms = {}
-    self._analysis_param_frames = {}
+    ttk.Button(
+      self.analyses_inner,
+      text=_("experiment.form.add_analysis"),
+      command=self._open_add_analysis,
+    ).pack(fill=tk.X, pady=(0, 8))
 
     if not self.selected_dataset:
       ttk.Label(
@@ -171,77 +296,73 @@ class ExperimentFormModal(tk.Toplevel):
       ).pack(anchor=tk.W)
       return
 
+    for index, spec in enumerate(self.analysis_instances):
+      row = ttk.Frame(self.analyses_inner)
+      row.pack(fill=tk.X, pady=2)
+
+      ttk.Label(row, text=spec.label).pack(side=tk.LEFT, fill=tk.X, expand=True)
+      ttk.Button(
+        row,
+        text=_("common.edit"),
+        width=8,
+        command=lambda i=index: self._open_edit_analysis(i),
+      ).pack(side=tk.RIGHT, padx=(4, 0))
+      ttk.Button(
+        row,
+        text=_("experiment.form.remove_analysis"),
+        width=8,
+        command=lambda i=index: self._remove_analysis(i),
+      ).pack(side=tk.RIGHT)
+
+  def _labels_in_use(self, *, exclude_index: t.Optional[int] = None) -> set[str]:
+    return {
+      spec.label
+      for i, spec in enumerate(self.analysis_instances)
+      if exclude_index is None or i != exclude_index
+    }
+
+  def _open_add_analysis(self) -> None:
+    if not self.selected_dataset:
+      messagebox.showwarning(_("common.warning"), _("experiment.form.select_dataset_for_analyses"), parent=self)
+      return
+
     registry = AnalysisManager.registry(self.selected_dataset.type)
 
     if not registry:
-      ttk.Label(self.analyses_inner, text=_("experiment.form.no_analyses"), foreground="#666666").pack(anchor=tk.W)
+      messagebox.showwarning(_("common.warning"), _("experiment.form.no_analyses"), parent=self)
       return
 
-    saved_params = dict(self.initial_data.analysis_params) if self.initial_data else {}
+    AnalysisInstanceModal(
+      self,
+      self.selected_dataset.type,
+      existing_labels=self._labels_in_use(),
+      on_save=self._on_analysis_added,
+    )
 
-    for name, config in registry.items():
-      default_checked = True if preselected is None else name in preselected
-
-      if preselected is None and not config.is_native:
-        default_checked = False
-
-      var = tk.BooleanVar(value=default_checked)
-      self.analysis_vars[name] = var
-
-      block = ttk.Frame(self.analyses_inner)
-      block.pack(fill=tk.X, anchor=tk.W, pady=4)
-
-      ttk.Checkbutton(
-        block,
-        text=display_title(config.title, name),
-        variable=var,
-        command=lambda n=name: self._sync_analysis_param_visibility(n),
-      ).pack(anchor=tk.W)
-
-      if config.params:
-        params_frame = ttk.LabelFrame(block, text=_("experiment.form.analysis_params"))
-        form = HyperParamForm(params_frame, is_readonly=False, canvas_height=88)
-        form.pack(fill=tk.X, padx=4, pady=4)
-        form.render_form(config.params)
-
-        for pname, pvalue in saved_params.get(name, {}).items():
-          if pname in form.param_vars:
-            form.param_vars[pname].set(str(pvalue))
-
-        self.analysis_param_forms[name] = form
-        self._analysis_param_frames[name] = params_frame
-        self._sync_analysis_param_visibility(name)
-
-  def _sync_analysis_param_visibility(self, name: str) -> None:
-    frame = self._analysis_param_frames.get(name)
-    var = self.analysis_vars.get(name)
-
-    if frame is None or var is None:
+  def _open_edit_analysis(self, index: int) -> None:
+    if not self.selected_dataset or index < 0 or index >= len(self.analysis_instances):
       return
 
-    if var.get():
-      frame.pack(fill=tk.X, padx=(16, 0), pady=(2, 0))
-    else:
-      frame.pack_forget()
+    AnalysisInstanceModal(
+      self,
+      self.selected_dataset.type,
+      initial=self.analysis_instances[index],
+      existing_labels=self._labels_in_use(exclude_index=index),
+      on_save=lambda spec, i=index: self._on_analysis_edited(i, spec),
+    )
 
-  def _collect_analysis_params(self) -> dict[str, dict[str, t.Any]]:
-    collected: dict[str, dict[str, t.Any]] = {}
+  def _on_analysis_added(self, spec: AnalysisRunSpec) -> None:
+    self.analysis_instances.append(spec)
+    self._render_analysis_list()
 
-    for name, var in self.analysis_vars.items():
-      if not var.get():
-        continue
+  def _on_analysis_edited(self, index: int, spec: AnalysisRunSpec) -> None:
+    self.analysis_instances[index] = spec
+    self._render_analysis_list()
 
-      form = self.analysis_param_forms.get(name)
-
-      if form is None:
-        continue
-
-      values = form.get_parsed_values()
-
-      if values:
-        collected[name] = values
-
-    return collected
+  def _remove_analysis(self, index: int) -> None:
+    if 0 <= index < len(self.analysis_instances):
+      del self.analysis_instances[index]
+      self._render_analysis_list()
 
   def _apply_autofill(self) -> None:
     if not self.initial_data:
@@ -252,7 +373,10 @@ class ExperimentFormModal(tk.Toplevel):
 
     if ds_str_to_find in self.ds_combo["values"]:
       self.dataset_var.set(ds_str_to_find)
-      self._on_dataset_selected(None, preselected=self.initial_data.selected_analyses or None)
+      self._on_dataset_selected(
+        None,
+        restore_analyses=list(self.initial_data.analyses),
+      )
 
     saved_model = self.initial_data.model_name
     saved_model_display = next(
@@ -274,7 +398,7 @@ class ExperimentFormModal(tk.Toplevel):
   def _on_dataset_selected(
     self,
     event: t.Optional[tk.Event],
-    preselected: t.Optional[list[str]] = None,
+    restore_analyses: t.Optional[list[AnalysisRunSpec]] = None,
   ) -> None:
     selected_text = self.dataset_var.get()
 
@@ -296,7 +420,13 @@ class ExperimentFormModal(tk.Toplevel):
     self._model_display_var.set("")
     self.model_var.set("")
     self.hyperparam_form.render_form([])
-    self._render_analyses(preselected=preselected)
+
+    if restore_analyses is not None:
+      self.analysis_instances = [AnalysisRunSpec.model_validate(a) for a in restore_analyses]
+    else:
+      self.analysis_instances = []
+
+    self._render_analysis_list()
 
   def _on_model_selected(self, event: t.Optional[tk.Event]) -> None:
     if not self.selected_dataset:
@@ -328,16 +458,13 @@ class ExperimentFormModal(tk.Toplevel):
       messagebox.showerror(_("common.error"), _("experiment.form.err_required"), parent=self)
       return
 
-    selected_analyses = [name for name, var in self.analysis_vars.items() if var.get()]
-
-    if not selected_analyses:
+    if not self.analysis_instances:
       messagebox.showerror(_("common.error"), _("experiment.form.err_need_analysis"), parent=self)
       return
 
     try:
       params = self.hyperparam_form.get_parsed_values()
       split_config = self._parse_split_config()
-      analysis_params = self._collect_analysis_params()
     except ValueError as e:
       messagebox.showerror(_("common.validation_error"), str(e), parent=self)
       return
@@ -347,8 +474,7 @@ class ExperimentFormModal(tk.Toplevel):
       "dataset": self.selected_dataset,
       "model_name": self.model_var.get(),
       "hyperparams": params,
-      "analyses": selected_analyses,
-      "analysis_params": analysis_params,
+      "analyses": [spec.model_dump(mode="json") for spec in self.analysis_instances],
       "split_config": split_config,
     }
 

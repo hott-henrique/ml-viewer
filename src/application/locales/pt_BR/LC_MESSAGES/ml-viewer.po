@@ -421,6 +421,12 @@ msgstr "Experimento exportado com sucesso para:\n{path}"
 msgid "experiment.export.title"
 msgstr "Exportar: {name}"
 
+msgid "experiment.form.add_analysis"
+msgstr "Adicionar"
+
+msgid "experiment.form.analysis_label"
+msgstr "Rótulo:"
+
 msgid "experiment.form.analysis_params"
 msgstr "Parâmetros"
 
@@ -430,11 +436,20 @@ msgstr "{name} (Cópia)"
 msgid "experiment.form.default_name"
 msgstr "Experimento #{n}"
 
+msgid "experiment.form.edit_analysis"
+msgstr "Editar análise"
+
+msgid "experiment.form.err_analysis_label"
+msgstr "O rótulo da análise é obrigatório."
+
+msgid "experiment.form.err_duplicate_analysis_label"
+msgstr "Já existe uma análise com o rótulo \"{label}\" na lista."
+
 msgid "experiment.form.err_invalid_test_size"
 msgstr "O tamanho do teste deve ser um número entre 0 e 1 (exclusive)."
 
 msgid "experiment.form.err_need_analysis"
-msgstr "Selecione pelo menos uma análise."
+msgstr "Adicione pelo menos uma análise."
 
 msgid "experiment.form.err_required"
 msgstr "Nome, dataset e modelo são obrigatórios."
@@ -448,8 +463,17 @@ msgstr "Nome do experimento:"
 msgid "experiment.form.no_analyses"
 msgstr "Nenhuma análise disponível para este tipo de problema."
 
+msgid "experiment.form.remove_analysis"
+msgstr "Remover"
+
 msgid "experiment.form.run"
 msgstr "Executar experimento"
+
+msgid "experiment.form.save_analysis"
+msgstr "Salvar"
+
+msgid "experiment.form.select_analysis"
+msgstr "Análise:"
 
 msgid "experiment.form.select_dataset"
 msgstr "Selecionar dataset:"

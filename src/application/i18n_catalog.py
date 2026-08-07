@@ -563,8 +563,16 @@ MESSAGES: dict[str, dict[str, str]] = {
     "pt_BR": 'Experimento #{n}',
   },
   'experiment.form.err_need_analysis': {
-    "en_US": 'Select at least one analysis.',
-    "pt_BR": 'Selecione pelo menos uma análise.',
+    "en_US": 'Add at least one analysis.',
+    "pt_BR": 'Adicione pelo menos uma análise.',
+  },
+  'experiment.form.err_analysis_label': {
+    "en_US": 'Analysis label is required.',
+    "pt_BR": 'O rótulo da análise é obrigatório.',
+  },
+  'experiment.form.err_duplicate_analysis_label': {
+    "en_US": 'An analysis with label "{label}" is already in the list.',
+    "pt_BR": 'Já existe uma análise com o rótulo "{label}" na lista.',
   },
   'experiment.form.err_invalid_test_size': {
     "en_US": 'Test size must be a number between 0 and 1 (exclusive).',
@@ -585,6 +593,30 @@ MESSAGES: dict[str, dict[str, str]] = {
   'experiment.form.no_analyses': {
     "en_US": 'No analyses available for this problem type.',
     "pt_BR": 'Nenhuma análise disponível para este tipo de problema.',
+  },
+  'experiment.form.add_analysis': {
+    "en_US": 'Add',
+    "pt_BR": 'Adicionar',
+  },
+  'experiment.form.edit_analysis': {
+    "en_US": 'Edit analysis',
+    "pt_BR": 'Editar análise',
+  },
+  'experiment.form.remove_analysis': {
+    "en_US": 'Remove',
+    "pt_BR": 'Remover',
+  },
+  'experiment.form.save_analysis': {
+    "en_US": 'Save',
+    "pt_BR": 'Salvar',
+  },
+  'experiment.form.select_analysis': {
+    "en_US": 'Analysis:',
+    "pt_BR": 'Análise:',
+  },
+  'experiment.form.analysis_label': {
+    "en_US": 'Label:',
+    "pt_BR": 'Rótulo:',
   },
   'experiment.form.run': {
     "en_US": 'Run Experiment',

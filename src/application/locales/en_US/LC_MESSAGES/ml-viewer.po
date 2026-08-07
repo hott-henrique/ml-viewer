@@ -421,6 +421,12 @@ msgstr "Experiment exported successfully to:\n{path}"
 msgid "experiment.export.title"
 msgstr "Export: {name}"
 
+msgid "experiment.form.add_analysis"
+msgstr "Add"
+
+msgid "experiment.form.analysis_label"
+msgstr "Label:"
+
 msgid "experiment.form.analysis_params"
 msgstr "Parameters"
 
@@ -430,11 +436,20 @@ msgstr "{name} (Copy)"
 msgid "experiment.form.default_name"
 msgstr "Experiment #{n}"
 
+msgid "experiment.form.edit_analysis"
+msgstr "Edit analysis"
+
+msgid "experiment.form.err_analysis_label"
+msgstr "Analysis label is required."
+
+msgid "experiment.form.err_duplicate_analysis_label"
+msgstr "An analysis with label \"{label}\" is already in the list."
+
 msgid "experiment.form.err_invalid_test_size"
 msgstr "Test size must be a number between 0 and 1 (exclusive)."
 
 msgid "experiment.form.err_need_analysis"
-msgstr "Select at least one analysis."
+msgstr "Add at least one analysis."
 
 msgid "experiment.form.err_required"
 msgstr "Name, Dataset, and Model are required."
@@ -448,8 +463,17 @@ msgstr "Experiment Name:"
 msgid "experiment.form.no_analyses"
 msgstr "No analyses available for this problem type."
 
+msgid "experiment.form.remove_analysis"
+msgstr "Remove"
+
 msgid "experiment.form.run"
 msgstr "Run Experiment"
+
+msgid "experiment.form.save_analysis"
+msgstr "Save"
+
+msgid "experiment.form.select_analysis"
+msgstr "Analysis:"
 
 msgid "experiment.form.select_dataset"
 msgstr "Select Dataset:"
