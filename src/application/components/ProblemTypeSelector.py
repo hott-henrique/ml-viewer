@@ -12,7 +12,11 @@ class ProblemTypeSelector(ttk.Frame):
 
     self.paradigm_map = {
         LearningParadigm.SUPERVISED: [ProblemType.CLASSIFICATION, ProblemType.REGRESSION],
-        LearningParadigm.UNSUPERVISED: [ProblemType.CLUSTERING, ProblemType.DIMENSIONALITY_REDUCTION]
+        LearningParadigm.UNSUPERVISED: [
+          ProblemType.CLUSTERING,
+          ProblemType.DIMENSIONALITY_REDUCTION,
+          ProblemType.ASSOCIATION_RULES,
+        ],
     }
 
     # Display label <-> canonical .value

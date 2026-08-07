@@ -5,3 +5,4 @@ matplotlib>=3.11.1
 pydantic>=2.13.4
 SQLAlchemy>=2.0.51
 platformdirs>=4.11.0
+mlxtend>=0.23.0

@@ -202,6 +202,9 @@ msgstr "Layout"
 msgid "dataset.col.target"
 msgstr "Alvo"
 
+msgid "dataset.err.empty_association_frame"
+msgstr "Datasets de regras de associação precisam ter pelo menos uma linha de transação."
+
 msgid "dataset.err.file_integrity"
 msgstr "Arquivo do dataset '{name}' está corrompido ou foi alterado externamente (MD5 não corresponde)."
 
@@ -342,6 +345,9 @@ msgstr "Supervisionado"
 
 msgid "enum.learning_paradigm.unsupervised"
 msgstr "Não supervisionado"
+
+msgid "enum.problem_type.association_rules"
+msgstr "Regras de associação"
 
 msgid "enum.problem_type.classification"
 msgstr "Classificação"

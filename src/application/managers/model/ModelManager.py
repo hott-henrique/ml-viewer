@@ -17,6 +17,7 @@ from application.enums import ParamType, ProblemType
 from application.i18n import TranslatableStr, _
 from application.managers.model.base import ModelAPI
 from application.managers.model.definitions import (
+  ASSOCIATION_REGISTRY,
   CLASSIFICATION_REGISTRY,
   CLUSTERING_REGISTRY,
   DIMENSIONALITY_REGISTRY,
@@ -55,6 +56,7 @@ NATIVE_MODEL_REGISTRIES: dict[ProblemType, dict[str, dict[str, t.Any]]] = {
   ProblemType.REGRESSION: REGRETION_REGISTRY,
   ProblemType.CLUSTERING: CLUSTERING_REGISTRY,
   ProblemType.DIMENSIONALITY_REDUCTION: DIMENSIONALITY_REGISTRY,
+  ProblemType.ASSOCIATION_RULES: ASSOCIATION_REGISTRY,
 }
 
 class ModelManager:

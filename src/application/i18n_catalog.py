@@ -310,6 +310,10 @@ MESSAGES: dict[str, dict[str, str]] = {
     "en_US": 'Unsupported problem type: {problem_type}',
     "pt_BR": 'Tipo de problema não suportado: {problem_type}',
   },
+  'dataset.err.empty_association_frame': {
+    "en_US": 'Association-rules datasets must contain at least one transaction row.',
+    "pt_BR": 'Datasets de regras de associação precisam ter pelo menos uma linha de transação.',
+  },
   'dataset.form.add_title': {
     "en_US": 'Add New Dataset',
     "pt_BR": 'Adicionar Dataset',
@@ -461,6 +465,10 @@ MESSAGES: dict[str, dict[str, str]] = {
   'enum.problem_type.dimensionality_reduction': {
     "en_US": 'Dimensionality Reduction',
     "pt_BR": 'Redução de dimensionalidade',
+  },
+  'enum.problem_type.association_rules': {
+    "en_US": 'Association Rules',
+    "pt_BR": 'Regras de associação',
   },
   'enum.problem_type.regression': {
     "en_US": 'Regression',

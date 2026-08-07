@@ -11,9 +11,10 @@ from application.db.paths import get_experiments_dir
 from application.db.storage_usage import dir_size_bytes, format_bytes
 from application.enums import DatasetLayout, ExperimentStatus, ProblemType
 from application.i18n import _, display_title
-from application.managers.DatasetManager import DatasetMetadata, read_dataset_frame
+from application.managers.DatasetManager import DatasetMetadata, read_dataset_frame, to_binary_item_matrix
 from application.managers.model.base import ModelAPI
 from application.managers.results import (
+  AssociationRulesAnalyzer,
   ClusteringAnalyzer,
   DimensionalityReductionAnalyzer,
   ExportResult,
@@ -219,6 +220,8 @@ class ExperimentView(ttk.Frame):
         result = analyzer.analyze(X, labels)
       elif isinstance(analyzer, DimensionalityReductionAnalyzer):
         result = analyzer.analyze(X, embedding, model)
+      elif isinstance(analyzer, AssociationRulesAnalyzer):
+        result = analyzer.analyze(model, X)
       else:
         raise TypeError(f"Unsupported analyzer type: {type(analyzer)!r}")
 
@@ -316,6 +319,18 @@ class ExperimentView(ttk.Frame):
           analyses,
           X=X,
           embedding=embedding,
+          model=model,
+        )
+
+      elif prob_type == ProblemType.ASSOCIATION_RULES:
+        df = read_dataset_frame(dataset_info.full_path, dataset_info.has_header).dropna()
+        X = to_binary_item_matrix(df)
+        model.fit(X)
+        trained_model = model
+        results = self._run_analyses(
+          prob_type,
+          analyses,
+          X=X,
           model=model,
         )
 

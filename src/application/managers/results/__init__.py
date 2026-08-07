@@ -1,4 +1,5 @@
 from application.managers.results.base import (
+  AssociationRulesAnalyzer,
   ClusteringAnalyzer,
   DimensionalityReductionAnalyzer,
   ExportResult,
@@ -21,6 +22,7 @@ __all__ = [
   "SupervisedAnalyzer",
   "ClusteringAnalyzer",
   "DimensionalityReductionAnalyzer",
+  "AssociationRulesAnalyzer",
   "ResultAnalyzer",
   "fallback_result_label",
   "write_metrics_json",

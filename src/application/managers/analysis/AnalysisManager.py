@@ -18,10 +18,18 @@ from application.i18n import TranslatableStr, _
 from application.managers.analysis.natives import NATIVE_ANALYSIS_REGISTRY
 from application.managers.model.ModelManager import HyperParamConfig
 from application.managers.results.base import (
+  AssociationRulesAnalyzer,
   ClusteringAnalyzer,
   DimensionalityReductionAnalyzer,
   ResultAnalyzer,
   SupervisedAnalyzer,
+)
+
+_ANALYZER_BASES = (
+  SupervisedAnalyzer,
+  ClusteringAnalyzer,
+  DimensionalityReductionAnalyzer,
+  AssociationRulesAnalyzer,
 )
 
 class AnalysisConfig(BaseModel):
@@ -77,10 +85,10 @@ class AnalysisManager:
     if not callable(getattr(instance, "analyze", None)):
       raise ValueError(f"Analysis class '{config.class_name}' must implement analyze(...).")
 
-    if not isinstance(instance, (SupervisedAnalyzer, ClusteringAnalyzer, DimensionalityReductionAnalyzer)):
+    if not isinstance(instance, _ANALYZER_BASES):
       raise ValueError(
         f"Analysis class '{config.class_name}' must inherit SupervisedAnalyzer, "
-        "ClusteringAnalyzer, or DimensionalityReductionAnalyzer."
+        "ClusteringAnalyzer, DimensionalityReductionAnalyzer, or AssociationRulesAnalyzer."
       )
 
     return instance
@@ -214,10 +222,10 @@ class AnalysisManager:
           if analysis_class is None:
             raise ValueError(f"Class '{config.class_name}' not found in the imported file.")
 
-          if not issubclass(analysis_class, (SupervisedAnalyzer, ClusteringAnalyzer, DimensionalityReductionAnalyzer)):
+          if not issubclass(analysis_class, _ANALYZER_BASES):
             raise ValueError(
               f"Class '{config.class_name}' must inherit SupervisedAnalyzer, "
-               "ClusteringAnalyzer, or DimensionalityReductionAnalyzer."
+              "ClusteringAnalyzer, DimensionalityReductionAnalyzer, or AssociationRulesAnalyzer."
             )
 
           session.add(AnalysisRow(

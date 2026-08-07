@@ -16,7 +16,11 @@ from application.enums import DatasetFileRole, DatasetLayout, ProblemType
 from application.i18n import _
 
 SUPERVISED_TYPES = {ProblemType.CLASSIFICATION, ProblemType.REGRESSION}
-UNSUPERVISED_TYPES = {ProblemType.CLUSTERING, ProblemType.DIMENSIONALITY_REDUCTION}
+UNSUPERVISED_TYPES = {
+  ProblemType.CLUSTERING,
+  ProblemType.DIMENSIONALITY_REDUCTION,
+  ProblemType.ASSOCIATION_RULES,
+}
 
 LAYOUT_ROLES: dict[DatasetLayout, frozenset[tuple[DatasetFileRole, int]]] = {
   DatasetLayout.NO_SPLIT: frozenset({(DatasetFileRole.FULL, 0)}),
@@ -49,6 +53,14 @@ def read_dataset_frame(path: str | Path, has_header: bool, *, nrows: int | None 
 def peek_ncols(path: str | Path, has_header: bool) -> int:
   df = read_dataset_frame(path, has_header, nrows=0)
   return df.shape[1]
+
+def to_binary_item_matrix(df: pd.DataFrame) -> pd.DataFrame:
+  """Convert a transaction table into a boolean item matrix (rows=transactions, cols=items)."""
+  if df.empty:
+    raise ValueError(_("dataset.err.empty_association_frame"))
+
+  binary = df.notna() & (df != 0) & (df != False) & (df != "0") & (df != "")  # noqa: E712
+  return binary.astype(bool)
 
 def peek_column_names(path: str | Path, has_header: bool) -> list[str]:
   df = read_dataset_frame(path, has_header, nrows=0)

@@ -15,6 +15,7 @@ import numpy as np
 
 from application.enums import AnalysisOutputKind, ParamType, ProblemType
 from application.managers.results.base import (
+  AssociationRulesAnalyzer,
   ClusteringAnalyzer,
   DimensionalityReductionAnalyzer,
   ExportResult,
@@ -236,6 +237,87 @@ class ComponentSummaryAnalysis(DimensionalityReductionAnalyzer):
         lines.append(f"  C{i + 1}: {float(ratio):.4f}")
 
     return TextResult("component_summary.txt", "\n".join(lines), label="Component Summary")
+
+# --- Association Rules ---
+
+def _format_itemset(value: t.Any) -> str:
+  if value is None:
+    return ""
+
+  if isinstance(value, (set, frozenset, list, tuple)):
+    return "{" + ", ".join(sorted(str(item) for item in value)) + "}"
+
+  return str(value)
+
+class RuleCountAnalysis(AssociationRulesAnalyzer):
+  def __init__(self, **params: t.Any) -> None:
+    pass
+
+  def analyze(self, model: t.Any, X: t.Any = None) -> ExportResult:
+    if not hasattr(model, "get_rules"):
+      raise ValueError("Rule count requires a fitted association-rules model with get_rules().")
+
+    rules = model.get_rules()
+    count = int(len(rules))
+    return ScalarResult("rule_count.json", count, label="Rule Count")
+
+class FrequentItemsetsAnalysis(AssociationRulesAnalyzer):
+  def __init__(self, **params: t.Any) -> None:
+    pass
+
+  def analyze(self, model: t.Any, X: t.Any = None) -> ExportResult:
+    if not hasattr(model, "get_frequent_itemsets"):
+      raise ValueError("Frequent itemsets require a fitted model with get_frequent_itemsets().")
+
+    itemsets = model.get_frequent_itemsets()
+
+    if hasattr(itemsets, "empty") and itemsets.empty:
+      content = "No frequent itemsets found."
+    elif hasattr(itemsets, "iterrows"):
+      lines = ["itemset\tsupport"]
+      for _, row in itemsets.iterrows():
+        itemset = row["itemsets"] if "itemsets" in row.index else row.iloc[0]
+        support = row["support"] if "support" in row.index else row.iloc[1]
+        lines.append(f"{_format_itemset(itemset)}\t{float(support):.4f}")
+      content = "\n".join(lines)
+    else:
+      content = str(itemsets)
+
+    return TextResult("frequent_itemsets.txt", content, label="Frequent Itemsets")
+
+class AssociationRulesTableAnalysis(AssociationRulesAnalyzer):
+  def __init__(self, sort_by: str = "lift", **params: t.Any) -> None:
+    self.sort_by = sort_by
+
+  def analyze(self, model: t.Any, X: t.Any = None) -> ExportResult:
+    if not hasattr(model, "get_rules"):
+      raise ValueError("Association rules require a fitted model with get_rules().")
+
+    rules = model.get_rules()
+
+    if hasattr(rules, "empty") and rules.empty:
+      content = "No association rules found."
+    elif hasattr(rules, "iterrows"):
+      ordered = rules
+      if self.sort_by in getattr(rules, "columns", []):
+        ordered = rules.sort_values(self.sort_by, ascending=False)
+
+      lines = ["antecedents\tconsequents\tsupport\tconfidence\tlift"]
+      for _, row in ordered.iterrows():
+        antecedents = row["antecedents"] if "antecedents" in row.index else ""
+        consequents = row["consequents"] if "consequents" in row.index else ""
+        support = float(row["support"]) if "support" in row.index else float("nan")
+        confidence = float(row["confidence"]) if "confidence" in row.index else float("nan")
+        lift = float(row["lift"]) if "lift" in row.index else float("nan")
+        lines.append(
+          f"{_format_itemset(antecedents)}\t{_format_itemset(consequents)}\t"
+          f"{support:.4f}\t{confidence:.4f}\t{lift:.4f}"
+        )
+      content = "\n".join(lines)
+    else:
+      content = str(rules)
+
+    return TextResult("association_rules.txt", content, label="Association Rules")
 
 # --- Registry ---
 
@@ -515,6 +597,56 @@ NATIVE_ANALYSIS_REGISTRY: dict[ProblemType, dict[str, dict[str, t.Any]]] = {
         "pt_BR": "Formato do embedding e variância explicada por componente, quando disponível.",
       },
       "params": [],
+    },
+  },
+  ProblemType.ASSOCIATION_RULES: {
+    "Rule Count": {
+      "type": ProblemType.ASSOCIATION_RULES,
+      "class": "RuleCountAnalysis",
+      "module": "application.managers.analysis.natives",
+      "output_kind": AnalysisOutputKind.SCALAR,
+      "title": {"en_US": "Rule Count", "pt_BR": "Contagem de Regras"},
+      "description": {
+        "en_US": "Number of association rules produced by the fitted model.",
+        "pt_BR": "Número de regras de associação produzidas pelo modelo ajustado.",
+      },
+      "params": [],
+    },
+    "Frequent Itemsets": {
+      "type": ProblemType.ASSOCIATION_RULES,
+      "class": "FrequentItemsetsAnalysis",
+      "module": "application.managers.analysis.natives",
+      "output_kind": AnalysisOutputKind.TEXT,
+      "title": {"en_US": "Frequent Itemsets", "pt_BR": "Itemsets Frequentes"},
+      "description": {
+        "en_US": "Frequent itemsets with support values.",
+        "pt_BR": "Itemsets frequentes com valores de suporte.",
+      },
+      "params": [],
+    },
+    "Association Rules": {
+      "type": ProblemType.ASSOCIATION_RULES,
+      "class": "AssociationRulesTableAnalysis",
+      "module": "application.managers.analysis.natives",
+      "output_kind": AnalysisOutputKind.TEXT,
+      "title": {"en_US": "Association Rules", "pt_BR": "Regras de Associação"},
+      "description": {
+        "en_US": "Association rules with support, confidence and lift.",
+        "pt_BR": "Regras de associação com suporte, confiança e lift.",
+      },
+      "params": [
+        {
+          "name": "sort_by",
+          "type": _P.CATEGORICAL,
+          "options": ["lift", "confidence", "support"],
+          "default": "lift",
+          "label": {"en_US": "Sort by", "pt_BR": "Ordenar por"},
+          "description": {
+            "en_US": "Metric used to sort rules in the report.",
+            "pt_BR": "Métrica usada para ordenar as regras no relatório.",
+          },
+        },
+      ],
     },
   },
 }

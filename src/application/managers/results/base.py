@@ -122,3 +122,10 @@ class DimensionalityReductionAnalyzer(ResultAnalyzer):
   @abstractmethod
   def analyze(self, X: t.Any, embedding: t.Any, model: t.Any = None) -> ExportResult:
     ...
+
+class AssociationRulesAnalyzer(ResultAnalyzer):
+  """Analyzer for association-rule problems: analyze(model, X=None)."""
+
+  @abstractmethod
+  def analyze(self, model: t.Any, X: t.Any = None) -> ExportResult:
+    ...

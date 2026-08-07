@@ -9,6 +9,7 @@ class ProblemType(StrEnum):
   REGRESSION = "Regression"
   CLUSTERING = "Clustering"
   DIMENSIONALITY_REDUCTION = "Dimensionality Reduction"
+  ASSOCIATION_RULES = "Association Rules"
 
 class ParamType(StrEnum):
   INT = "int"

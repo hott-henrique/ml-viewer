@@ -202,6 +202,9 @@ msgstr "Layout"
 msgid "dataset.col.target"
 msgstr "Target"
 
+msgid "dataset.err.empty_association_frame"
+msgstr "Association-rules datasets must contain at least one transaction row."
+
 msgid "dataset.err.file_integrity"
 msgstr "Dataset file '{name}' is corrupted or was modified externally (MD5 mismatch)."
 
@@ -342,6 +345,9 @@ msgstr "Supervised"
 
 msgid "enum.learning_paradigm.unsupervised"
 msgstr "Unsupervised"
+
+msgid "enum.problem_type.association_rules"
+msgstr "Association Rules"
 
 msgid "enum.problem_type.classification"
 msgstr "Classification"
