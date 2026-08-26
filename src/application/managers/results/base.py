@@ -129,3 +129,10 @@ class AssociationRulesAnalyzer(ResultAnalyzer):
   @abstractmethod
   def analyze(self, model: t.Any, X: t.Any = None) -> ExportResult:
     ...
+
+class ReinforcementLearningAnalyzer(ResultAnalyzer):
+  """Analyzer for RL problems: analyze(agent, train_result)."""
+
+  @abstractmethod
+  def analyze(self, agent: t.Any, train_result: t.Any) -> ExportResult:
+    ...

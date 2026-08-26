@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from application.i18n import _
-from application.views import DatasetView, ExperimentView, ModelView, AnalysisView
+from application.views import DatasetView, EnvironmentView, ExperimentView, ModelView, AnalysisView
 from application.views.settings import SettingsModal
 
 class Application(tk.Tk):
@@ -45,6 +45,7 @@ class Application(tk.Tk):
     ).pack(pady=20)
 
     self._create_nav_button(_("nav.datasets"), DatasetView.__name__)
+    self._create_nav_button(_("nav.environments"), EnvironmentView.__name__)
     self._create_nav_button(_("nav.models"), ModelView.__name__)
     self._create_nav_button(_("nav.analyses"), AnalysisView.__name__)
     self._create_nav_button(_("experiment.view.title"), ExperimentView.__name__)
@@ -68,7 +69,7 @@ class Application(tk.Tk):
 
     self.frames.clear()
 
-    for ViewClass in (DatasetView, ModelView, AnalysisView, ExperimentView):
+    for ViewClass in (DatasetView, EnvironmentView, ModelView, AnalysisView, ExperimentView):
       page_name = ViewClass.__name__
       frame = ViewClass(parent=self.main_container)
       self.frames[page_name] = frame

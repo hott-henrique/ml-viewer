@@ -53,24 +53,59 @@ class DatasetFile(Base):
 
   dataset: Mapped["Dataset"] = relationship(back_populates="files")
 
+class Environment(Base):
+  """Catalog of environment kinds (native + imported plugins), analogous to Model."""
+
+  __tablename__ = "environments"
+  __table_args__ = (UniqueConstraint("name", name="uq_environment_name"),)
+
+  id: Mapped[int] = mapped_column(primary_key=True)
+  name: Mapped[str]
+  class_name: Mapped[str]
+  module: Mapped[t.Optional[str]] = mapped_column(default=None)
+  title: Mapped[t.Optional[t.Any]] = mapped_column(JSON, default=None)
+  description: Mapped[t.Optional[t.Any]] = mapped_column(JSON, default=None)
+  params: Mapped[list[dict[str, t.Any]]] = mapped_column(JSON, default=list)
+  storage_filename: Mapped[t.Optional[str]] = mapped_column(default=None)
+  original_filename: Mapped[t.Optional[str]] = mapped_column(default=None)
+  md5_hash: Mapped[t.Optional[str]] = mapped_column(default=None)
+  size_bytes: Mapped[t.Optional[int]] = mapped_column(default=None)
+  is_native: Mapped[bool] = mapped_column(default=False)
+  created_at: Mapped[str]
+
+class AgentEnvironmentCompat(Base):
+  __tablename__ = "agent_environment_compat"
+  __table_args__ = (UniqueConstraint("agent", "env", name="uq_agent_env_compat"),)
+
+  id: Mapped[int] = mapped_column(primary_key=True)
+  agent: Mapped[str]
+  env: Mapped[str]
+
 class Experiment(Base):
   __tablename__ = "experiments"
 
   id: Mapped[int] = mapped_column(primary_key=True)
   name: Mapped[str]
-  dataset_id: Mapped[int] = mapped_column(ForeignKey("datasets.id", ondelete="RESTRICT"))
+  dataset_id: Mapped[t.Optional[int]] = mapped_column(
+    ForeignKey("datasets.id", ondelete="RESTRICT"),
+    nullable=True,
+    default=None,
+  )
+  environment_kind: Mapped[t.Optional[str]] = mapped_column(nullable=True, default=None)
+  environment_params: Mapped[t.Optional[dict[str, t.Any]]] = mapped_column(JSON, default=None)
   model_name: Mapped[str]
   hyperparameters: Mapped[dict[str, HyperParamValue]] = mapped_column(JSON)
   status: Mapped[ExperimentStatus] = mapped_column(_str_enum(ExperimentStatus))
   analyses: Mapped[list[dict[str, t.Any]]] = mapped_column(JSON, default=list)
   result_artifacts: Mapped[list[dict[str, t.Any]]] = mapped_column(JSON, default=list)
   split_config: Mapped[t.Optional[dict[str, t.Any]]] = mapped_column(JSON, default=None)
+  train_config: Mapped[t.Optional[dict[str, t.Any]]] = mapped_column(JSON, default=None)
   model_pickle_filename: Mapped[t.Optional[str]] = mapped_column(default=None)
   model_pickle_md5: Mapped[t.Optional[str]] = mapped_column(default=None)
   model_pickle_size: Mapped[t.Optional[int]] = mapped_column(default=None)
   created_at: Mapped[str]
 
-  dataset: Mapped["Dataset"] = relationship(back_populates="experiments")
+  dataset: Mapped[t.Optional["Dataset"]] = relationship(back_populates="experiments")
 
 class Model(Base):
   __tablename__ = "models"

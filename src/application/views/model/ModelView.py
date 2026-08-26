@@ -67,6 +67,7 @@ class ModelView(ttk.Frame):
       ProblemType.CLUSTERING,
       ProblemType.DIMENSIONALITY_REDUCTION,
       ProblemType.ASSOCIATION_RULES,
+      ProblemType.REINFORCEMENT_LEARNING,
     ):
       for name, model_config in ModelManager.registry(problem_type).items():
         source = _("common.custom") if model_config.plugin_path else _("common.native")
@@ -112,6 +113,7 @@ class ModelView(ttk.Frame):
       ProblemType.CLUSTERING,
       ProblemType.DIMENSIONALITY_REDUCTION,
       ProblemType.ASSOCIATION_RULES,
+      ProblemType.REINFORCEMENT_LEARNING,
     ):
       model_config = ModelManager.registry(problem_type).get(str(key))
       if model_config:
@@ -204,6 +206,7 @@ class ModelView(ttk.Frame):
         ProblemType.CLUSTERING,
         ProblemType.DIMENSIONALITY_REDUCTION,
         ProblemType.ASSOCIATION_RULES,
+      ProblemType.REINFORCEMENT_LEARNING,
       ):
         if str(key) in ModelManager.registry(problem_type):
           try:

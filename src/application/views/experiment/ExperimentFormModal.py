@@ -2,13 +2,22 @@ import typing as t
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-from application.managers import AnalysisManager, DatasetManager, ExperimentManager, ModelManager
+from application.managers import AnalysisManager, DatasetManager, EnvironmentManager, ExperimentManager, ModelManager
 
 from application.components import HyperParamForm
-from application.enums import DatasetLayout
+from application.enums import DatasetLayout, ProblemType
 from application.i18n import _, display_title, localize_enum
 from application.managers.DatasetManager import SUPERVISED_TYPES, DatasetMetadata
-from application.managers.ExperimentManager import AnalysisRunSpec, ExperimentMetadata, ExperimentSplitConfig
+from application.managers.ExperimentManager import (
+  AnalysisRunSpec,
+  ExperimentMetadata,
+  ExperimentSplitConfig,
+  ExperimentTrainConfig,
+)
+
+SOURCE_DATASET = "dataset"
+SOURCE_ENVIRONMENT = "environment"
+
 
 class AnalysisInstanceModal(tk.Toplevel):
   """Add or edit one analysis instance (name, label, params)."""
@@ -151,7 +160,7 @@ class ExperimentFormModal(tk.Toplevel):
     super().__init__(parent)
 
     self.title(_("experiment.form.title"))
-    self.geometry("560x820")
+    self.geometry("560x860")
     self.resizable(False, False)
     self.grab_set()
 
@@ -162,28 +171,62 @@ class ExperimentFormModal(tk.Toplevel):
 
     if self.initial_data:
       init_name = _("experiment.form.copy_name").format(name=self.initial_data.name)
+      init_source = SOURCE_ENVIRONMENT if self.initial_data.environment_kind else SOURCE_DATASET
     else:
       next_n = len(ExperimentManager.get_all()) + 1
       init_name = _("experiment.form.default_name").format(n=next_n)
+      init_source = SOURCE_DATASET
 
     self.name_var = tk.StringVar(value=init_name)
+    self.source_mode = tk.StringVar(value=init_source)
     self.selected_dataset: t.Optional[DatasetMetadata] = None
+    self.selected_environment_kind: t.Optional[str] = None
     self.dataset_var = tk.StringVar()
+    self.environment_var = tk.StringVar()
     self.model_var = tk.StringVar()
     self._model_display_var = tk.StringVar()
     self._dataset_display_to_ds: dict[str, DatasetMetadata] = {}
+    self._env_display_to_kind: dict[str, str] = {}
     self._model_display_to_name: dict[str, str] = {}
+    self._source_display_to_mode = {
+      _("experiment.form.source_dataset"): SOURCE_DATASET,
+      _("experiment.form.source_environment"): SOURCE_ENVIRONMENT,
+    }
+    self._source_mode_to_display = {v: k for k, v in self._source_display_to_mode.items()}
+    self._source_display_var = tk.StringVar(value=self._source_mode_to_display[init_source])
 
     initial_split = self.initial_data.split_config if self.initial_data else None
     self.test_size_var = tk.StringVar(
       value=str(initial_split.test_size if initial_split else 0.2)
     )
+    initial_train = self.initial_data.train_config if self.initial_data else None
+    self.n_episodes_var = tk.StringVar(
+      value=str(initial_train.n_episodes if initial_train else 500)
+    )
+    self.train_seed_var = tk.StringVar(
+      value="" if initial_train is None or initial_train.seed is None else str(initial_train.seed)
+    )
 
     self._build_ui()
     self._apply_autofill()
+    self._update_source_visibility()
 
   def _dataset_display(self, ds: DatasetMetadata) -> str:
     return f"{ds.name} ({localize_enum(ds.type)})"
+
+  def _environment_kind_display(self, kind: str) -> str:
+    try:
+      config = EnvironmentManager.kind_config(kind)
+      return display_title(config.title, kind)
+    except Exception:
+      return kind
+
+  def _current_problem_type(self) -> t.Optional[ProblemType]:
+    if self.source_mode.get() == SOURCE_ENVIRONMENT:
+      return ProblemType.REINFORCEMENT_LEARNING if self.selected_environment_kind else None
+    if self.selected_dataset:
+      return self.selected_dataset.type
+    return None
 
   def _build_ui(self) -> None:
     main_frame = ttk.Frame(self, padding=(25, 20))
@@ -199,28 +242,67 @@ class ExperimentFormModal(tk.Toplevel):
     ttk.Label(body, text=_("experiment.form.name"), foreground="#333333").pack(anchor=tk.W)
     ttk.Entry(body, textvariable=self.name_var).pack(fill=tk.X, pady=(0, 12))
 
-    ttk.Label(body, text=_("experiment.form.select_dataset"), foreground="#333333").pack(anchor=tk.W)
-    self._dataset_display_to_ds = {self._dataset_display(ds): ds for ds in self.datasets}
-    dataset_names = list(self._dataset_display_to_ds.keys())
+    ttk.Label(body, text=_("experiment.form.source"), foreground="#333333").pack(anchor=tk.W)
+    self.source_combo = ttk.Combobox(
+      body,
+      textvariable=self._source_display_var,
+      values=list(self._source_display_to_mode.keys()),
+      state="readonly",
+    )
+    self.source_combo.pack(fill=tk.X, pady=(0, 12))
+    self.source_combo.bind("<<ComboboxSelected>>", self._on_source_selected)
 
-    self.ds_combo = ttk.Combobox(body, textvariable=self.dataset_var, values=dataset_names, state="readonly")
+    self.dataset_label = ttk.Label(body, text=_("experiment.form.select_dataset"), foreground="#333333")
+    self.dataset_label.pack(anchor=tk.W)
+    self._dataset_display_to_ds = {self._dataset_display(ds): ds for ds in self.datasets}
+    self.ds_combo = ttk.Combobox(
+      body,
+      textvariable=self.dataset_var,
+      values=list(self._dataset_display_to_ds.keys()),
+      state="readonly",
+    )
     self.ds_combo.pack(fill=tk.X, pady=(0, 12))
     self.ds_combo.bind("<<ComboboxSelected>>", self._on_dataset_selected)
 
-    self.split_frame = ttk.LabelFrame(body, text=_("experiment.form.split"))
-    self.split_frame.pack(fill=tk.X, pady=(0, 12))
+    self.env_label = ttk.Label(body, text=_("experiment.form.select_environment"), foreground="#333333")
+    self._env_display_to_kind = {
+      self._environment_kind_display(kind): kind
+      for kind in EnvironmentManager.kind_options()
+    }
+    self.env_combo = ttk.Combobox(
+      body,
+      textvariable=self.environment_var,
+      values=list(self._env_display_to_kind.keys()),
+      state="readonly",
+    )
+    self.env_combo.bind("<<ComboboxSelected>>", self._on_environment_selected)
 
+    self.env_param_frame = ttk.LabelFrame(body, text=_("experiment.form.env_params"))
+    self.env_param_form = HyperParamForm(self.env_param_frame, is_readonly=False, canvas_height=80)
+    self.env_param_form.pack(fill=tk.X, padx=5, pady=5)
+
+    self.split_frame = ttk.LabelFrame(body, text=_("experiment.form.split"))
     split_inner = ttk.Frame(self.split_frame, padding=(8, 6))
     split_inner.pack(fill=tk.X)
-
     ttk.Label(split_inner, text=_("experiment.form.split_mode_train_test")).pack(anchor=tk.W)
     size_row = ttk.Frame(split_inner)
     size_row.pack(fill=tk.X, pady=(6, 0))
     ttk.Label(size_row, text=_("experiment.form.test_size")).pack(side=tk.LEFT)
     ttk.Entry(size_row, textvariable=self.test_size_var, width=8).pack(side=tk.LEFT, padx=(8, 0))
-
     self.split_hint = ttk.Label(split_inner, text="", foreground="#666666", wraplength=440)
     self.split_hint.pack(anchor=tk.W, pady=(6, 0))
+
+    self.train_frame = ttk.LabelFrame(body, text=_("experiment.form.train_config"))
+    train_inner = ttk.Frame(self.train_frame, padding=(8, 6))
+    train_inner.pack(fill=tk.X)
+    ep_row = ttk.Frame(train_inner)
+    ep_row.pack(fill=tk.X)
+    ttk.Label(ep_row, text=_("experiment.form.n_episodes")).pack(side=tk.LEFT)
+    ttk.Entry(ep_row, textvariable=self.n_episodes_var, width=10).pack(side=tk.LEFT, padx=(8, 0))
+    seed_row = ttk.Frame(train_inner)
+    seed_row.pack(fill=tk.X, pady=(6, 0))
+    ttk.Label(seed_row, text=_("experiment.form.train_seed")).pack(side=tk.LEFT)
+    ttk.Entry(seed_row, textvariable=self.train_seed_var, width=10).pack(side=tk.LEFT, padx=(8, 0))
 
     ttk.Label(body, text=_("experiment.form.select_model"), foreground="#333333").pack(anchor=tk.W)
     self.model_combo = ttk.Combobox(body, textvariable=self._model_display_var, state="readonly")
@@ -255,26 +337,60 @@ class ExperimentFormModal(tk.Toplevel):
     analyses_canvas.bind("<Configure>", _on_analyses_canvas_configure)
 
     self._render_analysis_list()
-    self._update_split_visibility()
+
+  def _on_source_selected(self, _event: t.Optional[tk.Event] = None) -> None:
+    mode = self._source_display_to_mode.get(self._source_display_var.get(), SOURCE_DATASET)
+    self.source_mode.set(mode)
+    self.selected_dataset = None
+    self.selected_environment_kind = None
+    self.dataset_var.set("")
+    self.environment_var.set("")
+    self._model_display_var.set("")
+    self.model_var.set("")
+    self.hyperparam_form.render_form([])
+    self.env_param_form.render_form([])
+    self.analysis_instances = []
+    self._update_source_visibility()
+    self._render_analysis_list()
+
+  def _update_source_visibility(self) -> None:
+    is_env = self.source_mode.get() == SOURCE_ENVIRONMENT
+
+    if is_env:
+      self.dataset_label.pack_forget()
+      self.ds_combo.pack_forget()
+      self.split_frame.pack_forget()
+      self.env_label.pack(anchor=tk.W, after=self.source_combo)
+      self.env_combo.pack(fill=tk.X, pady=(0, 12), after=self.env_label)
+      self.env_param_frame.pack(fill=tk.X, pady=(0, 12), after=self.env_combo)
+      self.train_frame.pack(fill=tk.X, pady=(0, 12), after=self.env_param_frame)
+    else:
+      self.env_label.pack_forget()
+      self.env_combo.pack_forget()
+      self.env_param_frame.pack_forget()
+      self.train_frame.pack_forget()
+      self.dataset_label.pack(anchor=tk.W, after=self.source_combo)
+      self.ds_combo.pack(fill=tk.X, pady=(0, 12), after=self.dataset_label)
+      self._update_split_visibility()
 
   def _needs_experiment_split(self) -> bool:
     ds = self.selected_dataset
-
     if ds is None:
       return False
-
     return ds.type in SUPERVISED_TYPES and ds.layout == DatasetLayout.NO_SPLIT
 
   def _update_split_visibility(self) -> None:
+    if self.source_mode.get() == SOURCE_ENVIRONMENT:
+      self.split_frame.pack_forget()
+      return
+
     if self._needs_experiment_split():
       self.split_frame.pack(fill=tk.X, pady=(0, 12), after=self.ds_combo)
       self.split_hint.config(text=_("experiment.form.split_hint_configure"))
     else:
       self.split_frame.pack_forget()
-
       if self.selected_dataset is None:
         return
-
       if self.selected_dataset.layout == DatasetLayout.TRAIN_TEST_SPLIT:
         self.split_hint.config(text=_("experiment.form.split_hint_preset"))
 
@@ -288,12 +404,13 @@ class ExperimentFormModal(tk.Toplevel):
       command=self._open_add_analysis,
     ).pack(fill=tk.X, pady=(0, 8))
 
-    if not self.selected_dataset:
-      ttk.Label(
-        self.analyses_inner,
-        text=_("experiment.form.select_dataset_for_analyses"),
-        foreground="#666666",
-      ).pack(anchor=tk.W)
+    if self._current_problem_type() is None:
+      hint = (
+        _("experiment.form.select_environment_for_analyses")
+        if self.source_mode.get() == SOURCE_ENVIRONMENT
+        else _("experiment.form.select_dataset_for_analyses")
+      )
+      ttk.Label(self.analyses_inner, text=hint, foreground="#666666").pack(anchor=tk.W)
       return
 
     for index, spec in enumerate(self.analysis_instances):
@@ -322,30 +439,36 @@ class ExperimentFormModal(tk.Toplevel):
     }
 
   def _open_add_analysis(self) -> None:
-    if not self.selected_dataset:
-      messagebox.showwarning(_("common.warning"), _("experiment.form.select_dataset_for_analyses"), parent=self)
+    problem_type = self._current_problem_type()
+    if problem_type is None:
+      hint = (
+        _("experiment.form.select_environment_for_analyses")
+        if self.source_mode.get() == SOURCE_ENVIRONMENT
+        else _("experiment.form.select_dataset_for_analyses")
+      )
+      messagebox.showwarning(_("common.warning"), hint, parent=self)
       return
 
-    registry = AnalysisManager.registry(self.selected_dataset.type)
-
+    registry = AnalysisManager.registry(problem_type)
     if not registry:
       messagebox.showwarning(_("common.warning"), _("experiment.form.no_analyses"), parent=self)
       return
 
     AnalysisInstanceModal(
       self,
-      self.selected_dataset.type,
+      problem_type,
       existing_labels=self._labels_in_use(),
       on_save=self._on_analysis_added,
     )
 
   def _open_edit_analysis(self, index: int) -> None:
-    if not self.selected_dataset or index < 0 or index >= len(self.analysis_instances):
+    problem_type = self._current_problem_type()
+    if problem_type is None or index < 0 or index >= len(self.analysis_instances):
       return
 
     AnalysisInstanceModal(
       self,
-      self.selected_dataset.type,
+      problem_type,
       initial=self.analysis_instances[index],
       existing_labels=self._labels_in_use(exclude_index=index),
       on_save=lambda spec, i=index: self._on_analysis_edited(i, spec),
@@ -368,32 +491,53 @@ class ExperimentFormModal(tk.Toplevel):
     if not self.initial_data:
       return
 
-    saved_ds = self.initial_data.dataset
-    ds_str_to_find = self._dataset_display(saved_ds)
-
-    if ds_str_to_find in self.ds_combo["values"]:
-      self.dataset_var.set(ds_str_to_find)
-      self._on_dataset_selected(
-        None,
-        restore_analyses=list(self.initial_data.analyses),
-      )
+    if self.initial_data.environment_kind:
+      self.source_mode.set(SOURCE_ENVIRONMENT)
+      self._source_display_var.set(self._source_mode_to_display[SOURCE_ENVIRONMENT])
+      self._update_source_visibility()
+      env_str = self._environment_kind_display(self.initial_data.environment_kind)
+      if env_str in self.env_combo["values"]:
+        self.environment_var.set(env_str)
+        self._on_environment_selected(
+          None,
+          restore_analyses=list(self.initial_data.analyses),
+          restore_env_params=dict(self.initial_data.environment_params),
+        )
+    elif self.initial_data.dataset is not None:
+      saved_ds = self.initial_data.dataset
+      ds_str_to_find = self._dataset_display(saved_ds)
+      if ds_str_to_find in self.ds_combo["values"]:
+        self.dataset_var.set(ds_str_to_find)
+        self._on_dataset_selected(
+          None,
+          restore_analyses=list(self.initial_data.analyses),
+        )
 
     saved_model = self.initial_data.model_name
     saved_model_display = next(
       (display for display, name in self._model_display_to_name.items() if name == saved_model),
       None,
     )
-
     if saved_model_display is not None:
       self._model_display_var.set(saved_model_display)
       self.model_var.set(saved_model)
       self._on_model_selected(None)
 
-    saved_hyperparams = self.initial_data.hyperparameters
-
-    for param_name, param_value in saved_hyperparams.items():
+    for param_name, param_value in self.initial_data.hyperparameters.items():
       if param_name in self.hyperparam_form.param_vars:
         self.hyperparam_form.param_vars[param_name].set(str(param_value))
+
+  def _refresh_models(self, problem_type: ProblemType, allowed_names: t.Optional[set[str]] = None) -> None:
+    registry = ModelManager.registry(problem_type)
+    self._model_display_to_name = {
+      display_title(model_config.title, name): name
+      for name, model_config in registry.items()
+      if allowed_names is None or name in allowed_names
+    }
+    self.model_combo["values"] = list(self._model_display_to_name.keys())
+    self._model_display_var.set("")
+    self.model_var.set("")
+    self.hyperparam_form.render_form([])
 
   def _on_dataset_selected(
     self,
@@ -401,25 +545,44 @@ class ExperimentFormModal(tk.Toplevel):
     restore_analyses: t.Optional[list[AnalysisRunSpec]] = None,
   ) -> None:
     selected_text = self.dataset_var.get()
-
     self.selected_dataset = self._dataset_display_to_ds.get(selected_text)
+    self.selected_environment_kind = None
 
     if not self.selected_dataset:
       return
 
     self._update_split_visibility()
+    self._refresh_models(self.selected_dataset.type)
 
-    prob_type = self.selected_dataset.type
+    if restore_analyses is not None:
+      self.analysis_instances = [AnalysisRunSpec.model_validate(a) for a in restore_analyses]
+    else:
+      self.analysis_instances = []
 
-    self._model_display_to_name = {
-      display_title(model_config.title, name): name
-      for name, model_config in ModelManager.registry(prob_type).items()
-    }
+    self._render_analysis_list()
 
-    self.model_combo["values"] = list(self._model_display_to_name.keys())
-    self._model_display_var.set("")
-    self.model_var.set("")
-    self.hyperparam_form.render_form([])
+  def _on_environment_selected(
+    self,
+    event: t.Optional[tk.Event],
+    restore_analyses: t.Optional[list[AnalysisRunSpec]] = None,
+    restore_env_params: t.Optional[dict[str, t.Any]] = None,
+  ) -> None:
+    selected_text = self.environment_var.get()
+    self.selected_environment_kind = self._env_display_to_kind.get(selected_text)
+    self.selected_dataset = None
+
+    if not self.selected_environment_kind:
+      return
+
+    config = EnvironmentManager.kind_config(self.selected_environment_kind)
+    self.env_param_form.render_form(config.params)
+    if restore_env_params:
+      for pname, pvalue in restore_env_params.items():
+        if pname in self.env_param_form.param_vars:
+          self.env_param_form.param_vars[pname].set(str(pvalue))
+
+    allowed = set(EnvironmentManager.agents_for_env(self.selected_environment_kind))
+    self._refresh_models(ProblemType.REINFORCEMENT_LEARNING, allowed_names=allowed)
 
     if restore_analyses is not None:
       self.analysis_instances = [AnalysisRunSpec.model_validate(a) for a in restore_analyses]
@@ -429,15 +592,13 @@ class ExperimentFormModal(tk.Toplevel):
     self._render_analysis_list()
 
   def _on_model_selected(self, event: t.Optional[tk.Event]) -> None:
-    if not self.selected_dataset:
+    problem_type = self._current_problem_type()
+    if problem_type is None:
       return
 
     self.model_var.set(self._model_display_to_name.get(self._model_display_var.get(), ""))
-
-    prob_type = self.selected_dataset.type
     model_name = self.model_var.get()
-    registry = ModelManager.registry(prob_type)
-    model_config = registry.get(model_name)
+    model_config = ModelManager.registry(problem_type).get(model_name)
 
     if model_config:
       self.hyperparam_form.render_form(model_config.params)
@@ -453,8 +614,36 @@ class ExperimentFormModal(tk.Toplevel):
 
     return ExperimentSplitConfig(version=1, mode="TrainTest", test_size=test_size)
 
+  def _parse_train_config(self) -> ExperimentTrainConfig:
+    try:
+      n_episodes = int(self.n_episodes_var.get().strip())
+    except ValueError as exc:
+      raise ValueError(_("experiment.form.err_invalid_n_episodes")) from exc
+
+    seed_raw = self.train_seed_var.get().strip()
+    seed: t.Optional[int]
+    if seed_raw == "":
+      seed = None
+    else:
+      try:
+        seed = int(seed_raw)
+      except ValueError as exc:
+        raise ValueError(_("experiment.form.err_invalid_train_seed")) from exc
+
+    return ExperimentTrainConfig(version=1, n_episodes=n_episodes, seed=seed)
+
   def _handle_save(self) -> None:
-    if not self.name_var.get() or not self.selected_dataset or not self.model_var.get():
+    is_rl = self.source_mode.get() == SOURCE_ENVIRONMENT
+
+    if not self.name_var.get() or not self.model_var.get():
+      messagebox.showerror(_("common.error"), _("experiment.form.err_required"), parent=self)
+      return
+
+    if is_rl and not self.selected_environment_kind:
+      messagebox.showerror(_("common.error"), _("experiment.form.err_required"), parent=self)
+      return
+
+    if not is_rl and self.selected_dataset is None:
       messagebox.showerror(_("common.error"), _("experiment.form.err_required"), parent=self)
       return
 
@@ -464,18 +653,23 @@ class ExperimentFormModal(tk.Toplevel):
 
     try:
       params = self.hyperparam_form.get_parsed_values()
-      split_config = self._parse_split_config()
+      env_params = self.env_param_form.get_parsed_values() if is_rl else {}
+      split_config = None if is_rl else self._parse_split_config()
+      train_config = self._parse_train_config() if is_rl else None
     except ValueError as e:
       messagebox.showerror(_("common.validation_error"), str(e), parent=self)
       return
 
     payload = {
       "name": self.name_var.get(),
-      "dataset": self.selected_dataset,
+      "dataset": None if is_rl else self.selected_dataset,
+      "environment_kind": self.selected_environment_kind if is_rl else None,
+      "environment_params": env_params if is_rl else None,
       "model_name": self.model_var.get(),
       "hyperparams": params,
       "analyses": [spec.model_dump(mode="json") for spec in self.analysis_instances],
       "split_config": split_config,
+      "train_config": train_config,
     }
 
     self.on_save(payload)

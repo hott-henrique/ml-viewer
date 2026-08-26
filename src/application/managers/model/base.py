@@ -43,10 +43,22 @@ class AssociationRulesModelAPI(t.Protocol):
   def get_params(self) -> dict:
     ...
 
-# Backward-compatible alias used by export/pickle helpers that accept any trained estimator.
+class AgentAPI(t.Protocol):
+  """Reinforcement-learning agent: policy + per-transition update (no training loop)."""
+
+  def select_action(self, state: t.Hashable, *, legal_actions: t.Sequence[t.Hashable], explore: bool = True) -> t.Hashable:
+    ...
+
+  def update(self, state: t.Hashable, action: t.Hashable, reward: float, next_state: t.Hashable, *, terminated: bool) -> None:
+    ...
+
+  def get_params(self) -> dict:
+    ...
+
 ModelAPI = (
   SupervisedModelAPI
   | ClusteringModelAPI
   | DimensionalityReductionModelAPI
   | AssociationRulesModelAPI
+  | AgentAPI
 )

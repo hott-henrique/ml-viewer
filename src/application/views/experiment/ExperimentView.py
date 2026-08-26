@@ -19,6 +19,7 @@ from application.managers.results import (
   DimensionalityReductionAnalyzer,
   ExportResult,
   ImageResult,
+  ReinforcementLearningAnalyzer,
   ScalarResult,
   StoredImageResult,
   SupervisedAnalyzer,
@@ -26,9 +27,10 @@ from application.managers.results import (
 )
 from application.views.experiment import ExperimentFormModal, ExperimentExportModal
 from application.views.experiment.ExperimentExportModal import ExperimentExportData
-from application.managers import AnalysisManager, ExperimentManager, ModelManager
+from application.managers import AnalysisManager, EnvironmentManager, ExperimentManager, ModelManager
 from application.managers.DatasetManager import SUPERVISED_TYPES
-from application.managers.ExperimentManager import AnalysisRunSpec, ExperimentSplitConfig
+from application.managers.ExperimentManager import AnalysisRunSpec, ExperimentSplitConfig, ExperimentTrainConfig
+from application.managers.environment import TrainingRunner
 
 class ExperimentView(ttk.Frame):
 
@@ -63,7 +65,7 @@ class ExperimentView(ttk.Frame):
     self.tree.column("disk_bytes", width=0, stretch=tk.NO)
 
     self.tree.set_heading("name", _("common.name"))
-    self.tree.set_heading("dataset", _("experiment.col.dataset"))
+    self.tree.set_heading("dataset", _("experiment.col.source"))
     self.tree.set_heading("model", _("experiment.col.model"))
     self.tree.set_heading("status", _("common.status"))
     self.tree.set_heading("date", _("experiment.col.created_on"))
@@ -207,6 +209,7 @@ class ExperimentView(ttk.Frame):
     labels: t.Any = None,
     embedding: t.Any = None,
     model: t.Any = None,
+    train_result: t.Any = None,
   ) -> list[ExportResult]:
     results: list[ExportResult] = []
     stem_counts: dict[str, int] = {}
@@ -222,6 +225,8 @@ class ExperimentView(ttk.Frame):
         result = analyzer.analyze(X, embedding, model)
       elif isinstance(analyzer, AssociationRulesAnalyzer):
         result = analyzer.analyze(model, X)
+      elif isinstance(analyzer, ReinforcementLearningAnalyzer):
+        result = analyzer.analyze(model, train_result)
       else:
         raise TypeError(f"Unsupported analyzer type: {type(analyzer)!r}")
 
@@ -251,11 +256,21 @@ class ExperimentView(ttk.Frame):
     self.config(cursor="watch")
     self.update()
 
-    dataset_info: DatasetMetadata = payload["dataset"]
-    prob_type = dataset_info.type
-    target_idx = dataset_info.target
+    environment_kind = payload.get("environment_kind")
+    environment_params = payload.get("environment_params") or {}
+    dataset_info = payload.get("dataset")
     analyses = [AnalysisRunSpec.model_validate(a) for a in (payload.get("analyses") or [])]
     split_config: t.Optional[ExperimentSplitConfig] = payload.get("split_config")
+    train_config: t.Optional[ExperimentTrainConfig] = payload.get("train_config")
+
+    if environment_kind:
+      prob_type = ProblemType.REINFORCEMENT_LEARNING
+      target_idx = None
+    else:
+      if dataset_info is None:
+        raise ValueError(_("experiment.err.missing_dataset_or_environment"))
+      prob_type = dataset_info.type
+      target_idx = dataset_info.target
 
     status = ExperimentStatus.PENDING
     results: list[ExportResult] = []
@@ -265,7 +280,23 @@ class ExperimentView(ttk.Frame):
     try:
       model = ModelManager.instantiate(prob_type, payload["model_name"], payload["hyperparams"])
 
-      if prob_type in SUPERVISED_TYPES:
+      if prob_type == ProblemType.REINFORCEMENT_LEARNING:
+        if not environment_kind:
+          raise ValueError(_("experiment.err.missing_dataset_or_environment"))
+
+        EnvironmentManager.assert_compatible(environment_kind, payload["model_name"])
+        env = EnvironmentManager.instantiate(environment_kind, environment_params)
+        cfg = train_config or ExperimentTrainConfig()
+        train_result = TrainingRunner().run(model, env, cfg.to_runner_config())
+        trained_model = model
+        results = self._run_analyses(
+          prob_type,
+          analyses,
+          model=model,
+          train_result=train_result,
+        )
+
+      elif prob_type in SUPERVISED_TYPES:
         if target_idx is None:
           raise ValueError(_("experiment.err.supervised_requires_target"))
 
@@ -348,12 +379,15 @@ class ExperimentView(ttk.Frame):
 
     new_experiment = ExperimentManager.add_experiment(
       name=payload["name"],
-      dataset=payload["dataset"],
+      dataset=dataset_info,
+      environment_kind=environment_kind,
+      environment_params=environment_params if environment_kind else None,
       model_name=payload["model_name"],
       hyperparams=payload["hyperparams"],
       status=status,
       analyses=analyses,
       split_config=split_config,
+      train_config=train_config,
     )
 
     ExperimentManager.save_logs(new_experiment.id, logs)
@@ -369,7 +403,7 @@ class ExperimentView(ttk.Frame):
 
     experiment_data = ExperimentExportData(
       name=payload["name"],
-      dataset=payload["dataset"],
+      dataset=dataset_info,
       problem_type=prob_type,
       model_name=payload["model_name"],
       hyperparameters=payload["hyperparams"],

@@ -81,6 +81,7 @@ class AnalysisView(ttk.Frame):
       ProblemType.CLUSTERING,
       ProblemType.DIMENSIONALITY_REDUCTION,
       ProblemType.ASSOCIATION_RULES,
+      ProblemType.REINFORCEMENT_LEARNING,
     ):
       for name, config in AnalysisManager.registry(problem_type).items():
         source = _("common.native") if config.is_native else _("common.custom")
@@ -131,6 +132,7 @@ class AnalysisView(ttk.Frame):
       ProblemType.CLUSTERING,
       ProblemType.DIMENSIONALITY_REDUCTION,
       ProblemType.ASSOCIATION_RULES,
+      ProblemType.REINFORCEMENT_LEARNING,
     ):
       config = AnalysisManager.registry(problem_type).get(key)
       if config:
@@ -203,6 +205,7 @@ class AnalysisView(ttk.Frame):
         ProblemType.CLUSTERING,
         ProblemType.DIMENSIONALITY_REDUCTION,
         ProblemType.ASSOCIATION_RULES,
+        ProblemType.REINFORCEMENT_LEARNING,
       ):
         if str(key) in AnalysisManager.registry(problem_type):
           try:

@@ -20,7 +20,7 @@ HyperParamValue = int | float | bool | str
 
 class ExperimentExportData(BaseModel):
   name: str
-  dataset: DatasetMetadata
+  dataset: t.Optional[DatasetMetadata] = None
   problem_type: ProblemType
   model_name: str
   hyperparameters: dict[str, HyperParamValue]
@@ -127,7 +127,7 @@ class ExperimentExportModal(tk.Toplevel):
             continue
           result.include_in_zip(zf)
 
-        if self.inc_dataset_var.get():
+        if self.inc_dataset_var.get() and self.experiment_data.dataset is not None:
           for file_meta in self.experiment_data.dataset.files:
             ds_path = file_meta.path
 

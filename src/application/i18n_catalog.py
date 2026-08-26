@@ -442,6 +442,68 @@ MESSAGES: dict[str, dict[str, str]] = {
     "en_US": 'OK',
     "pt_BR": 'OK',
   },
+
+  'environment.view.title': {
+    "en_US": 'Environments',
+    "pt_BR": 'Ambientes',
+  },
+  'environment.params.readonly': {
+    "en_US": 'Parameters',
+    "pt_BR": 'Parâmetros',
+  },
+  'environment.msg.imported': {
+    "en_US": 'Imported environment(s): {names}',
+    "pt_BR": 'Ambiente(s) importado(s): {names}',
+  },
+  'environment.msg.updated': {
+    "en_US": 'Updated environment(s): {names}',
+    "pt_BR": 'Ambiente(s) atualizado(s): {names}',
+  },
+  'environment.msg.select_one_update': {
+    "en_US": 'Select exactly one environment to update.',
+    "pt_BR": 'Selecione exatamente um ambiente para atualizar.',
+  },
+  'environment.msg.cannot_update_native': {
+    "en_US": 'Native environments cannot be updated.',
+    "pt_BR": 'Ambientes nativos não podem ser atualizados.',
+  },
+  'environment.msg.select_updated_py': {
+    "en_US": 'Select updated Python file for {name}',
+    "pt_BR": 'Selecione o arquivo Python atualizado para {name}',
+  },
+  'environment.msg.select_delete': {
+    "en_US": 'Select at least one environment to delete.',
+    "pt_BR": 'Selecione ao menos um ambiente para excluir.',
+  },
+  'environment.msg.confirm_delete': {
+    "en_US": 'Delete {n} custom environment(s)?',
+    "pt_BR": 'Excluir {n} ambiente(s) customizado(s)?',
+  },
+  'environment.msg.skip_native': {
+    "en_US": '({n} native environment(s) will be skipped.)',
+    "pt_BR": '({n} ambiente(s) nativo(s) serão ignorados.)',
+  },
+  'environment.err.unknown_kind': {
+    "en_US": 'Unknown environment kind: {kind}',
+    "pt_BR": 'Tipo de ambiente desconhecido: {kind}',
+  },
+  'environment.err.not_found': {
+    "en_US": 'Environment with ID {id} was not found.',
+    "pt_BR": 'Ambiente com ID {id} não encontrado.',
+  },
+  'environment.err.incompatible_agent': {
+    "en_US": 'Agent {agent} is not compatible with environment kind {env}.',
+    "pt_BR": 'Agente {agent} não é compatível com o tipo de ambiente {env}.',
+  },
+  'environment.err.native_cannot_delete': {
+    "en_US": 'Native environments cannot be deleted.',
+    "pt_BR": 'Ambientes nativos não podem ser excluídos.',
+  },
+  'environment.err.import_none_added': {
+    "en_US": 'No environments were imported from the file.',
+    "pt_BR": 'Nenhum ambiente foi importado do arquivo.',
+  },
+
   'enum.experiment_status.pending': {
     "en_US": 'Pending',
     "pt_BR": 'Pendente',
@@ -453,6 +515,10 @@ MESSAGES: dict[str, dict[str, str]] = {
   'enum.learning_paradigm.unsupervised': {
     "en_US": 'Unsupervised',
     "pt_BR": 'Não supervisionado',
+  },
+  'enum.learning_paradigm.reinforcement': {
+    "en_US": 'Reinforcement',
+    "pt_BR": 'Reforço',
   },
   'enum.problem_type.classification': {
     "en_US": 'Classification',
@@ -470,6 +536,10 @@ MESSAGES: dict[str, dict[str, str]] = {
     "en_US": 'Association Rules',
     "pt_BR": 'Regras de associação',
   },
+  'enum.problem_type.reinforcement_learning': {
+    "en_US": 'Reinforcement Learning',
+    "pt_BR": 'Aprendizado por reforço',
+  },
   'enum.problem_type.regression': {
     "en_US": 'Regression',
     "pt_BR": 'Regressão',
@@ -481,6 +551,14 @@ MESSAGES: dict[str, dict[str, str]] = {
   'experiment.col.dataset': {
     "en_US": 'Dataset',
     "pt_BR": 'Dataset',
+  },
+  'experiment.col.source': {
+    "en_US": 'Dataset / Environment',
+    "pt_BR": 'Dataset / Ambiente',
+  },
+  'experiment.form.env_params': {
+    "en_US": 'Environment Parameters',
+    "pt_BR": 'Parâmetros do ambiente',
   },
   'experiment.col.disk': {
     "en_US": 'Disk',
@@ -513,6 +591,22 @@ MESSAGES: dict[str, dict[str, str]] = {
   'experiment.err.invalid_test_size': {
     "en_US": 'Test size must be a number between 0 and 1 (exclusive).',
     "pt_BR": 'O tamanho do teste deve ser um número entre 0 e 1 (exclusive).',
+  },
+  'experiment.err.invalid_n_episodes': {
+    "en_US": 'Number of episodes must be an integer >= 1.',
+    "pt_BR": 'O número de episódios deve ser um inteiro >= 1.',
+  },
+  'experiment.err.dataset_and_environment': {
+    "en_US": 'Experiment cannot reference both a dataset and an environment.',
+    "pt_BR": 'O experimento não pode referenciar dataset e ambiente ao mesmo tempo.',
+  },
+  'experiment.err.missing_dataset_or_environment': {
+    "en_US": 'Experiment must reference a dataset or an environment.',
+    "pt_BR": 'O experimento deve referenciar um dataset ou um ambiente.',
+  },
+  'experiment.err.exactly_one_source': {
+    "en_US": 'Provide exactly one of dataset or environment.',
+    "pt_BR": 'Informe exatamente um entre dataset ou ambiente.',
   },
   'experiment.err.target_index_missing': {
     "en_US": 'Target column index {index} is out of range for this dataset.',
@@ -637,6 +731,46 @@ MESSAGES: dict[str, dict[str, str]] = {
   'experiment.form.select_dataset_for_analyses': {
     "en_US": 'Select a dataset to choose analyses.',
     "pt_BR": 'Selecione um dataset para escolher análises.',
+  },
+  'experiment.form.select_environment': {
+    "en_US": 'Select Environment:',
+    "pt_BR": 'Selecionar ambiente:',
+  },
+  'experiment.form.select_environment_for_analyses': {
+    "en_US": 'Select an environment to choose analyses.',
+    "pt_BR": 'Selecione um ambiente para escolher análises.',
+  },
+  'experiment.form.source': {
+    "en_US": 'Source:',
+    "pt_BR": 'Fonte:',
+  },
+  'experiment.form.source_dataset': {
+    "en_US": 'Dataset',
+    "pt_BR": 'Dataset',
+  },
+  'experiment.form.source_environment': {
+    "en_US": 'Environment (RL)',
+    "pt_BR": 'Ambiente (RL)',
+  },
+  'experiment.form.train_config': {
+    "en_US": 'Training',
+    "pt_BR": 'Treino',
+  },
+  'experiment.form.n_episodes': {
+    "en_US": 'Episodes',
+    "pt_BR": 'Episódios',
+  },
+  'experiment.form.train_seed': {
+    "en_US": 'Seed (optional)',
+    "pt_BR": 'Seed (opcional)',
+  },
+  'experiment.form.err_invalid_n_episodes': {
+    "en_US": 'Episodes must be an integer >= 1.',
+    "pt_BR": 'Episódios deve ser um inteiro >= 1.',
+  },
+  'experiment.form.err_invalid_train_seed': {
+    "en_US": 'Seed must be an integer or empty.',
+    "pt_BR": 'Seed deve ser um inteiro ou vazio.',
   },
   'experiment.form.select_model': {
     "en_US": 'Select Model:',
@@ -817,6 +951,10 @@ MESSAGES: dict[str, dict[str, str]] = {
   'nav.datasets': {
     "en_US": '📁 Datasets',
     "pt_BR": '📁 Datasets',
+  },
+  'nav.environments': {
+    "en_US": '🎮 Environments',
+    "pt_BR": '🎮 Ambientes',
   },
   'nav.models': {
     "en_US": '🧠 Models',

@@ -1,5 +1,6 @@
 from application.managers.model.ModelManager import HyperParamConfig, ModelConfig, ModelManager
 from application.managers.model.base import (
+  AgentAPI,
   AssociationRulesModelAPI,
   ClusteringModelAPI,
   DimensionalityReductionModelAPI,
@@ -16,4 +17,5 @@ __all__ = [
   "ClusteringModelAPI",
   "DimensionalityReductionModelAPI",
   "AssociationRulesModelAPI",
+  "AgentAPI",
 ]

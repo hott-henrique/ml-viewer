@@ -15,8 +15,9 @@ from application.db.models import Experiment as ExperimentRow
 from application.db.paths import get_experiment_dir, get_experiments_dir
 from application.db.storage import FileIntegrityError, FileStore, StoredFile
 from application.enums import ExperimentStatus, ProblemType
-from application.i18n import _
+from application.i18n import _, display_title
 from application.managers.DatasetManager import DatasetMetadata
+from application.managers.environment import TrainConfig
 from application.managers.model.base import ModelAPI
 from application.managers.results import (
   ExportResult,
@@ -48,6 +49,23 @@ class ExperimentSplitConfig(BaseModel):
       raise ValueError(_("experiment.err.invalid_test_size"))
     return value
 
+class ExperimentTrainConfig(BaseModel):
+  """Persisted RL training config (maps to TrainingRunner TrainConfig)."""
+
+  version: t.Literal[1] = 1
+  n_episodes: int = 500
+  seed: t.Optional[int] = 42
+
+  @field_validator("n_episodes")
+  @classmethod
+  def _validate_n_episodes(cls, value: int) -> int:
+    if value < 1:
+      raise ValueError(_("experiment.err.invalid_n_episodes"))
+    return value
+
+  def to_runner_config(self) -> TrainConfig:
+    return TrainConfig(n_episodes=self.n_episodes, seed=self.seed)
+
 class ResultArtifact(BaseModel):
   name: str
   kind: ArtifactKind
@@ -58,7 +76,9 @@ class ResultArtifact(BaseModel):
 class ExperimentMetadata(BaseModel):
   id: int
   name: str
-  dataset: DatasetMetadata
+  dataset: t.Optional[DatasetMetadata] = None
+  environment_kind: t.Optional[str] = None
+  environment_params: dict[str, HyperParamValue] = Field(default_factory=dict)
   dataset_name: str
   problem_type: ProblemType
   model_name: str
@@ -68,6 +88,7 @@ class ExperimentMetadata(BaseModel):
   analyses: list[AnalysisRunSpec] = Field(default_factory=list)
   result_artifacts: list[ResultArtifact] = Field(default_factory=list)
   split_config: t.Optional[ExperimentSplitConfig] = None
+  train_config: t.Optional[ExperimentTrainConfig] = None
   model_pickle_filename: t.Optional[str] = None
   model_pickle_md5: t.Optional[str] = None
   model_pickle_size: t.Optional[int] = None
@@ -90,18 +111,46 @@ class ExperimentMetadata(BaseModel):
 
   @classmethod
   def from_row(cls, row: ExperimentRow) -> "ExperimentMetadata":
-    dataset = DatasetMetadata.from_row(row.dataset)
-    split_config = None
+    # Lazy import avoids circular import with EnvironmentManager boot.
+    from application.managers.environment import EnvironmentManager
 
+    dataset = DatasetMetadata.from_row(row.dataset) if row.dataset is not None else None
+    environment_kind = row.environment_kind
+    environment_params = dict(row.environment_params or {})
+
+    if dataset is not None and environment_kind is not None:
+      raise ValueError(_("experiment.err.dataset_and_environment"))
+    if dataset is None and not environment_kind:
+      raise ValueError(_("experiment.err.missing_dataset_or_environment"))
+
+    if dataset is not None:
+      problem_type = dataset.type
+      source_name = dataset.name
+    else:
+      assert environment_kind is not None
+      problem_type = ProblemType.REINFORCEMENT_LEARNING
+      try:
+        config = EnvironmentManager.kind_config(environment_kind)
+        source_name = display_title(config.title, environment_kind)
+      except Exception:
+        source_name = environment_kind
+
+    split_config = None
     if row.split_config:
       split_config = ExperimentSplitConfig.model_validate(row.split_config)
+
+    train_config = None
+    if row.train_config:
+      train_config = ExperimentTrainConfig.model_validate(row.train_config)
 
     return cls(
       id=row.id,
       name=row.name,
       dataset=dataset,
-      dataset_name=dataset.name,
-      problem_type=dataset.type,
+      environment_kind=environment_kind,
+      environment_params=environment_params,
+      dataset_name=source_name,
+      problem_type=problem_type,
       model_name=row.model_name,
       hyperparameters=row.hyperparameters,
       status=row.status,
@@ -109,6 +158,7 @@ class ExperimentMetadata(BaseModel):
       analyses=[AnalysisRunSpec.model_validate(a) for a in (row.analyses or [])],
       result_artifacts=[ResultArtifact.model_validate(a) for a in (row.result_artifacts or [])],
       split_config=split_config,
+      train_config=train_config,
       model_pickle_filename=row.model_pickle_filename,
       model_pickle_md5=row.model_pickle_md5,
       model_pickle_size=row.model_pickle_size,
@@ -129,21 +179,44 @@ class ExperimentManager:
       return [ExperimentMetadata.from_row(row) for row in rows]
 
   @classmethod
-  def add_experiment(cls,
-                     name: str,
-                     dataset: DatasetMetadata,
-                     model_name: str,
-                     hyperparams: dict[str, HyperParamValue],
-                     status: ExperimentStatus = ExperimentStatus.PENDING,
-                     analyses: t.Optional[list[AnalysisRunSpec | dict[str, t.Any]]] = None,
-                     split_config: t.Optional[ExperimentSplitConfig | dict[str, t.Any]] = None) -> ExperimentMetadata:
-    parsed_split: t.Optional[dict[str, t.Any]] = None
+  def add_experiment(
+    cls,
+    name: str,
+    model_name: str,
+    hyperparams: dict[str, HyperParamValue],
+    status: ExperimentStatus = ExperimentStatus.PENDING,
+    analyses: t.Optional[list[AnalysisRunSpec | dict[str, t.Any]]] = None,
+    split_config: t.Optional[ExperimentSplitConfig | dict[str, t.Any]] = None,
+    train_config: t.Optional[ExperimentTrainConfig | dict[str, t.Any]] = None,
+    dataset: t.Optional[DatasetMetadata] = None,
+    environment_kind: t.Optional[str] = None,
+    environment_params: t.Optional[dict[str, HyperParamValue]] = None,
+  ) -> ExperimentMetadata:
+    if (dataset is None) == (not environment_kind):
+      raise ValueError(_("experiment.err.exactly_one_source"))
 
+    from application.managers.environment import EnvironmentManager
+
+    with SessionLocal() as session:
+      if dataset is not None and session.get(DatasetRow, dataset.id) is None:
+        raise ValueError(_("dataset.err.not_found").format(id=dataset.id))
+
+    if environment_kind is not None:
+      EnvironmentManager.kind_config(environment_kind)
+
+    parsed_split: t.Optional[dict[str, t.Any]] = None
     if split_config is not None:
       if isinstance(split_config, ExperimentSplitConfig):
         parsed_split = split_config.model_dump(mode="json")
       else:
         parsed_split = ExperimentSplitConfig.model_validate(split_config).model_dump(mode="json")
+
+    parsed_train: t.Optional[dict[str, t.Any]] = None
+    if train_config is not None:
+      if isinstance(train_config, ExperimentTrainConfig):
+        parsed_train = train_config.model_dump(mode="json")
+      else:
+        parsed_train = ExperimentTrainConfig.model_validate(train_config).model_dump(mode="json")
 
     parsed_analyses = [
       AnalysisRunSpec.model_validate(a).model_dump(mode="json")
@@ -153,13 +226,16 @@ class ExperimentManager:
     with SessionLocal() as session:
       row = ExperimentRow(
         name=name,
-        dataset_id=dataset.id,
+        dataset_id=dataset.id if dataset is not None else None,
+        environment_kind=environment_kind,
+        environment_params=dict(environment_params or {}) if environment_kind else None,
         model_name=model_name,
         hyperparameters=hyperparams,
         status=status,
         analyses=parsed_analyses,
         result_artifacts=[],
         split_config=parsed_split,
+        train_config=parsed_train,
         created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
       )
 

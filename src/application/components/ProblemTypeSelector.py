@@ -17,6 +17,7 @@ class ProblemTypeSelector(ttk.Frame):
           ProblemType.DIMENSIONALITY_REDUCTION,
           ProblemType.ASSOCIATION_RULES,
         ],
+        LearningParadigm.REINFORCEMENT: [ProblemType.REINFORCEMENT_LEARNING],
     }
 
     # Display label <-> canonical .value

@@ -3,6 +3,7 @@ from enum import StrEnum
 class LearningParadigm(StrEnum):
   SUPERVISED = "Supervised"
   UNSUPERVISED = "Unsupervised"
+  REINFORCEMENT = "Reinforcement"
 
 class ProblemType(StrEnum):
   CLASSIFICATION = "Classification"
@@ -10,6 +11,7 @@ class ProblemType(StrEnum):
   CLUSTERING = "Clustering"
   DIMENSIONALITY_REDUCTION = "Dimensionality Reduction"
   ASSOCIATION_RULES = "Association Rules"
+  REINFORCEMENT_LEARNING = "Reinforcement Learning"
 
 class ParamType(StrEnum):
   INT = "int"

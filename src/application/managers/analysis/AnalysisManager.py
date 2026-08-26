@@ -21,6 +21,7 @@ from application.managers.results.base import (
   AssociationRulesAnalyzer,
   ClusteringAnalyzer,
   DimensionalityReductionAnalyzer,
+  ReinforcementLearningAnalyzer,
   ResultAnalyzer,
   SupervisedAnalyzer,
 )
@@ -30,6 +31,7 @@ _ANALYZER_BASES = (
   ClusteringAnalyzer,
   DimensionalityReductionAnalyzer,
   AssociationRulesAnalyzer,
+  ReinforcementLearningAnalyzer,
 )
 
 class AnalysisConfig(BaseModel):
@@ -88,7 +90,8 @@ class AnalysisManager:
     if not isinstance(instance, _ANALYZER_BASES):
       raise ValueError(
         f"Analysis class '{config.class_name}' must inherit SupervisedAnalyzer, "
-        "ClusteringAnalyzer, DimensionalityReductionAnalyzer, or AssociationRulesAnalyzer."
+        "ClusteringAnalyzer, DimensionalityReductionAnalyzer, AssociationRulesAnalyzer, "
+        "or ReinforcementLearningAnalyzer."
       )
 
     return instance
@@ -225,7 +228,8 @@ class AnalysisManager:
           if not issubclass(analysis_class, _ANALYZER_BASES):
             raise ValueError(
               f"Class '{config.class_name}' must inherit SupervisedAnalyzer, "
-              "ClusteringAnalyzer, DimensionalityReductionAnalyzer, or AssociationRulesAnalyzer."
+              "ClusteringAnalyzer, DimensionalityReductionAnalyzer, AssociationRulesAnalyzer, "
+              "or ReinforcementLearningAnalyzer."
             )
 
           session.add(AnalysisRow(

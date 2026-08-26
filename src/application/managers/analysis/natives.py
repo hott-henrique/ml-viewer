@@ -23,6 +23,7 @@ from application.managers.results.base import (
   ScalarResult,
   SupervisedAnalyzer,
   TextResult,
+  ReinforcementLearningAnalyzer,
 )
 
 # --- Supervised ---
@@ -318,6 +319,62 @@ class AssociationRulesTableAnalysis(AssociationRulesAnalyzer):
       content = str(rules)
 
     return TextResult("association_rules.txt", content, label="Association Rules")
+
+
+# --- Reinforcement Learning ---
+
+class MeanReturnAnalysis(ReinforcementLearningAnalyzer):
+  def __init__(self, **params: t.Any) -> None:
+    pass
+
+  def analyze(self, agent: t.Any, train_result: t.Any) -> ExportResult:
+    returns = list(getattr(train_result, "episode_returns", []) or [])
+    if not returns:
+      raise ValueError("Mean return requires non-empty episode_returns.")
+    mean_val = float(np.mean(returns))
+    return ScalarResult("mean_return.json", mean_val, label="Mean Return")
+
+
+class ReturnCurveAnalysis(ReinforcementLearningAnalyzer):
+  def __init__(self, **params: t.Any) -> None:
+    pass
+
+  def analyze(self, agent: t.Any, train_result: t.Any) -> ExportResult:
+    returns = list(getattr(train_result, "episode_returns", []) or [])
+    if not returns:
+      raise ValueError("Return curve requires non-empty episode_returns.")
+
+    fig = Figure(figsize=(6, 4), dpi=120)
+    ax = fig.add_subplot(111)
+    ax.plot(range(1, len(returns) + 1), returns, linewidth=1.2)
+    ax.set_xlabel("Episode")
+    ax.set_ylabel("Return")
+    ax.set_title("Episode Return Curve")
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+    return ImageResult("return_curve.png", fig, label="Return Curve")
+
+
+class QTableSummaryAnalysis(ReinforcementLearningAnalyzer):
+  def __init__(self, max_states: int = 20, **params: t.Any) -> None:
+    self.max_states = int(max_states)
+
+  def analyze(self, agent: t.Any, train_result: t.Any) -> ExportResult:
+    if not hasattr(agent, "get_q_table"):
+      raise ValueError("Q-table summary requires an agent with get_q_table().")
+
+    q_table = agent.get_q_table()
+    lines = [f"Q-table states: {len(q_table)}", ""]
+    for i, (state, actions) in enumerate(q_table.items()):
+      if i >= self.max_states:
+        lines.append(f"... ({len(q_table) - self.max_states} more states)")
+        break
+      best_action = max(actions, key=actions.get) if actions else None
+      best_value = actions.get(best_action, 0.0) if best_action is not None else 0.0
+      lines.append(f"state={state!r} best_action={best_action!r} Q={best_value:.4f} (|A|={len(actions)})")
+
+    return TextResult("q_table_summary.txt", "\n".join(lines), label="Q-Table Summary")
+
 
 # --- Registry ---
 
@@ -644,6 +701,55 @@ NATIVE_ANALYSIS_REGISTRY: dict[ProblemType, dict[str, dict[str, t.Any]]] = {
           "description": {
             "en_US": "Metric used to sort rules in the report.",
             "pt_BR": "Métrica usada para ordenar as regras no relatório.",
+          },
+        },
+      ],
+    },
+  },
+  ProblemType.REINFORCEMENT_LEARNING: {
+    "Mean Return": {
+      "type": ProblemType.REINFORCEMENT_LEARNING,
+      "class": "MeanReturnAnalysis",
+      "module": "application.managers.analysis.natives",
+      "output_kind": AnalysisOutputKind.SCALAR,
+      "title": {"en_US": "Mean Return", "pt_BR": "Retorno Médio"},
+      "description": {
+        "en_US": "Average episode return over training.",
+        "pt_BR": "Retorno médio por episódio ao longo do treino.",
+      },
+      "params": [],
+    },
+    "Return Curve": {
+      "type": ProblemType.REINFORCEMENT_LEARNING,
+      "class": "ReturnCurveAnalysis",
+      "module": "application.managers.analysis.natives",
+      "output_kind": AnalysisOutputKind.IMAGE,
+      "title": {"en_US": "Return Curve", "pt_BR": "Curva de Retorno"},
+      "description": {
+        "en_US": "Plot of episode return versus episode index.",
+        "pt_BR": "Gráfico do retorno por episódio.",
+      },
+      "params": [],
+    },
+    "Q-Table Summary": {
+      "type": ProblemType.REINFORCEMENT_LEARNING,
+      "class": "QTableSummaryAnalysis",
+      "module": "application.managers.analysis.natives",
+      "output_kind": AnalysisOutputKind.TEXT,
+      "title": {"en_US": "Q-Table Summary", "pt_BR": "Resumo da Q-Table"},
+      "description": {
+        "en_US": "Summary of learned Q-values (requires Q-Learning).",
+        "pt_BR": "Resumo dos valores Q aprendidos (requer Q-Learning).",
+      },
+      "params": [
+        {
+          "name": "max_states",
+          "type": _P.INT,
+          "default": 20,
+          "label": {"en_US": "Max States", "pt_BR": "Máx. estados"},
+          "description": {
+            "en_US": "Maximum number of states to list in the summary.",
+            "pt_BR": "Número máximo de estados a listar no resumo.",
           },
         },
       ],

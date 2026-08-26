@@ -22,6 +22,7 @@ from application.managers.model.definitions import (
   CLUSTERING_REGISTRY,
   DIMENSIONALITY_REGISTRY,
   REGRETION_REGISTRY,
+  RL_REGISTRY,
 )
 
 class HyperParamConfig(BaseModel):
@@ -57,6 +58,7 @@ NATIVE_MODEL_REGISTRIES: dict[ProblemType, dict[str, dict[str, t.Any]]] = {
   ProblemType.CLUSTERING: CLUSTERING_REGISTRY,
   ProblemType.DIMENSIONALITY_REDUCTION: DIMENSIONALITY_REGISTRY,
   ProblemType.ASSOCIATION_RULES: ASSOCIATION_REGISTRY,
+  ProblemType.REINFORCEMENT_LEARNING: RL_REGISTRY,
 }
 
 class ModelManager:
