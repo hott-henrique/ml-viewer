@@ -24,6 +24,7 @@ from application.managers.model.ModelManager import HyperParamConfig
 # Seed pairs: (agent model name, env kind)
 NATIVE_COMPAT_SEED: list[tuple[str, str]] = [
   ("Q-Learning", "tic_tac_toe"),
+  ("Monte Carlo", "tic_tac_toe"),
 ]
 
 ENVIRONMENTS_DIR = get_environments_dir()
