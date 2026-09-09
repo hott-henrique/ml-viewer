@@ -283,16 +283,28 @@ MESSAGES: dict[str, dict[str, str]] = {
     "pt_BR": 'Arquivos de treino e teste devem ter o mesmo número de colunas (treino={train}, teste={test}).',
   },
   'dataset.err.labeled_unlabeled_ncols_mismatch': {
-    "en_US": 'Labeled and unlabeled files must have the same number of columns (labeled={labeled}, unlabeled={unlabeled}).',
-    "pt_BR": 'Arquivos rotulado e não rotulado devem ter o mesmo número de colunas (rotulado={labeled}, não rotulado={unlabeled}).',
+    "en_US": 'Labeled, unlabeled and test files must have the same number of columns (labeled={labeled}, unlabeled={unlabeled}, test={test}).',
+    "pt_BR": 'Arquivos rotulado, não rotulado e teste devem ter o mesmo número de colunas (rotulado={labeled}, não rotulado={unlabeled}, teste={test}).',
   },
   'dataset.err.semi_supervised_requires_labeled_unlabeled': {
-    "en_US": 'Semi-supervised datasets require the LabeledUnlabeled layout.',
-    "pt_BR": 'Datasets semi-supervisionados exigem o layout LabeledUnlabeled.',
+    "en_US": 'Semi-supervised datasets require the LabeledUnlabeled layout (Labeled, Unlabeled and Test files).',
+    "pt_BR": 'Datasets semi-supervisionados exigem o layout LabeledUnlabeled (arquivos Rotulado, Não rotulado e Teste).',
   },
   'dataset.err.labeled_unlabeled_layout_restricted': {
     "en_US": 'LabeledUnlabeled layout is only allowed for semi-supervised datasets.',
     "pt_BR": 'O layout LabeledUnlabeled só é permitido para datasets semi-supervisionados.',
+  },
+  'dataset.err.supervised_requires_train_test_split': {
+    "en_US": 'Supervised datasets require the TrainTestSplit layout.',
+    "pt_BR": 'Datasets supervisionados exigem o layout TrainTestSplit.',
+  },
+  'dataset.err.nosplit_layout_restricted': {
+    "en_US": 'NoSplit layout is only allowed for unsupervised datasets.',
+    "pt_BR": 'O layout NoSplit só é permitido para datasets não supervisionados.',
+  },
+  'dataset.err.train_test_layout_restricted': {
+    "en_US": 'TrainTestSplit layout is only allowed for supervised datasets.',
+    "pt_BR": 'O layout TrainTestSplit só é permitido para datasets supervisionados.',
   },
   'dataset.err.semi_supervised_requires_target': {
     "en_US": 'Semi-supervised datasets require a valid target column index.',
@@ -351,8 +363,8 @@ MESSAGES: dict[str, dict[str, str]] = {
     "pt_BR": 'Arquivos CSV de treino e teste são obrigatórios para TrainTestSplit.',
   },
   'dataset.form.err_labeled_unlabeled_files': {
-    "en_US": 'Labeled and unlabeled CSV files are required for LabeledUnlabeled.',
-    "pt_BR": 'Arquivos CSV rotulado e não rotulado são obrigatórios para LabeledUnlabeled.',
+    "en_US": 'Labeled, unlabeled and test CSV files are required for LabeledUnlabeled.',
+    "pt_BR": 'Arquivos CSV rotulado, não rotulado e teste são obrigatórios para LabeledUnlabeled.',
   },
   'dataset.form.file': {
     "en_US": 'File (CSV):',
@@ -837,8 +849,8 @@ MESSAGES: dict[str, dict[str, str]] = {
     "pt_BR": 'Este dataset já fornece arquivos de treino e teste.',
   },
   'experiment.form.split_hint_semi_supervised': {
-    "en_US": 'Unlabeled data is used only for training. Configure the labeled holdout for evaluation.',
-    "pt_BR": 'Dados não rotulados entram só no treino. Configure o holdout rotulado para avaliação.',
+    "en_US": 'Unlabeled data is used only for training. The Test file is used for evaluation.',
+    "pt_BR": 'Dados não rotulados entram só no treino. O arquivo de Teste é usado na avaliação.',
   },
   'experiment.form.split_mode_train_test': {
     "en_US": 'Mode: Train/Test',

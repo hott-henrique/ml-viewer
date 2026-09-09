@@ -22,7 +22,7 @@ class DatasetFormModal(tk.Toplevel):
     self.is_editing = dataset_data is not None
     self.title(_("dataset.form.edit_title") if self.is_editing else _("dataset.form.add_title"))
 
-    self.geometry("440x620")
+    self.geometry("440x660")
     self.resizable(False, False)
     self.grab_set()
 
@@ -34,7 +34,8 @@ class DatasetFormModal(tk.Toplevel):
     self.name_var = tk.StringVar(value=data.get("name", ""))
     self.type_var = tk.StringVar(value=data.get("type", ProblemType.CLASSIFICATION.value))
     self.has_header_var = tk.BooleanVar(value=bool(data.get("has_header", True)))
-    self.layout_var = tk.StringVar(value=data.get("layout", DatasetLayout.NO_SPLIT.value))
+    default_layout = data.get("layout", DatasetLayout.TRAIN_TEST_SPLIT.value)
+    self.layout_var = tk.StringVar(value=default_layout)
     self.full_path_var = tk.StringVar(value=data.get("full_path", data.get("path", "")))
     self.train_path_var = tk.StringVar(value=data.get("train_path", ""))
     self.test_path_var = tk.StringVar(value=data.get("test_path", ""))
@@ -50,7 +51,10 @@ class DatasetFormModal(tk.Toplevel):
     }
     self._layout_value_to_display = {v: k for k, v in self._layout_display_to_value.items()}
     self._layout_display_var = tk.StringVar(
-      value=self._layout_value_to_display.get(self.layout_var.get(), localize_enum(DatasetLayout.NO_SPLIT))
+      value=self._layout_value_to_display.get(
+        self.layout_var.get(),
+        localize_enum(DatasetLayout.TRAIN_TEST_SPLIT),
+      )
     )
 
     self._build_ui()
@@ -93,7 +97,7 @@ class DatasetFormModal(tk.Toplevel):
       form_frame,
       textvariable=self._layout_display_var,
       values=list(self._layout_display_to_value.keys()),
-      state="readonly",
+      state="disabled",
     )
     self.layout_combo.grid(row=row, column=0, sticky="ew", pady=(0, 12))
     row += 1
@@ -127,17 +131,6 @@ class DatasetFormModal(tk.Toplevel):
     )
     row += 1
 
-    self.test_label = ttk.Label(form_frame, text=_("dataset.form.test_file"), foreground="#333333")
-    self.test_label.grid(row=row, column=0, sticky="w", pady=(0, 2))
-    row += 1
-    self.test_frame = ttk.Frame(form_frame)
-    self.test_frame.grid(row=row, column=0, sticky="ew", pady=(0, 12))
-    ttk.Entry(self.test_frame, textvariable=self.test_path_var, state="readonly").pack(side=tk.LEFT, fill=tk.X, expand=True)
-    ttk.Button(self.test_frame, text=_("common.browse"), command=lambda: self._browse_into(self.test_path_var), width=8).pack(
-      side=tk.RIGHT, padx=(5, 0)
-    )
-    row += 1
-
     self.labeled_label = ttk.Label(form_frame, text=_("dataset.form.labeled_file"), foreground="#333333")
     self.labeled_label.grid(row=row, column=0, sticky="w", pady=(0, 2))
     row += 1
@@ -163,6 +156,17 @@ class DatasetFormModal(tk.Toplevel):
     ).pack(side=tk.RIGHT, padx=(5, 0))
     row += 1
 
+    self.test_label = ttk.Label(form_frame, text=_("dataset.form.test_file"), foreground="#333333")
+    self.test_label.grid(row=row, column=0, sticky="w", pady=(0, 2))
+    row += 1
+    self.test_frame = ttk.Frame(form_frame)
+    self.test_frame.grid(row=row, column=0, sticky="ew", pady=(0, 12))
+    ttk.Entry(self.test_frame, textvariable=self.test_path_var, state="readonly").pack(side=tk.LEFT, fill=tk.X, expand=True)
+    ttk.Button(self.test_frame, text=_("common.browse"), command=lambda: self._browse_into(self.test_path_var), width=8).pack(
+      side=tk.RIGHT, padx=(5, 0)
+    )
+    row += 1
+
     self.target_label = ttk.Label(form_frame, text=_("dataset.form.target"), foreground="#333333")
     self.target_label.grid(row=row, column=0, sticky="w", pady=(0, 2))
     row += 1
@@ -184,7 +188,7 @@ class DatasetFormModal(tk.Toplevel):
 
   def _on_layout_display_changed(self, *args) -> None:
     display = self._layout_display_var.get()
-    value = self._layout_display_to_value.get(display, DatasetLayout.NO_SPLIT.value)
+    value = self._layout_display_to_value.get(display, DatasetLayout.TRAIN_TEST_SPLIT.value)
     self.layout_var.set(value)
     self._sync_file_widgets()
     self._load_csv_columns()
@@ -195,34 +199,26 @@ class DatasetFormModal(tk.Toplevel):
     if problem in UNSUPERVISED_TYPES:
       self.layout_var.set(DatasetLayout.NO_SPLIT.value)
       self._layout_display_var.set(self._layout_value_to_display[DatasetLayout.NO_SPLIT.value])
-      self.layout_combo.config(state="disabled")
       self.target_label.config(text=_("dataset.form.target_unused"))
       self.target_var.set("")
       self.target_selector.config(state="disabled")
     elif problem in SEMI_SUPERVISED_TYPES:
       self.layout_var.set(DatasetLayout.LABELED_UNLABELED.value)
       self._layout_display_var.set(self._layout_value_to_display[DatasetLayout.LABELED_UNLABELED.value])
-      self.layout_combo.config(state="disabled")
+      self.target_label.config(text=_("dataset.form.target"))
+      self.target_selector.config(state="readonly")
+    elif problem in SUPERVISED_TYPES:
+      self.layout_var.set(DatasetLayout.TRAIN_TEST_SPLIT.value)
+      self._layout_display_var.set(self._layout_value_to_display[DatasetLayout.TRAIN_TEST_SPLIT.value])
       self.target_label.config(text=_("dataset.form.target"))
       self.target_selector.config(state="readonly")
     else:
-      if self._current_layout() == DatasetLayout.LABELED_UNLABELED:
-        self.layout_var.set(DatasetLayout.NO_SPLIT.value)
-        self._layout_display_var.set(self._layout_value_to_display[DatasetLayout.NO_SPLIT.value])
+      self.layout_var.set(DatasetLayout.NO_SPLIT.value)
+      self._layout_display_var.set(self._layout_value_to_display[DatasetLayout.NO_SPLIT.value])
+      self.target_label.config(text=_("dataset.form.target_unused"))
+      self.target_selector.config(state="disabled")
 
-      self.layout_combo.config(state="readonly")
-      # Supervised layouts: hide LabeledUnlabeled from the combobox choices
-      supervised_layouts = [
-        self._layout_value_to_display[DatasetLayout.NO_SPLIT.value],
-        self._layout_value_to_display[DatasetLayout.TRAIN_TEST_SPLIT.value],
-      ]
-      self.layout_combo.config(values=supervised_layouts)
-      self.target_label.config(text=_("dataset.form.target"))
-      self.target_selector.config(state="readonly")
-
-    if problem not in SUPERVISED_TYPES and problem not in SEMI_SUPERVISED_TYPES and problem not in UNSUPERVISED_TYPES:
-      self.layout_combo.config(state="readonly")
-
+    self.layout_combo.config(state="disabled")
     self._sync_file_widgets()
     self._load_csv_columns()
 
@@ -235,9 +231,9 @@ class DatasetFormModal(tk.Toplevel):
     widgets = [
       self.full_label, self.full_frame,
       self.train_label, self.train_frame,
-      self.test_label, self.test_frame,
       self.labeled_label, self.labeled_frame,
       self.unlabeled_label, self.unlabeled_frame,
+      self.test_label, self.test_frame,
     ]
     for widget in widgets:
       widget.grid_remove()
@@ -252,6 +248,8 @@ class DatasetFormModal(tk.Toplevel):
       self.labeled_frame.grid()
       self.unlabeled_label.grid()
       self.unlabeled_frame.grid()
+      self.test_label.grid()
+      self.test_frame.grid()
     else:
       self.full_label.grid()
       self.full_frame.grid()
@@ -336,12 +334,17 @@ class DatasetFormModal(tk.Toplevel):
         DatasetFileRole.TEST.value: self.test_path_var.get(),
       }
     else:
-      if not self.labeled_path_var.get() or not self.unlabeled_path_var.get():
+      if (
+        not self.labeled_path_var.get()
+        or not self.unlabeled_path_var.get()
+        or not self.test_path_var.get()
+      ):
         messagebox.showerror(_("common.error"), _("dataset.form.err_labeled_unlabeled_files"), parent=self)
         return
       files = {
         DatasetFileRole.LABELED.value: self.labeled_path_var.get(),
         DatasetFileRole.UNLABELED.value: self.unlabeled_path_var.get(),
+        DatasetFileRole.TEST.value: self.test_path_var.get(),
       }
 
     target_value: t.Optional[int] = None

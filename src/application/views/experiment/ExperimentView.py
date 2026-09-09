@@ -4,12 +4,11 @@ from pathlib import Path
 from tkinter import ttk, messagebox
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import pandas as pd
-from sklearn.model_selection import train_test_split
 
 from application.components import HyperParamForm, SortableTreeview
 from application.db.paths import get_experiments_dir
 from application.db.storage_usage import dir_size_bytes, format_bytes
-from application.enums import DatasetLayout, ExperimentStatus, ProblemType
+from application.enums import ExperimentStatus, ProblemType
 from application.i18n import _, display_title
 from application.managers.DatasetManager import DatasetMetadata, read_dataset_frame, to_binary_item_matrix
 from application.managers.model.base import ModelAPI
@@ -313,21 +312,11 @@ class ExperimentView(ttk.Frame):
         if target_idx is None:
           raise ValueError(_("experiment.err.supervised_requires_target"))
 
-        if dataset_info.layout == DatasetLayout.TRAIN_TEST_SPLIT:
-          train_df = read_dataset_frame(dataset_info.train_path, dataset_info.has_header).dropna()
-          test_df = read_dataset_frame(dataset_info.test_path, dataset_info.has_header).dropna()
-          X_train, y_train = self._features_and_target(train_df, target_idx)
-          X_test, y_test = self._features_and_target(test_df, target_idx)
-        else:
-          df = read_dataset_frame(dataset_info.full_path, dataset_info.has_header).dropna()
-          X, y = self._features_and_target(df, target_idx)
-          cfg = split_config or ExperimentSplitConfig()
-          X_train, X_test, y_train, y_test = train_test_split(
-            X,
-            y,
-            test_size=cfg.test_size,
-            random_state=42,
-          )
+        train_df = read_dataset_frame(dataset_info.train_path, dataset_info.has_header).dropna()
+        test_df = read_dataset_frame(dataset_info.test_path, dataset_info.has_header).dropna()
+        X_train, y_train = self._features_and_target(train_df, target_idx)
+        X_test, y_test = self._features_and_target(test_df, target_idx)
+        X_train, X_test = self._align_feature_frames(X_train, X_test)
 
         model.fit(X_train, y_train)
         trained_model = model
@@ -345,19 +334,13 @@ class ExperimentView(ttk.Frame):
 
         labeled_df = read_dataset_frame(dataset_info.labeled_path, dataset_info.has_header).dropna()
         unlabeled_raw = read_dataset_frame(dataset_info.unlabeled_path, dataset_info.has_header)
+        test_df = read_dataset_frame(dataset_info.test_path, dataset_info.has_header).dropna()
         X_l, y_l = self._features_and_target(labeled_df, target_idx)
         X_u = self._features_only(unlabeled_raw, target_idx)
-        X_l, X_u = self._align_feature_frames(X_l, X_u)
+        X_test, y_test = self._features_and_target(test_df, target_idx)
+        X_l, X_u, X_test = self._align_feature_frames(X_l, X_u, X_test)
 
-        cfg = split_config or ExperimentSplitConfig()
-        X_train, X_test, y_train, y_test = train_test_split(
-          X_l,
-          y_l,
-          test_size=cfg.test_size,
-          random_state=42,
-        )
-
-        model.fit(X_train, y_train, X_u)
+        model.fit(X_l, y_l, X_u)
         trained_model = model
         preds = model.predict(X_test)
         results = self._run_analyses(

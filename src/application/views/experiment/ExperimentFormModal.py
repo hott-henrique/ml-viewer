@@ -7,11 +7,10 @@ from application.managers import AnalysisManager, DatasetManager, EnvironmentMan
 from application.components import HyperParamForm
 from application.enums import DatasetLayout, ProblemType
 from application.i18n import _, display_title, localize_enum
-from application.managers.DatasetManager import SEMI_SUPERVISED_TYPES, SUPERVISED_TYPES, DatasetMetadata
+from application.managers.DatasetManager import SEMI_SUPERVISED_TYPES, DatasetMetadata
 from application.managers.ExperimentManager import (
   AnalysisRunSpec,
   ExperimentMetadata,
-  ExperimentSplitConfig,
   ExperimentTrainConfig,
 )
 
@@ -195,10 +194,6 @@ class ExperimentFormModal(tk.Toplevel):
     self._source_mode_to_display = {v: k for k, v in self._source_display_to_mode.items()}
     self._source_display_var = tk.StringVar(value=self._source_mode_to_display[init_source])
 
-    initial_split = self.initial_data.split_config if self.initial_data else None
-    self.test_size_var = tk.StringVar(
-      value=str(initial_split.test_size if initial_split else 0.2)
-    )
     initial_train = self.initial_data.train_config if self.initial_data else None
     self.n_episodes_var = tk.StringVar(
       value=str(initial_train.n_episodes if initial_train else 500)
@@ -284,13 +279,8 @@ class ExperimentFormModal(tk.Toplevel):
     self.split_frame = ttk.LabelFrame(body, text=_("experiment.form.split"))
     split_inner = ttk.Frame(self.split_frame, padding=(8, 6))
     split_inner.pack(fill=tk.X)
-    ttk.Label(split_inner, text=_("experiment.form.split_mode_train_test")).pack(anchor=tk.W)
-    size_row = ttk.Frame(split_inner)
-    size_row.pack(fill=tk.X, pady=(6, 0))
-    ttk.Label(size_row, text=_("experiment.form.test_size")).pack(side=tk.LEFT)
-    ttk.Entry(size_row, textvariable=self.test_size_var, width=8).pack(side=tk.LEFT, padx=(8, 0))
     self.split_hint = ttk.Label(split_inner, text="", foreground="#666666", wraplength=440)
-    self.split_hint.pack(anchor=tk.W, pady=(6, 0))
+    self.split_hint.pack(anchor=tk.W)
 
     self.train_frame = ttk.LabelFrame(body, text=_("experiment.form.train_config"))
     train_inner = ttk.Frame(self.train_frame, padding=(8, 6))
@@ -373,31 +363,24 @@ class ExperimentFormModal(tk.Toplevel):
       self.ds_combo.pack(fill=tk.X, pady=(0, 12), after=self.dataset_label)
       self._update_split_visibility()
 
-  def _needs_experiment_split(self) -> bool:
-    ds = self.selected_dataset
-    if ds is None:
-      return False
-    if ds.type in SEMI_SUPERVISED_TYPES and ds.layout == DatasetLayout.LABELED_UNLABELED:
-      return True
-    return ds.type in SUPERVISED_TYPES and ds.layout == DatasetLayout.NO_SPLIT
-
   def _update_split_visibility(self) -> None:
     if self.source_mode.get() == SOURCE_ENVIRONMENT:
       self.split_frame.pack_forget()
       return
 
-    if self._needs_experiment_split():
+    ds = self.selected_dataset
+    if ds is None:
+      self.split_frame.pack_forget()
+      return
+
+    if ds.type in SEMI_SUPERVISED_TYPES:
+      self.split_hint.config(text=_("experiment.form.split_hint_semi_supervised"))
       self.split_frame.pack(fill=tk.X, pady=(0, 12), after=self.ds_combo)
-      if self.selected_dataset is not None and self.selected_dataset.type in SEMI_SUPERVISED_TYPES:
-        self.split_hint.config(text=_("experiment.form.split_hint_semi_supervised"))
-      else:
-        self.split_hint.config(text=_("experiment.form.split_hint_configure"))
+    elif ds.layout == DatasetLayout.TRAIN_TEST_SPLIT:
+      self.split_hint.config(text=_("experiment.form.split_hint_preset"))
+      self.split_frame.pack(fill=tk.X, pady=(0, 12), after=self.ds_combo)
     else:
       self.split_frame.pack_forget()
-      if self.selected_dataset is None:
-        return
-      if self.selected_dataset.layout == DatasetLayout.TRAIN_TEST_SPLIT:
-        self.split_hint.config(text=_("experiment.form.split_hint_preset"))
 
   def _render_analysis_list(self) -> None:
     for child in self.analyses_inner.winfo_children():
@@ -608,17 +591,6 @@ class ExperimentFormModal(tk.Toplevel):
     if model_config:
       self.hyperparam_form.render_form(model_config.params)
 
-  def _parse_split_config(self) -> t.Optional[ExperimentSplitConfig]:
-    if not self._needs_experiment_split():
-      return None
-
-    try:
-      test_size = float(self.test_size_var.get().strip())
-    except ValueError as exc:
-      raise ValueError(_("experiment.form.err_invalid_test_size")) from exc
-
-    return ExperimentSplitConfig(version=1, mode="TrainTest", test_size=test_size)
-
   def _parse_train_config(self) -> ExperimentTrainConfig:
     try:
       n_episodes = int(self.n_episodes_var.get().strip())
@@ -659,7 +631,7 @@ class ExperimentFormModal(tk.Toplevel):
     try:
       params = self.hyperparam_form.get_parsed_values()
       env_params = self.env_param_form.get_parsed_values() if is_rl else {}
-      split_config = None if is_rl else self._parse_split_config()
+      split_config = None
       train_config = self._parse_train_config() if is_rl else None
     except ValueError as e:
       messagebox.showerror(_("common.validation_error"), str(e), parent=self)

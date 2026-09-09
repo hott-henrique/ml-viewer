@@ -35,6 +35,7 @@ LAYOUT_ROLES: dict[DatasetLayout, frozenset[tuple[DatasetFileRole, int]]] = {
   DatasetLayout.LABELED_UNLABELED: frozenset({
     (DatasetFileRole.LABELED, 0),
     (DatasetFileRole.UNLABELED, 0),
+    (DatasetFileRole.TEST, 0),
   }),
 }
 
@@ -189,8 +190,17 @@ def _validate_layout_and_files(
   if problem_type in UNSUPERVISED_TYPES and layout != DatasetLayout.NO_SPLIT:
     raise ValueError(_("dataset.err.unsupervised_requires_nosplit"))
 
+  if problem_type in SUPERVISED_TYPES and layout != DatasetLayout.TRAIN_TEST_SPLIT:
+    raise ValueError(_("dataset.err.supervised_requires_train_test_split"))
+
   if problem_type in SEMI_SUPERVISED_TYPES and layout != DatasetLayout.LABELED_UNLABELED:
     raise ValueError(_("dataset.err.semi_supervised_requires_labeled_unlabeled"))
+
+  if layout == DatasetLayout.NO_SPLIT and problem_type not in UNSUPERVISED_TYPES:
+    raise ValueError(_("dataset.err.nosplit_layout_restricted"))
+
+  if layout == DatasetLayout.TRAIN_TEST_SPLIT and problem_type not in SUPERVISED_TYPES:
+    raise ValueError(_("dataset.err.train_test_layout_restricted"))
 
   if layout == DatasetLayout.LABELED_UNLABELED and problem_type not in SEMI_SUPERVISED_TYPES:
     raise ValueError(_("dataset.err.labeled_unlabeled_layout_restricted"))
@@ -217,12 +227,14 @@ def _validate_layout_and_files(
     paths_by_role = {role: path for role, _ordinal, path in file_specs}
     labeled_cols = peek_ncols(paths_by_role[DatasetFileRole.LABELED], has_header)
     unlabeled_cols = peek_ncols(paths_by_role[DatasetFileRole.UNLABELED], has_header)
+    test_cols = peek_ncols(paths_by_role[DatasetFileRole.TEST], has_header)
 
-    if labeled_cols != unlabeled_cols:
+    if labeled_cols != unlabeled_cols or labeled_cols != test_cols:
       raise ValueError(
         _("dataset.err.labeled_unlabeled_ncols_mismatch").format(
           labeled=labeled_cols,
           unlabeled=unlabeled_cols,
+          test=test_cols,
         )
       )
 

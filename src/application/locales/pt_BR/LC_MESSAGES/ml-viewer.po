@@ -215,7 +215,7 @@ msgid "dataset.err.labeled_unlabeled_layout_restricted"
 msgstr "O layout LabeledUnlabeled só é permitido para datasets semi-supervisionados."
 
 msgid "dataset.err.labeled_unlabeled_ncols_mismatch"
-msgstr "Arquivos rotulado e não rotulado devem ter o mesmo número de colunas (rotulado={labeled}, não rotulado={unlabeled})."
+msgstr "Arquivos rotulado, não rotulado e teste devem ter o mesmo número de colunas (rotulado={labeled}, não rotulado={unlabeled}, teste={test})."
 
 msgid "dataset.err.layout_files_mismatch"
 msgstr "Arquivos não correspondem ao layout {layout}."
@@ -226,11 +226,14 @@ msgstr "Dataset está sem o arquivo obrigatório com papel '{role}'."
 msgid "dataset.err.ncols_mismatch"
 msgstr "Arquivos de treino e teste devem ter o mesmo número de colunas (treino={train}, teste={test})."
 
+msgid "dataset.err.nosplit_layout_restricted"
+msgstr "O layout NoSplit só é permitido para datasets não supervisionados."
+
 msgid "dataset.err.not_found"
 msgstr "Dataset com ID {id} não encontrado."
 
 msgid "dataset.err.semi_supervised_requires_labeled_unlabeled"
-msgstr "Datasets semi-supervisionados exigem o layout LabeledUnlabeled."
+msgstr "Datasets semi-supervisionados exigem o layout LabeledUnlabeled (arquivos Rotulado, Não rotulado e Teste)."
 
 msgid "dataset.err.semi_supervised_requires_target"
 msgstr "Datasets semi-supervisionados exigem um índice de coluna alvo válido."
@@ -238,8 +241,14 @@ msgstr "Datasets semi-supervisionados exigem um índice de coluna alvo válido."
 msgid "dataset.err.supervised_requires_target"
 msgstr "Datasets supervisionados exigem um índice de coluna alvo válido."
 
+msgid "dataset.err.supervised_requires_train_test_split"
+msgstr "Datasets supervisionados exigem o layout TrainTestSplit."
+
 msgid "dataset.err.target_out_of_range"
 msgstr "Índice alvo {index} está fora do intervalo para {ncols} colunas."
+
+msgid "dataset.err.train_test_layout_restricted"
+msgstr "O layout TrainTestSplit só é permitido para datasets supervisionados."
 
 msgid "dataset.err.unsupervised_no_target"
 msgstr "Datasets não supervisionados não usam alvo; deixe vazio."
@@ -260,7 +269,7 @@ msgid "dataset.form.edit_title"
 msgstr "Editar Dataset"
 
 msgid "dataset.form.err_labeled_unlabeled_files"
-msgstr "Arquivos CSV rotulado e não rotulado são obrigatórios para LabeledUnlabeled."
+msgstr "Arquivos CSV rotulado, não rotulado e teste são obrigatórios para LabeledUnlabeled."
 
 msgid "dataset.form.err_name_file"
 msgstr "Nome e arquivo(s) são obrigatórios."
@@ -626,7 +635,7 @@ msgid "experiment.form.split_hint_preset"
 msgstr "Este dataset já fornece arquivos de treino e teste."
 
 msgid "experiment.form.split_hint_semi_supervised"
-msgstr "Dados não rotulados entram só no treino. Configure o holdout rotulado para avaliação."
+msgstr "Dados não rotulados entram só no treino. O arquivo de Teste é usado na avaliação."
 
 msgid "experiment.form.split_mode_train_test"
 msgstr "Modo: Treino/Teste"

@@ -215,7 +215,7 @@ msgid "dataset.err.labeled_unlabeled_layout_restricted"
 msgstr "LabeledUnlabeled layout is only allowed for semi-supervised datasets."
 
 msgid "dataset.err.labeled_unlabeled_ncols_mismatch"
-msgstr "Labeled and unlabeled files must have the same number of columns (labeled={labeled}, unlabeled={unlabeled})."
+msgstr "Labeled, unlabeled and test files must have the same number of columns (labeled={labeled}, unlabeled={unlabeled}, test={test})."
 
 msgid "dataset.err.layout_files_mismatch"
 msgstr "Files do not match layout {layout}."
@@ -226,11 +226,14 @@ msgstr "Dataset is missing required file role '{role}'."
 msgid "dataset.err.ncols_mismatch"
 msgstr "Train and test files must have the same number of columns (train={train}, test={test})."
 
+msgid "dataset.err.nosplit_layout_restricted"
+msgstr "NoSplit layout is only allowed for unsupervised datasets."
+
 msgid "dataset.err.not_found"
 msgstr "Dataset with ID {id} was not found."
 
 msgid "dataset.err.semi_supervised_requires_labeled_unlabeled"
-msgstr "Semi-supervised datasets require the LabeledUnlabeled layout."
+msgstr "Semi-supervised datasets require the LabeledUnlabeled layout (Labeled, Unlabeled and Test files)."
 
 msgid "dataset.err.semi_supervised_requires_target"
 msgstr "Semi-supervised datasets require a valid target column index."
@@ -238,8 +241,14 @@ msgstr "Semi-supervised datasets require a valid target column index."
 msgid "dataset.err.supervised_requires_target"
 msgstr "Supervised datasets require a valid target column index."
 
+msgid "dataset.err.supervised_requires_train_test_split"
+msgstr "Supervised datasets require the TrainTestSplit layout."
+
 msgid "dataset.err.target_out_of_range"
 msgstr "Target index {index} is out of range for {ncols} columns."
+
+msgid "dataset.err.train_test_layout_restricted"
+msgstr "TrainTestSplit layout is only allowed for supervised datasets."
 
 msgid "dataset.err.unsupervised_no_target"
 msgstr "Unsupervised datasets do not use a target; leave it empty."
@@ -260,7 +269,7 @@ msgid "dataset.form.edit_title"
 msgstr "Edit Dataset"
 
 msgid "dataset.form.err_labeled_unlabeled_files"
-msgstr "Labeled and unlabeled CSV files are required for LabeledUnlabeled."
+msgstr "Labeled, unlabeled and test CSV files are required for LabeledUnlabeled."
 
 msgid "dataset.form.err_name_file"
 msgstr "Name and file(s) are required."
@@ -626,7 +635,7 @@ msgid "experiment.form.split_hint_preset"
 msgstr "This dataset already provides train and test files."
 
 msgid "experiment.form.split_hint_semi_supervised"
-msgstr "Unlabeled data is used only for training. Configure the labeled holdout for evaluation."
+msgstr "Unlabeled data is used only for training. The Test file is used for evaluation."
 
 msgid "experiment.form.split_mode_train_test"
 msgstr "Mode: Train/Test"
