@@ -81,6 +81,8 @@ class AnalysisView(ttk.Frame):
       ProblemType.CLUSTERING,
       ProblemType.DIMENSIONALITY_REDUCTION,
       ProblemType.ASSOCIATION_RULES,
+      ProblemType.SEMI_SUPERVISED_CLASSIFICATION,
+      ProblemType.SEMI_SUPERVISED_REGRESSION,
       ProblemType.REINFORCEMENT_LEARNING,
     ):
       for name, config in AnalysisManager.registry(problem_type).items():
@@ -132,6 +134,8 @@ class AnalysisView(ttk.Frame):
       ProblemType.CLUSTERING,
       ProblemType.DIMENSIONALITY_REDUCTION,
       ProblemType.ASSOCIATION_RULES,
+      ProblemType.SEMI_SUPERVISED_CLASSIFICATION,
+      ProblemType.SEMI_SUPERVISED_REGRESSION,
       ProblemType.REINFORCEMENT_LEARNING,
     ):
       config = AnalysisManager.registry(problem_type).get(key)
@@ -205,6 +209,8 @@ class AnalysisView(ttk.Frame):
         ProblemType.CLUSTERING,
         ProblemType.DIMENSIONALITY_REDUCTION,
         ProblemType.ASSOCIATION_RULES,
+        ProblemType.SEMI_SUPERVISED_CLASSIFICATION,
+        ProblemType.SEMI_SUPERVISED_REGRESSION,
         ProblemType.REINFORCEMENT_LEARNING,
       ):
         if str(key) in AnalysisManager.registry(problem_type):

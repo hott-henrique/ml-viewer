@@ -28,7 +28,7 @@ from application.managers.results import (
 from application.views.experiment import ExperimentFormModal, ExperimentExportModal
 from application.views.experiment.ExperimentExportModal import ExperimentExportData
 from application.managers import AnalysisManager, EnvironmentManager, ExperimentManager, ModelManager
-from application.managers.DatasetManager import SUPERVISED_TYPES
+from application.managers.DatasetManager import SEMI_SUPERVISED_TYPES, SUPERVISED_TYPES
 from application.managers.ExperimentManager import AnalysisRunSpec, ExperimentSplitConfig, ExperimentTrainConfig
 from application.managers.environment import TrainingRunner
 
@@ -252,6 +252,19 @@ class ExperimentView(ttk.Frame):
     X = pd.get_dummies(df.drop(df.columns[target_idx], axis=1))
     return X, y
 
+  def _features_only(self, df: pd.DataFrame, target_idx: int) -> pd.DataFrame:
+    if target_idx < 0 or target_idx >= df.shape[1]:
+      raise ValueError(_("experiment.err.target_index_missing").format(index=target_idx))
+
+    feature_df = df.drop(df.columns[target_idx], axis=1)
+    # Drop rows with missing feature values only (target may be empty in unlabeled).
+    feature_df = feature_df.dropna()
+    return pd.get_dummies(feature_df)
+
+  def _align_feature_frames(self, *frames: pd.DataFrame) -> list[pd.DataFrame]:
+    columns = sorted(set().union(*(frame.columns for frame in frames)))
+    return [frame.reindex(columns=columns, fill_value=0) for frame in frames]
+
   def _on_experiment_saved(self, payload: dict[str, t.Any]) -> None:
     self.config(cursor="watch")
     self.update()
@@ -317,6 +330,34 @@ class ExperimentView(ttk.Frame):
           )
 
         model.fit(X_train, y_train)
+        trained_model = model
+        preds = model.predict(X_test)
+        results = self._run_analyses(
+          prob_type,
+          analyses,
+          y_true=y_test,
+          y_pred=preds,
+        )
+
+      elif prob_type in SEMI_SUPERVISED_TYPES:
+        if target_idx is None:
+          raise ValueError(_("experiment.err.supervised_requires_target"))
+
+        labeled_df = read_dataset_frame(dataset_info.labeled_path, dataset_info.has_header).dropna()
+        unlabeled_raw = read_dataset_frame(dataset_info.unlabeled_path, dataset_info.has_header)
+        X_l, y_l = self._features_and_target(labeled_df, target_idx)
+        X_u = self._features_only(unlabeled_raw, target_idx)
+        X_l, X_u = self._align_feature_frames(X_l, X_u)
+
+        cfg = split_config or ExperimentSplitConfig()
+        X_train, X_test, y_train, y_test = train_test_split(
+          X_l,
+          y_l,
+          test_size=cfg.test_size,
+          random_state=42,
+        )
+
+        model.fit(X_train, y_train, X_u)
         trained_model = model
         preds = model.predict(X_test)
         results = self._run_analyses(

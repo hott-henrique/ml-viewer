@@ -16,6 +16,10 @@ from application.enums import DatasetFileRole, DatasetLayout, ProblemType
 from application.i18n import _
 
 SUPERVISED_TYPES = {ProblemType.CLASSIFICATION, ProblemType.REGRESSION}
+SEMI_SUPERVISED_TYPES = {
+  ProblemType.SEMI_SUPERVISED_CLASSIFICATION,
+  ProblemType.SEMI_SUPERVISED_REGRESSION,
+}
 UNSUPERVISED_TYPES = {
   ProblemType.CLUSTERING,
   ProblemType.DIMENSIONALITY_REDUCTION,
@@ -28,12 +32,21 @@ LAYOUT_ROLES: dict[DatasetLayout, frozenset[tuple[DatasetFileRole, int]]] = {
     (DatasetFileRole.TRAIN, 0),
     (DatasetFileRole.TEST, 0),
   }),
+  DatasetLayout.LABELED_UNLABELED: frozenset({
+    (DatasetFileRole.LABELED, 0),
+    (DatasetFileRole.UNLABELED, 0),
+  }),
 }
 
 def validate_problem_target(problem_type: ProblemType, target: int | None) -> int | None:
-  if problem_type in SUPERVISED_TYPES:
+  if problem_type in SUPERVISED_TYPES or problem_type in SEMI_SUPERVISED_TYPES:
     if target is None:
-      raise ValueError(_("dataset.err.supervised_requires_target"))
+      key = (
+        "dataset.err.semi_supervised_requires_target"
+        if problem_type in SEMI_SUPERVISED_TYPES
+        else "dataset.err.supervised_requires_target"
+      )
+      raise ValueError(_(key))
     if not isinstance(target, int) or target < 0:
       raise ValueError(_("dataset.err.invalid_target_index"))
     return target
@@ -125,9 +138,12 @@ class DatasetMetadata(BaseModel):
 
   @property
   def path(self) -> str:
-    """Primary path: Full for NoSplit, Train for TrainTestSplit."""
+    """Primary path: Full for NoSplit, Train for TrainTestSplit, Labeled for LabeledUnlabeled."""
     if self.layout == DatasetLayout.TRAIN_TEST_SPLIT:
       return self.path_for(DatasetFileRole.TRAIN)
+
+    if self.layout == DatasetLayout.LABELED_UNLABELED:
+      return self.path_for(DatasetFileRole.LABELED)
 
     return self.path_for(DatasetFileRole.FULL)
 
@@ -142,6 +158,14 @@ class DatasetMetadata(BaseModel):
   @property
   def test_path(self) -> str:
     return self.path_for(DatasetFileRole.TEST)
+
+  @property
+  def labeled_path(self) -> str:
+    return self.path_for(DatasetFileRole.LABELED)
+
+  @property
+  def unlabeled_path(self) -> str:
+    return self.path_for(DatasetFileRole.UNLABELED)
 
   @classmethod
   def from_row(cls, row: DatasetRow) -> "DatasetMetadata":
@@ -165,6 +189,12 @@ def _validate_layout_and_files(
   if problem_type in UNSUPERVISED_TYPES and layout != DatasetLayout.NO_SPLIT:
     raise ValueError(_("dataset.err.unsupervised_requires_nosplit"))
 
+  if problem_type in SEMI_SUPERVISED_TYPES and layout != DatasetLayout.LABELED_UNLABELED:
+    raise ValueError(_("dataset.err.semi_supervised_requires_labeled_unlabeled"))
+
+  if layout == DatasetLayout.LABELED_UNLABELED and problem_type not in SEMI_SUPERVISED_TYPES:
+    raise ValueError(_("dataset.err.labeled_unlabeled_layout_restricted"))
+
   expected = LAYOUT_ROLES.get(layout)
 
   if expected is None:
@@ -182,6 +212,19 @@ def _validate_layout_and_files(
 
     if train_cols != test_cols:
       raise ValueError(_("dataset.err.ncols_mismatch").format(train=train_cols, test=test_cols))
+
+  if layout == DatasetLayout.LABELED_UNLABELED:
+    paths_by_role = {role: path for role, _ordinal, path in file_specs}
+    labeled_cols = peek_ncols(paths_by_role[DatasetFileRole.LABELED], has_header)
+    unlabeled_cols = peek_ncols(paths_by_role[DatasetFileRole.UNLABELED], has_header)
+
+    if labeled_cols != unlabeled_cols:
+      raise ValueError(
+        _("dataset.err.labeled_unlabeled_ncols_mismatch").format(
+          labeled=labeled_cols,
+          unlabeled=unlabeled_cols,
+        )
+      )
 
 def _store_files(
   store: FileStore,
@@ -225,7 +268,7 @@ class DatasetManager:
     _validate_layout_and_files(problem, layout_enum, file_specs, has_header)
 
     if normalized_target is not None:
-      primary = file_specs[0][2]
+      primary = cls._primary_path_from_specs(layout_enum, file_specs)
       ncols = peek_ncols(primary, has_header)
 
       if normalized_target >= ncols:
@@ -305,7 +348,7 @@ class DatasetManager:
         _validate_layout_and_files(problem, layout, file_specs, row.has_header)
 
         if row.target is not None:
-          ncols = peek_ncols(file_specs[0][2], row.has_header)
+          ncols = peek_ncols(cls._primary_path_from_specs(layout, file_specs), row.has_header)
 
           if row.target >= ncols:
             raise ValueError(_("dataset.err.target_out_of_range").format(index=row.target, ncols=ncols))
@@ -362,6 +405,21 @@ class DatasetManager:
 
     for storage_filename in storage_filenames:
       store.delete(storage_filename)
+
+  @staticmethod
+  def _primary_path_from_specs(
+    layout: DatasetLayout,
+    file_specs: list[tuple[DatasetFileRole, int, Path]],
+  ) -> Path:
+    by_role = {role: path for role, _ordinal, path in file_specs}
+
+    if layout == DatasetLayout.TRAIN_TEST_SPLIT:
+      return by_role[DatasetFileRole.TRAIN]
+
+    if layout == DatasetLayout.LABELED_UNLABELED:
+      return by_role[DatasetFileRole.LABELED]
+
+    return by_role[DatasetFileRole.FULL]
 
   @staticmethod
   def _build_file_specs(

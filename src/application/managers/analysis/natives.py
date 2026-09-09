@@ -706,6 +706,149 @@ NATIVE_ANALYSIS_REGISTRY: dict[ProblemType, dict[str, dict[str, t.Any]]] = {
       ],
     },
   },
+  ProblemType.SEMI_SUPERVISED_CLASSIFICATION: {
+    "Accuracy": {
+      "type": ProblemType.SEMI_SUPERVISED_CLASSIFICATION,
+      "class": "AccuracyAnalysis",
+      "module": "application.managers.analysis.natives",
+      "output_kind": AnalysisOutputKind.SCALAR,
+      "title": {"en_US": "Accuracy", "pt_BR": "Acurácia"},
+      "description": {
+        "en_US": "Overall classification accuracy (fraction of correct predictions).",
+        "pt_BR": "Acurácia geral da classificação (fração de previsões corretas).",
+      },
+      "params": [],
+    },
+    "Classification Report": {
+      "type": ProblemType.SEMI_SUPERVISED_CLASSIFICATION,
+      "class": "ClassificationReportAnalysis",
+      "module": "application.managers.analysis.natives",
+      "output_kind": AnalysisOutputKind.TEXT,
+      "title": {"en_US": "Classification Report", "pt_BR": "Relatório de Classificação"},
+      "description": {
+        "en_US": "Precision, recall, F1 and support per class.",
+        "pt_BR": "Precisão, recall, F1 e suporte por classe.",
+      },
+      "params": [
+        {
+          "name": "digits",
+          "type": _P.INT,
+          "default": 2,
+          "label": {"en_US": "Decimal digits", "pt_BR": "Casas decimais"},
+          "description": {
+            "en_US": "Number of decimal digits for floating-point values in the report.",
+            "pt_BR": "Número de casas decimais nos valores do relatório.",
+          },
+        },
+        {
+          "name": "zero_division",
+          "type": _P.CATEGORICAL,
+          "options": ["0", "1"],
+          "default": "0",
+          "label": {"en_US": "Zero division", "pt_BR": "Divisão por zero"},
+          "description": {
+            "en_US": "Value to return when there is a zero division (e.g. no predicted samples).",
+            "pt_BR": "Valor retornado quando há divisão por zero (ex.: nenhuma previsão da classe).",
+          },
+        },
+      ],
+    },
+    "Confusion Matrix": {
+      "type": ProblemType.SEMI_SUPERVISED_CLASSIFICATION,
+      "class": "ConfusionMatrixAnalysis",
+      "module": "application.managers.analysis.natives",
+      "output_kind": AnalysisOutputKind.IMAGE,
+      "title": {"en_US": "Confusion Matrix", "pt_BR": "Matriz de Confusão"},
+      "description": {
+        "en_US": "Confusion matrix heatmap of true vs predicted labels.",
+        "pt_BR": "Mapa de calor da matriz de confusão entre rótulos reais e previstos.",
+      },
+      "params": [
+        {
+          "name": "cmap",
+          "type": _P.CATEGORICAL,
+          "options": ["Blues", "Viridis", "Oranges", "Greens", "Purples"],
+          "default": "Blues",
+          "label": {"en_US": "Colormap", "pt_BR": "Mapa de cores"},
+          "description": {
+            "en_US": "Matplotlib colormap used for the heatmap.",
+            "pt_BR": "Mapa de cores do Matplotlib usado no heatmap.",
+          },
+        },
+        {
+          "name": "normalize",
+          "type": _P.CATEGORICAL,
+          "options": ["none", "true", "pred", "all"],
+          "default": "none",
+          "label": {"en_US": "Normalize", "pt_BR": "Normalizar"},
+          "description": {
+            "en_US": "Normalize matrix by true labels, predictions, all, or leave as counts.",
+            "pt_BR": "Normalizar pela verdade, previsões, tudo, ou manter contagens.",
+          },
+        },
+      ],
+    },
+  },
+  ProblemType.SEMI_SUPERVISED_REGRESSION: {
+    "MSE": {
+      "type": ProblemType.SEMI_SUPERVISED_REGRESSION,
+      "class": "MseAnalysis",
+      "module": "application.managers.analysis.natives",
+      "output_kind": AnalysisOutputKind.SCALAR,
+      "title": {"en_US": "MSE", "pt_BR": "MSE"},
+      "description": {
+        "en_US": "Mean squared error between actual and predicted values.",
+        "pt_BR": "Erro quadrático médio entre valores reais e previstos.",
+      },
+      "params": [
+        {
+          "name": "squared",
+          "type": _P.BOOL,
+          "default": True,
+          "label": {"en_US": "Squared (MSE)", "pt_BR": "Ao quadrado (MSE)"},
+          "description": {
+            "en_US": "If True, report MSE; if False, report RMSE.",
+            "pt_BR": "Se verdadeiro, reporta MSE; se falso, reporta RMSE.",
+          },
+        },
+      ],
+    },
+    "R2 Score": {
+      "type": ProblemType.SEMI_SUPERVISED_REGRESSION,
+      "class": "R2Analysis",
+      "module": "application.managers.analysis.natives",
+      "output_kind": AnalysisOutputKind.SCALAR,
+      "title": {"en_US": "R2 Score", "pt_BR": "Coeficiente R²"},
+      "description": {
+        "en_US": "Coefficient of determination (R²).",
+        "pt_BR": "Coeficiente de determinação (R²).",
+      },
+      "params": [],
+    },
+    "Actual vs Predicted": {
+      "type": ProblemType.SEMI_SUPERVISED_REGRESSION,
+      "class": "ActualVsPredictedAnalysis",
+      "module": "application.managers.analysis.natives",
+      "output_kind": AnalysisOutputKind.IMAGE,
+      "title": {"en_US": "Actual vs Predicted", "pt_BR": "Real vs Previsto"},
+      "description": {
+        "en_US": "Scatter plot of actual versus predicted values.",
+        "pt_BR": "Gráfico de dispersão entre valores reais e previstos.",
+      },
+      "params": [
+        {
+          "name": "alpha",
+          "type": _P.FLOAT,
+          "default": 0.7,
+          "label": {"en_US": "Point opacity", "pt_BR": "Opacidade dos pontos"},
+          "description": {
+            "en_US": "Alpha transparency of scatter points (0–1).",
+            "pt_BR": "Transparência alfa dos pontos (0–1).",
+          },
+        },
+      ],
+    },
+  },
   ProblemType.REINFORCEMENT_LEARNING: {
     "Mean Return": {
       "type": ProblemType.REINFORCEMENT_LEARNING,

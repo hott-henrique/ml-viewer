@@ -55,10 +55,21 @@ class AgentAPI(t.Protocol):
   def get_params(self) -> dict:
     ...
 
+class SemiSupervisedModelAPI(t.Protocol):
+  def fit(self, X_l: t.Any, y_l: t.Any, X_u: t.Any, **fit_params: t.Any) -> "SemiSupervisedModelAPI":
+    ...
+
+  def predict(self, X: t.Any) -> t.Any:
+    ...
+
+  def get_params(self) -> dict:
+    ...
+
 ModelAPI = (
   SupervisedModelAPI
   | ClusteringModelAPI
   | DimensionalityReductionModelAPI
   | AssociationRulesModelAPI
   | AgentAPI
+  | SemiSupervisedModelAPI
 )

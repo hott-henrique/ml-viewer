@@ -7,7 +7,7 @@ from application.managers import AnalysisManager, DatasetManager, EnvironmentMan
 from application.components import HyperParamForm
 from application.enums import DatasetLayout, ProblemType
 from application.i18n import _, display_title, localize_enum
-from application.managers.DatasetManager import SUPERVISED_TYPES, DatasetMetadata
+from application.managers.DatasetManager import SEMI_SUPERVISED_TYPES, SUPERVISED_TYPES, DatasetMetadata
 from application.managers.ExperimentManager import (
   AnalysisRunSpec,
   ExperimentMetadata,
@@ -377,6 +377,8 @@ class ExperimentFormModal(tk.Toplevel):
     ds = self.selected_dataset
     if ds is None:
       return False
+    if ds.type in SEMI_SUPERVISED_TYPES and ds.layout == DatasetLayout.LABELED_UNLABELED:
+      return True
     return ds.type in SUPERVISED_TYPES and ds.layout == DatasetLayout.NO_SPLIT
 
   def _update_split_visibility(self) -> None:
@@ -386,7 +388,10 @@ class ExperimentFormModal(tk.Toplevel):
 
     if self._needs_experiment_split():
       self.split_frame.pack(fill=tk.X, pady=(0, 12), after=self.ds_combo)
-      self.split_hint.config(text=_("experiment.form.split_hint_configure"))
+      if self.selected_dataset is not None and self.selected_dataset.type in SEMI_SUPERVISED_TYPES:
+        self.split_hint.config(text=_("experiment.form.split_hint_semi_supervised"))
+      else:
+        self.split_hint.config(text=_("experiment.form.split_hint_configure"))
     else:
       self.split_frame.pack_forget()
       if self.selected_dataset is None:

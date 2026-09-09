@@ -4,6 +4,12 @@ from application.managers.model.definitions.clustering import CLUSTERING_REGISTR
 from application.managers.model.definitions.dimensionality import DIMENSIONALITY_REGISTRY
 from application.managers.model.definitions.association import ASSOCIATION_REGISTRY
 from application.managers.model.definitions.rl import RL_REGISTRY
+from application.managers.model.definitions.semi_supervised_classification import (
+  SEMI_SUPERVISED_CLASSIFICATION_REGISTRY,
+)
+from application.managers.model.definitions.semi_supervised_regression import (
+  SEMI_SUPERVISED_REGRESSION_REGISTRY,
+)
 
 
 __all__ = [
@@ -13,4 +19,6 @@ __all__ = [
   "DIMENSIONALITY_REGISTRY",
   "ASSOCIATION_REGISTRY",
   "RL_REGISTRY",
+  "SEMI_SUPERVISED_CLASSIFICATION_REGISTRY",
+  "SEMI_SUPERVISED_REGRESSION_REGISTRY",
 ]

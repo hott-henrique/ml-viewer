@@ -282,6 +282,22 @@ MESSAGES: dict[str, dict[str, str]] = {
     "en_US": 'Train and test files must have the same number of columns (train={train}, test={test}).',
     "pt_BR": 'Arquivos de treino e teste devem ter o mesmo número de colunas (treino={train}, teste={test}).',
   },
+  'dataset.err.labeled_unlabeled_ncols_mismatch': {
+    "en_US": 'Labeled and unlabeled files must have the same number of columns (labeled={labeled}, unlabeled={unlabeled}).',
+    "pt_BR": 'Arquivos rotulado e não rotulado devem ter o mesmo número de colunas (rotulado={labeled}, não rotulado={unlabeled}).',
+  },
+  'dataset.err.semi_supervised_requires_labeled_unlabeled': {
+    "en_US": 'Semi-supervised datasets require the LabeledUnlabeled layout.',
+    "pt_BR": 'Datasets semi-supervisionados exigem o layout LabeledUnlabeled.',
+  },
+  'dataset.err.labeled_unlabeled_layout_restricted': {
+    "en_US": 'LabeledUnlabeled layout is only allowed for semi-supervised datasets.',
+    "pt_BR": 'O layout LabeledUnlabeled só é permitido para datasets semi-supervisionados.',
+  },
+  'dataset.err.semi_supervised_requires_target': {
+    "en_US": 'Semi-supervised datasets require a valid target column index.',
+    "pt_BR": 'Datasets semi-supervisionados exigem um índice de coluna alvo válido.',
+  },
   'dataset.err.not_found': {
     "en_US": 'Dataset with ID {id} was not found.',
     "pt_BR": 'Dataset com ID {id} não encontrado.',
@@ -334,6 +350,10 @@ MESSAGES: dict[str, dict[str, str]] = {
     "en_US": 'Train and test CSV files are required for TrainTestSplit.',
     "pt_BR": 'Arquivos CSV de treino e teste são obrigatórios para TrainTestSplit.',
   },
+  'dataset.form.err_labeled_unlabeled_files': {
+    "en_US": 'Labeled and unlabeled CSV files are required for LabeledUnlabeled.',
+    "pt_BR": 'Arquivos CSV rotulado e não rotulado são obrigatórios para LabeledUnlabeled.',
+  },
   'dataset.form.file': {
     "en_US": 'File (CSV):',
     "pt_BR": 'Arquivo (CSV):',
@@ -345,6 +365,14 @@ MESSAGES: dict[str, dict[str, str]] = {
   'dataset.form.layout': {
     "en_US": 'Dataset layout:',
     "pt_BR": 'Layout do dataset:',
+  },
+  'dataset.form.labeled_file': {
+    "en_US": 'Labeled file (CSV):',
+    "pt_BR": 'Arquivo rotulado (CSV):',
+  },
+  'dataset.form.unlabeled_file': {
+    "en_US": 'Unlabeled file (CSV):',
+    "pt_BR": 'Arquivo não rotulado (CSV):',
   },
   'dataset.form.name': {
     "en_US": 'Dataset Name:',
@@ -434,6 +462,10 @@ MESSAGES: dict[str, dict[str, str]] = {
     "en_US": 'TrainTestSplit',
     "pt_BR": 'Treino/Teste',
   },
+  'enum.dataset_layout.labeled_unlabeled': {
+    "en_US": 'LabeledUnlabeled',
+    "pt_BR": 'Rotulado/Não rotulado',
+  },
   'enum.experiment_status.nok': {
     "en_US": 'NOK',
     "pt_BR": 'NOK',
@@ -520,9 +552,21 @@ MESSAGES: dict[str, dict[str, str]] = {
     "en_US": 'Reinforcement',
     "pt_BR": 'Reforço',
   },
+  'enum.learning_paradigm.semi_supervised': {
+    "en_US": 'Semi-Supervised',
+    "pt_BR": 'Semi-supervisionado',
+  },
   'enum.problem_type.classification': {
     "en_US": 'Classification',
     "pt_BR": 'Classificação',
+  },
+  'enum.problem_type.semi_supervised_classification': {
+    "en_US": 'Semi-Supervised Classification',
+    "pt_BR": 'Classificação semi-supervisionada',
+  },
+  'enum.problem_type.semi_supervised_regression': {
+    "en_US": 'Semi-Supervised Regression',
+    "pt_BR": 'Regressão semi-supervisionada',
   },
   'enum.problem_type.clustering': {
     "en_US": 'Clustering',
@@ -791,6 +835,10 @@ MESSAGES: dict[str, dict[str, str]] = {
   'experiment.form.split_hint_preset': {
     "en_US": 'This dataset already provides train and test files.',
     "pt_BR": 'Este dataset já fornece arquivos de treino e teste.',
+  },
+  'experiment.form.split_hint_semi_supervised': {
+    "en_US": 'Unlabeled data is used only for training. Configure the labeled holdout for evaluation.',
+    "pt_BR": 'Dados não rotulados entram só no treino. Configure o holdout rotulado para avaliação.',
   },
   'experiment.form.split_mode_train_test': {
     "en_US": 'Mode: Train/Test',

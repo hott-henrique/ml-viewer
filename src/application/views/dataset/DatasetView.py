@@ -129,6 +129,8 @@ class DatasetView(ttk.Frame):
       "full_path": dataset.path if dataset.layout == DatasetLayout.NO_SPLIT else "",
       "train_path": dataset.train_path if dataset.layout == DatasetLayout.TRAIN_TEST_SPLIT else "",
       "test_path": dataset.test_path if dataset.layout == DatasetLayout.TRAIN_TEST_SPLIT else "",
+      "labeled_path": dataset.labeled_path if dataset.layout == DatasetLayout.LABELED_UNLABELED else "",
+      "unlabeled_path": dataset.unlabeled_path if dataset.layout == DatasetLayout.LABELED_UNLABELED else "",
     }
 
     DatasetFormModal(self, on_save=self._on_dataset_saved, dataset_data=dataset_data)

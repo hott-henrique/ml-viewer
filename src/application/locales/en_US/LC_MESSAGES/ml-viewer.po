@@ -211,6 +211,12 @@ msgstr "Dataset file '{name}' is corrupted or was modified externally (MD5 misma
 msgid "dataset.err.invalid_target_index"
 msgstr "Target must be a non-negative column index."
 
+msgid "dataset.err.labeled_unlabeled_layout_restricted"
+msgstr "LabeledUnlabeled layout is only allowed for semi-supervised datasets."
+
+msgid "dataset.err.labeled_unlabeled_ncols_mismatch"
+msgstr "Labeled and unlabeled files must have the same number of columns (labeled={labeled}, unlabeled={unlabeled})."
+
 msgid "dataset.err.layout_files_mismatch"
 msgstr "Files do not match layout {layout}."
 
@@ -222,6 +228,12 @@ msgstr "Train and test files must have the same number of columns (train={train}
 
 msgid "dataset.err.not_found"
 msgstr "Dataset with ID {id} was not found."
+
+msgid "dataset.err.semi_supervised_requires_labeled_unlabeled"
+msgstr "Semi-supervised datasets require the LabeledUnlabeled layout."
+
+msgid "dataset.err.semi_supervised_requires_target"
+msgstr "Semi-supervised datasets require a valid target column index."
 
 msgid "dataset.err.supervised_requires_target"
 msgstr "Supervised datasets require a valid target column index."
@@ -247,6 +259,9 @@ msgstr "Add New Dataset"
 msgid "dataset.form.edit_title"
 msgstr "Edit Dataset"
 
+msgid "dataset.form.err_labeled_unlabeled_files"
+msgstr "Labeled and unlabeled CSV files are required for LabeledUnlabeled."
+
 msgid "dataset.form.err_name_file"
 msgstr "Name and file(s) are required."
 
@@ -261,6 +276,9 @@ msgstr "File (CSV):"
 
 msgid "dataset.form.has_header"
 msgstr "Header row present"
+
+msgid "dataset.form.labeled_file"
+msgstr "Labeled file (CSV):"
 
 msgid "dataset.form.layout"
 msgstr "Dataset layout:"
@@ -285,6 +303,9 @@ msgstr "Test file (CSV):"
 
 msgid "dataset.form.train_file"
 msgstr "Train file (CSV):"
+
+msgid "dataset.form.unlabeled_file"
+msgstr "Unlabeled file (CSV):"
 
 msgid "dataset.form.update"
 msgstr "Update Dataset"
@@ -325,6 +346,9 @@ msgstr "scalar"
 msgid "enum.analysis_output_kind.text"
 msgstr "text"
 
+msgid "enum.dataset_layout.labeled_unlabeled"
+msgstr "LabeledUnlabeled"
+
 msgid "enum.dataset_layout.nosplit"
 msgstr "NoSplit"
 
@@ -339,6 +363,12 @@ msgstr "OK"
 
 msgid "enum.experiment_status.pending"
 msgstr "Pending"
+
+msgid "enum.learning_paradigm.reinforcement"
+msgstr "Reinforcement"
+
+msgid "enum.learning_paradigm.semi_supervised"
+msgstr "Semi-Supervised"
 
 msgid "enum.learning_paradigm.supervised"
 msgstr "Supervised"
@@ -361,6 +391,60 @@ msgstr "Dimensionality Reduction"
 msgid "enum.problem_type.regression"
 msgstr "Regression"
 
+msgid "enum.problem_type.reinforcement_learning"
+msgstr "Reinforcement Learning"
+
+msgid "enum.problem_type.semi_supervised_classification"
+msgstr "Semi-Supervised Classification"
+
+msgid "enum.problem_type.semi_supervised_regression"
+msgstr "Semi-Supervised Regression"
+
+msgid "environment.err.import_none_added"
+msgstr "No environments were imported from the file."
+
+msgid "environment.err.incompatible_agent"
+msgstr "Agent {agent} is not compatible with environment kind {env}."
+
+msgid "environment.err.native_cannot_delete"
+msgstr "Native environments cannot be deleted."
+
+msgid "environment.err.not_found"
+msgstr "Environment with ID {id} was not found."
+
+msgid "environment.err.unknown_kind"
+msgstr "Unknown environment kind: {kind}"
+
+msgid "environment.msg.cannot_update_native"
+msgstr "Native environments cannot be updated."
+
+msgid "environment.msg.confirm_delete"
+msgstr "Delete {n} custom environment(s)?"
+
+msgid "environment.msg.imported"
+msgstr "Imported environment(s): {names}"
+
+msgid "environment.msg.select_delete"
+msgstr "Select at least one environment to delete."
+
+msgid "environment.msg.select_one_update"
+msgstr "Select exactly one environment to update."
+
+msgid "environment.msg.select_updated_py"
+msgstr "Select updated Python file for {name}"
+
+msgid "environment.msg.skip_native"
+msgstr "({n} native environment(s) will be skipped.)"
+
+msgid "environment.msg.updated"
+msgstr "Updated environment(s): {names}"
+
+msgid "environment.params.readonly"
+msgstr "Parameters"
+
+msgid "environment.view.title"
+msgstr "Environments"
+
 msgid "experiment.col.created_on"
 msgstr "Created On"
 
@@ -373,14 +457,29 @@ msgstr "Disk"
 msgid "experiment.col.model"
 msgstr "Model"
 
+msgid "experiment.col.source"
+msgstr "Dataset / Environment"
+
 msgid "experiment.err.artifact_integrity"
 msgstr "Artifact '{name}' for experiment #{id} is corrupted or was modified externally (MD5 mismatch)."
+
+msgid "experiment.err.dataset_and_environment"
+msgstr "Experiment cannot reference both a dataset and an environment."
+
+msgid "experiment.err.exactly_one_source"
+msgstr "Provide exactly one of dataset or environment."
+
+msgid "experiment.err.invalid_n_episodes"
+msgstr "Number of episodes must be an integer >= 1."
 
 msgid "experiment.err.invalid_test_size"
 msgstr "Test size must be a number between 0 and 1 (exclusive)."
 
 msgid "experiment.err.logs_integrity"
 msgstr "Logs for experiment #{id} are corrupted or were modified externally (MD5 mismatch)."
+
+msgid "experiment.err.missing_dataset_or_environment"
+msgstr "Experiment must reference a dataset or an environment."
 
 msgid "experiment.err.model_integrity"
 msgstr "The trained model for experiment '{name}' is corrupted or was modified externally (MD5 mismatch)."
@@ -445,14 +544,23 @@ msgstr "Experiment #{n}"
 msgid "experiment.form.edit_analysis"
 msgstr "Edit analysis"
 
+msgid "experiment.form.env_params"
+msgstr "Environment Parameters"
+
 msgid "experiment.form.err_analysis_label"
 msgstr "Analysis label is required."
 
 msgid "experiment.form.err_duplicate_analysis_label"
 msgstr "An analysis with label \"{label}\" is already in the list."
 
+msgid "experiment.form.err_invalid_n_episodes"
+msgstr "Episodes must be an integer >= 1."
+
 msgid "experiment.form.err_invalid_test_size"
 msgstr "Test size must be a number between 0 and 1 (exclusive)."
+
+msgid "experiment.form.err_invalid_train_seed"
+msgstr "Seed must be an integer or empty."
 
 msgid "experiment.form.err_need_analysis"
 msgstr "Add at least one analysis."
@@ -462,6 +570,9 @@ msgstr "Name, Dataset, and Model are required."
 
 msgid "experiment.form.hyperparams"
 msgstr "Hyperparameters"
+
+msgid "experiment.form.n_episodes"
+msgstr "Episodes"
 
 msgid "experiment.form.name"
 msgstr "Experiment Name:"
@@ -487,8 +598,23 @@ msgstr "Select Dataset:"
 msgid "experiment.form.select_dataset_for_analyses"
 msgstr "Select a dataset to choose analyses."
 
+msgid "experiment.form.select_environment"
+msgstr "Select Environment:"
+
+msgid "experiment.form.select_environment_for_analyses"
+msgstr "Select an environment to choose analyses."
+
 msgid "experiment.form.select_model"
 msgstr "Select Model:"
+
+msgid "experiment.form.source"
+msgstr "Source:"
+
+msgid "experiment.form.source_dataset"
+msgstr "Dataset"
+
+msgid "experiment.form.source_environment"
+msgstr "Environment (RL)"
 
 msgid "experiment.form.split"
 msgstr "Train/Test Split"
@@ -499,6 +625,9 @@ msgstr "This dataset has a single file. Configure how to split it for evaluation
 msgid "experiment.form.split_hint_preset"
 msgstr "This dataset already provides train and test files."
 
+msgid "experiment.form.split_hint_semi_supervised"
+msgstr "Unlabeled data is used only for training. Configure the labeled holdout for evaluation."
+
 msgid "experiment.form.split_mode_train_test"
 msgstr "Mode: Train/Test"
 
@@ -507,6 +636,12 @@ msgstr "Test size (0–1):"
 
 msgid "experiment.form.title"
 msgstr "New Experiment"
+
+msgid "experiment.form.train_config"
+msgstr "Training"
+
+msgid "experiment.form.train_seed"
+msgstr "Seed (optional)"
 
 msgid "experiment.logs.load_failed"
 msgstr "(Failed to load logs: {error})"
@@ -618,6 +753,9 @@ msgstr "📈 Analyses"
 
 msgid "nav.datasets"
 msgstr "📁 Datasets"
+
+msgid "nav.environments"
+msgstr "🎮 Environments"
 
 msgid "nav.models"
 msgstr "🧠 Models"

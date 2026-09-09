@@ -17,6 +17,10 @@ class ProblemTypeSelector(ttk.Frame):
           ProblemType.DIMENSIONALITY_REDUCTION,
           ProblemType.ASSOCIATION_RULES,
         ],
+        LearningParadigm.SEMI_SUPERVISED: [
+          ProblemType.SEMI_SUPERVISED_CLASSIFICATION,
+          ProblemType.SEMI_SUPERVISED_REGRESSION,
+        ],
         LearningParadigm.REINFORCEMENT: [ProblemType.REINFORCEMENT_LEARNING],
     }
 
