@@ -539,6 +539,10 @@ MESSAGES: dict[str, dict[str, str]] = {
     "en_US": 'Agent {agent} is not compatible with environment kind {env}.',
     "pt_BR": 'Agente {agent} não é compatível com o tipo de ambiente {env}.',
   },
+  'environment.err.compat_need_one': {
+    "en_US": 'Select at least one compatible environment.',
+    "pt_BR": 'Selecione pelo menos um ambiente compatível.',
+  },
   'environment.err.native_cannot_delete': {
     "en_US": 'Native environments cannot be deleted.',
     "pt_BR": 'Ambientes nativos não podem ser excluídos.',
@@ -651,6 +655,14 @@ MESSAGES: dict[str, dict[str, str]] = {
   'experiment.err.invalid_n_episodes': {
     "en_US": 'Number of episodes must be an integer >= 1.',
     "pt_BR": 'O número de episódios deve ser um inteiro >= 1.',
+  },
+  'experiment.err.invalid_watch_last_episodes': {
+    "en_US": 'Last episodes to show must be an integer >= 0.',
+    "pt_BR": 'Últimos episódios a mostrar deve ser um inteiro >= 0.',
+  },
+  'experiment.err.invalid_watch_delay_ms': {
+    "en_US": 'Watch delay must be an integer >= 0 (milliseconds).',
+    "pt_BR": 'O atraso da visualização deve ser um inteiro >= 0 (milissegundos).',
   },
   'experiment.err.dataset_and_environment': {
     "en_US": 'Experiment cannot reference both a dataset and an environment.',
@@ -828,6 +840,42 @@ MESSAGES: dict[str, dict[str, str]] = {
     "en_US": 'Seed must be an integer or empty.',
     "pt_BR": 'Seed deve ser um inteiro ou vazio.',
   },
+  'experiment.form.watch_during': {
+    "en_US": 'Watch during training',
+    "pt_BR": 'Ver durante o treino',
+  },
+  'experiment.form.watch_last_episodes': {
+    "en_US": 'Last N episodes to show',
+    "pt_BR": 'Últimos N episódios a mostrar',
+  },
+  'experiment.form.watch_delay_ms': {
+    "en_US": 'Delay (ms)',
+    "pt_BR": 'Atraso (ms)',
+  },
+  'experiment.form.err_invalid_watch_last': {
+    "en_US": 'Last N episodes must be an integer >= 0.',
+    "pt_BR": 'Últimos N episódios deve ser um inteiro >= 0.',
+  },
+  'experiment.form.err_invalid_watch_delay': {
+    "en_US": 'Delay must be an integer >= 0 (milliseconds).',
+    "pt_BR": 'Atraso deve ser um inteiro >= 0 (milissegundos).',
+  },
+  'experiment.watch.title': {
+    "en_US": 'Agent watch',
+    "pt_BR": 'Visualização do agente',
+  },
+  'experiment.watch.waiting': {
+    "en_US": 'Waiting for training…',
+    "pt_BR": 'Aguardando o treino…',
+  },
+  'experiment.watch.status': {
+    "en_US": 'Episode {episode} · step {step} · reward {reward:.2f}',
+    "pt_BR": 'Episódio {episode} · passo {step} · recompensa {reward:.2f}',
+  },
+  'experiment.watch.done': {
+    "en_US": 'Training finished.',
+    "pt_BR": 'Treino concluído.',
+  },
   'experiment.form.select_model': {
     "en_US": 'Select Model:',
     "pt_BR": 'Selecionar modelo:',
@@ -959,6 +1007,42 @@ MESSAGES: dict[str, dict[str, str]] = {
   'model.hyperparams.readonly': {
     "en_US": 'Hyperparameters (Read-Only)',
     "pt_BR": 'Hiperparâmetros (somente leitura)',
+  },
+  'model.compat.title': {
+    "en_US": 'Compatible environments — {agent}',
+    "pt_BR": 'Ambientes compatíveis — {agent}',
+  },
+  'model.compat.panel_title': {
+    "en_US": 'Compatible environments',
+    "pt_BR": 'Ambientes compatíveis',
+  },
+  'model.compat.hint': {
+    "en_US": 'Choose which environments agent "{agent}" may train on. An agent can be specific to a game or context.',
+    "pt_BR": 'Escolha em quais ambientes o agente "{agent}" pode treinar. Um agente pode ser específico de um jogo ou contexto.',
+  },
+  'model.compat.no_environments': {
+    "en_US": 'No environments registered yet.',
+    "pt_BR": 'Nenhum ambiente cadastrado ainda.',
+  },
+  'model.compat.err_need_one': {
+    "en_US": 'Select at least one compatible environment.',
+    "pt_BR": 'Selecione pelo menos um ambiente compatível.',
+  },
+  'model.compat.save': {
+    "en_US": 'Save environments',
+    "pt_BR": 'Salvar ambientes',
+  },
+  'model.compat.saved': {
+    "en_US": 'Compatible environments saved.',
+    "pt_BR": 'Ambientes compatíveis salvos.',
+  },
+  'model.compat.skipped': {
+    "en_US": 'No environments selected for "{agent}". Set them in the model panel when ready.',
+    "pt_BR": 'Nenhum ambiente selecionado para "{agent}". Defina-os no painel do modelo quando quiser.',
+  },
+  'common.save': {
+    "en_US": 'Save',
+    "pt_BR": 'Salvar',
   },
   'model.msg.cannot_update_native': {
     "en_US": 'You cannot update native models.',

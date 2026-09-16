@@ -25,6 +25,10 @@ from application.managers.model.ModelManager import HyperParamConfig
 NATIVE_COMPAT_SEED: list[tuple[str, str]] = [
   ("Q-Learning", "tic_tac_toe"),
   ("Monte Carlo", "tic_tac_toe"),
+  ("REINFORCE", "tic_tac_toe"),
+  ("Q-Learning", "gymnasium"),
+  ("Monte Carlo", "gymnasium"),
+  ("REINFORCE", "gymnasium"),
 ]
 
 ENVIRONMENTS_DIR = get_environments_dir()
@@ -41,8 +45,6 @@ class EnvironmentKindConfig(BaseModel):
   custom_module: t.Optional[t.Any] = None
   plugin_path: t.Optional[str] = None
   is_native: bool = False
-  # Only used when validating ENV_CONFIG on import (not persisted on registry config).
-  compatible_agents: list[str] = Field(default_factory=list)
 
 
 class EnvironmentManager:
@@ -182,13 +184,9 @@ class EnvironmentManager:
       for env_name, env_data in custom_config.items():
         try:
           raw = dict(env_data)
-          compatible = list(raw.pop("compatible_agents", []) or [])
+          # Legacy plugin key; associations are owned by agents in the UI.
+          raw.pop("compatible_agents", None)
           config = EnvironmentKindConfig.model_validate(raw)
-
-          if not compatible:
-            raise ValueError(
-              f"Environment '{env_name}' must declare a non-empty compatible_agents list."
-            )
 
           if not hasattr(module, config.class_name):
             raise ValueError(
@@ -209,13 +207,6 @@ class EnvironmentManager:
             is_native=False,
             created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
           ))
-
-          for agent in compatible:
-            exists = session.scalar(
-              select(CompatRow.id).where(CompatRow.agent == agent, CompatRow.env == env_name)
-            )
-            if exists is None:
-              session.add(CompatRow(agent=str(agent), env=env_name))
 
           added.append(env_name)
         except Exception as e:
@@ -271,6 +262,39 @@ class EnvironmentManager:
         select(CompatRow.agent).where(CompatRow.env == env_kind).order_by(CompatRow.agent)
       ).all()
       return list(rows)
+
+  @classmethod
+  def envs_for_agent(cls, agent_name: str) -> list[str]:
+    with SessionLocal() as session:
+      rows = session.scalars(
+        select(CompatRow.env).where(CompatRow.agent == agent_name).order_by(CompatRow.env)
+      ).all()
+      return list(rows)
+
+  @classmethod
+  def set_compat_for_agent(cls, agent_name: str, env_kinds: t.Sequence[str]) -> None:
+    kinds = [str(k) for k in env_kinds]
+    if not kinds:
+      raise ValueError(_("environment.err.compat_need_one"))
+
+    known = set(cls.kind_options())
+    unknown = [k for k in kinds if k not in known]
+    if unknown:
+      raise ValueError(
+        _("environment.err.unknown_kind").format(kind=", ".join(unknown))
+      )
+
+    with SessionLocal() as session:
+      session.execute(delete(CompatRow).where(CompatRow.agent == agent_name))
+      for env in kinds:
+        session.add(CompatRow(agent=agent_name, env=env))
+      session.commit()
+
+  @classmethod
+  def clear_compat_for_agent(cls, agent_name: str) -> None:
+    with SessionLocal() as session:
+      session.execute(delete(CompatRow).where(CompatRow.agent == agent_name))
+      session.commit()
 
   @classmethod
   def assert_compatible(cls, env_kind: str, agent_name: str) -> None:

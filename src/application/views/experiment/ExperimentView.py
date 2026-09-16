@@ -26,6 +26,7 @@ from application.managers.results import (
 )
 from application.views.experiment import ExperimentFormModal, ExperimentExportModal
 from application.views.experiment.ExperimentExportModal import ExperimentExportData
+from application.views.experiment.WatchWindow import WatchWindow
 from application.managers import AnalysisManager, EnvironmentManager, ExperimentManager, ModelManager
 from application.managers.DatasetManager import SEMI_SUPERVISED_TYPES, SUPERVISED_TYPES
 from application.managers.ExperimentManager import AnalysisRunSpec, ExperimentSplitConfig, ExperimentTrainConfig
@@ -299,7 +300,25 @@ class ExperimentView(ttk.Frame):
         EnvironmentManager.assert_compatible(environment_kind, payload["model_name"])
         env = EnvironmentManager.instantiate(environment_kind, environment_params)
         cfg = train_config or ExperimentTrainConfig()
-        train_result = TrainingRunner().run(model, env, cfg.to_runner_config())
+        runner_cfg = cfg.to_runner_config()
+        watch_window: t.Optional[WatchWindow] = None
+        on_step = None
+        if runner_cfg.watch_during and runner_cfg.watch_last_episodes > 0:
+          watch_window = WatchWindow(self, env_kind=environment_kind)
+          watch_window.lift()
+          self.update_idletasks()
+
+          def on_step(ep, step_i, state, action, step_result, frame, _w=watch_window):
+            if _w.closed:
+              return False
+            return _w.on_step(ep, step_i, state, action, step_result, frame)
+
+        train_result = TrainingRunner().run(model, env, runner_cfg, on_step=on_step)
+        if watch_window is not None and not watch_window.closed:
+          try:
+            watch_window.status_var.set(_("experiment.watch.done"))
+          except tk.TclError:
+            pass
         trained_model = model
         results = self._run_analyses(
           prob_type,

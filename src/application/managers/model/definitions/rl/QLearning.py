@@ -23,11 +23,23 @@ class QLearning:
 
     return row
 
-  def select_action(self, state: t.Hashable, *, legal_actions: t.Sequence[t.Hashable], explore: bool = True) -> t.Hashable:
+  def select_action(
+    self,
+    state: t.Any,
+    *,
+    legal_actions: t.Sequence[t.Any] = (),
+    explore: bool = True,
+    action_space: t.Any = None,
+  ) -> t.Any:
     actions = list(legal_actions)
+    if not actions and action_space is not None and hasattr(action_space, "n"):
+      actions = list(range(int(action_space.n)))
 
     if not actions:
-      raise ValueError("QLearning.select_action requires at least one legal action.")
+      raise ValueError(
+        "QLearning requires discrete legal actions (or a Discrete action_space). "
+        "For continuous Box actions use REINFORCE."
+      )
 
     row = self._ensure_actions(state, actions)
 
@@ -39,7 +51,7 @@ class QLearning:
 
     return best[int(self._rng.integers(0, len(best)))]
 
-  def update(self, state: t.Hashable, action: t.Hashable, reward: float, next_state: t.Hashable, *, terminated: bool) -> None:
+  def update(self, state: t.Any, action: t.Any, reward: float, next_state: t.Any, *, terminated: bool) -> None:
     row = self._q.setdefault(state, {})
     row.setdefault(action, 0.0)
 

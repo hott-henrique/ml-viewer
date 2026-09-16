@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class StepResult:
-  state: t.Hashable
+  state: t.Any
   reward: float
   terminated: bool
   truncated: bool
@@ -15,9 +15,9 @@ class StepResult:
 
 @dataclass(frozen=True)
 class Transition:
-  state: t.Hashable
-  action: t.Hashable
+  state: t.Any
+  action: t.Any
   reward: float
-  next_state: t.Hashable
+  next_state: t.Any
   terminated: bool
   truncated: bool

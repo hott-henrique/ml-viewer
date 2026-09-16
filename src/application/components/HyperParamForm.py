@@ -158,7 +158,7 @@ class HyperParamForm(ttk.Frame):
           parsed_kwargs[name] = float(raw_value)
         elif ptype == ParamType.BOOL.value:
           parsed_kwargs[name] = raw_value.lower() in ('true', '1', 't', 'y', 'yes')
-        else: # ParamType.CATEGORICAL.value
+        else:  # ParamType.CATEGORICAL | STRING
           parsed_kwargs[name] = raw_value
       except ValueError:
         raise ValueError(

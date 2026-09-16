@@ -46,10 +46,17 @@ class AssociationRulesModelAPI(t.Protocol):
 class AgentAPI(t.Protocol):
   """Reinforcement-learning agent: policy + per-transition update (no training loop)."""
 
-  def select_action(self, state: t.Hashable, *, legal_actions: t.Sequence[t.Hashable], explore: bool = True) -> t.Hashable:
+  def select_action(
+    self,
+    state: t.Any,
+    *,
+    legal_actions: t.Sequence[t.Any] = (),
+    explore: bool = True,
+    action_space: t.Any = None,
+  ) -> t.Any:
     ...
 
-  def update(self, state: t.Hashable, action: t.Hashable, reward: float, next_state: t.Hashable, *, terminated: bool) -> None:
+  def update(self, state: t.Any, action: t.Any, reward: float, next_state: t.Any, *, terminated: bool) -> None:
     ...
 
   def get_params(self) -> dict:

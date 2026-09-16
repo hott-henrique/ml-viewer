@@ -160,6 +160,9 @@ msgstr "Nenhum arquivo selecionado"
 msgid "common.output_results"
 msgstr "Saída / Resultados"
 
+msgid "common.save"
+msgstr "Salvar"
+
 msgid "common.select_csv"
 msgstr "Selecionar CSV"
 
@@ -409,6 +412,9 @@ msgstr "Classificação semi-supervisionada"
 msgid "enum.problem_type.semi_supervised_regression"
 msgstr "Regressão semi-supervisionada"
 
+msgid "environment.err.compat_need_one"
+msgstr "Selecione pelo menos um ambiente compatível."
+
 msgid "environment.err.import_none_added"
 msgstr "Nenhum ambiente foi importado do arquivo."
 
@@ -483,6 +489,12 @@ msgstr "O número de episódios deve ser um inteiro >= 1."
 
 msgid "experiment.err.invalid_test_size"
 msgstr "O tamanho do teste deve ser um número entre 0 e 1 (exclusive)."
+
+msgid "experiment.err.invalid_watch_delay_ms"
+msgstr "O atraso da visualização deve ser um inteiro >= 0 (milissegundos)."
+
+msgid "experiment.err.invalid_watch_last_episodes"
+msgstr "Últimos episódios a mostrar deve ser um inteiro >= 0."
 
 msgid "experiment.err.logs_integrity"
 msgstr "Os logs do experimento #{id} estão corrompidos ou foram alterados externamente (MD5 não corresponde)."
@@ -571,6 +583,12 @@ msgstr "O tamanho do teste deve ser um número entre 0 e 1 (exclusive)."
 msgid "experiment.form.err_invalid_train_seed"
 msgstr "Seed deve ser um inteiro ou vazio."
 
+msgid "experiment.form.err_invalid_watch_delay"
+msgstr "Atraso deve ser um inteiro >= 0 (milissegundos)."
+
+msgid "experiment.form.err_invalid_watch_last"
+msgstr "Últimos N episódios deve ser um inteiro >= 0."
+
 msgid "experiment.form.err_need_analysis"
 msgstr "Adicione pelo menos uma análise."
 
@@ -652,6 +670,15 @@ msgstr "Treino"
 msgid "experiment.form.train_seed"
 msgstr "Seed (opcional)"
 
+msgid "experiment.form.watch_delay_ms"
+msgstr "Atraso (ms)"
+
+msgid "experiment.form.watch_during"
+msgstr "Ver durante o treino"
+
+msgid "experiment.form.watch_last_episodes"
+msgstr "Últimos N episódios a mostrar"
+
 msgid "experiment.logs.load_failed"
 msgstr "(Falha ao carregar logs: {error})"
 
@@ -709,8 +736,44 @@ msgstr "⏳ Pending"
 msgid "experiment.view.title"
 msgstr "🧪 Experimentos"
 
+msgid "experiment.watch.done"
+msgstr "Treino concluído."
+
+msgid "experiment.watch.status"
+msgstr "Episódio {episode} · passo {step} · recompensa {reward:.2f}"
+
+msgid "experiment.watch.title"
+msgstr "Visualização do agente"
+
+msgid "experiment.watch.waiting"
+msgstr "Aguardando o treino…"
+
 msgid "model.col.problem_type"
 msgstr "Tipo de problema"
+
+msgid "model.compat.err_need_one"
+msgstr "Selecione pelo menos um ambiente compatível."
+
+msgid "model.compat.hint"
+msgstr "Escolha em quais ambientes o agente \"{agent}\" pode treinar. Um agente pode ser específico de um jogo ou contexto."
+
+msgid "model.compat.no_environments"
+msgstr "Nenhum ambiente cadastrado ainda."
+
+msgid "model.compat.panel_title"
+msgstr "Ambientes compatíveis"
+
+msgid "model.compat.save"
+msgstr "Salvar ambientes"
+
+msgid "model.compat.saved"
+msgstr "Ambientes compatíveis salvos."
+
+msgid "model.compat.skipped"
+msgstr "Nenhum ambiente selecionado para \"{agent}\". Defina-os no painel do modelo quando quiser."
+
+msgid "model.compat.title"
+msgstr "Ambientes compatíveis — {agent}"
 
 msgid "model.err.native_cannot_delete"
 msgstr "Modelos nativos não podem ser removidos."

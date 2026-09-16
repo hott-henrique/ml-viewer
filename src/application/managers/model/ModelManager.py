@@ -266,6 +266,11 @@ class ModelManager:
     if storage_filename:
       FileStore(MODELS_DIR).delete(storage_filename)
 
+    if problem_type == ProblemType.REINFORCEMENT_LEARNING:
+      from application.managers.environment.EnvironmentManager import EnvironmentManager
+
+      EnvironmentManager.clear_compat_for_agent(name)
+
     cls.boot_models()
 
 ModelManager.boot_models()

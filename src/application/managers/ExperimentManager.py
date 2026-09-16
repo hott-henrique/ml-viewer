@@ -55,6 +55,9 @@ class ExperimentTrainConfig(BaseModel):
   version: t.Literal[1] = 1
   n_episodes: int = 500
   seed: t.Optional[int] = 42
+  watch_during: bool = True
+  watch_last_episodes: int = 5
+  watch_delay_ms: int = 100
 
   @field_validator("n_episodes")
   @classmethod
@@ -63,8 +66,28 @@ class ExperimentTrainConfig(BaseModel):
       raise ValueError(_("experiment.err.invalid_n_episodes"))
     return value
 
+  @field_validator("watch_last_episodes")
+  @classmethod
+  def _validate_watch_last(cls, value: int) -> int:
+    if value < 0:
+      raise ValueError(_("experiment.err.invalid_watch_last_episodes"))
+    return value
+
+  @field_validator("watch_delay_ms")
+  @classmethod
+  def _validate_watch_delay(cls, value: int) -> int:
+    if value < 0:
+      raise ValueError(_("experiment.err.invalid_watch_delay_ms"))
+    return value
+
   def to_runner_config(self) -> TrainConfig:
-    return TrainConfig(n_episodes=self.n_episodes, seed=self.seed)
+    return TrainConfig(
+      n_episodes=self.n_episodes,
+      seed=self.seed,
+      watch_during=self.watch_during,
+      watch_last_episodes=self.watch_last_episodes,
+      watch_delay_ms=self.watch_delay_ms,
+    )
 
 class ResultArtifact(BaseModel):
   name: str

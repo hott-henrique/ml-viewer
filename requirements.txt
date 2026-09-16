@@ -6,3 +6,6 @@ pydantic>=2.13.4
 SQLAlchemy>=2.0.51
 platformdirs>=4.11.0
 mlxtend>=0.23.0
+gymnasium>=1.0.0
+pygame>=2.5.0
+Pillow>=10.0.0

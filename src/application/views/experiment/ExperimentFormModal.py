@@ -201,6 +201,15 @@ class ExperimentFormModal(tk.Toplevel):
     self.train_seed_var = tk.StringVar(
       value="" if initial_train is None or initial_train.seed is None else str(initial_train.seed)
     )
+    self.watch_during_var = tk.BooleanVar(
+      value=True if initial_train is None else bool(initial_train.watch_during)
+    )
+    self.watch_last_var = tk.StringVar(
+      value=str(5 if initial_train is None else initial_train.watch_last_episodes)
+    )
+    self.watch_delay_var = tk.StringVar(
+      value=str(100 if initial_train is None else initial_train.watch_delay_ms)
+    )
 
     self._build_ui()
     self._apply_autofill()
@@ -293,6 +302,17 @@ class ExperimentFormModal(tk.Toplevel):
     seed_row.pack(fill=tk.X, pady=(6, 0))
     ttk.Label(seed_row, text=_("experiment.form.train_seed")).pack(side=tk.LEFT)
     ttk.Entry(seed_row, textvariable=self.train_seed_var, width=10).pack(side=tk.LEFT, padx=(8, 0))
+    ttk.Checkbutton(
+      train_inner,
+      text=_("experiment.form.watch_during"),
+      variable=self.watch_during_var,
+    ).pack(anchor=tk.W, pady=(8, 0))
+    watch_row = ttk.Frame(train_inner)
+    watch_row.pack(fill=tk.X, pady=(6, 0))
+    ttk.Label(watch_row, text=_("experiment.form.watch_last_episodes")).pack(side=tk.LEFT)
+    ttk.Entry(watch_row, textvariable=self.watch_last_var, width=6).pack(side=tk.LEFT, padx=(8, 12))
+    ttk.Label(watch_row, text=_("experiment.form.watch_delay_ms")).pack(side=tk.LEFT)
+    ttk.Entry(watch_row, textvariable=self.watch_delay_var, width=6).pack(side=tk.LEFT, padx=(8, 0))
 
     ttk.Label(body, text=_("experiment.form.select_model"), foreground="#333333").pack(anchor=tk.W)
     self.model_combo = ttk.Combobox(body, textvariable=self._model_display_var, state="readonly")
@@ -607,7 +627,24 @@ class ExperimentFormModal(tk.Toplevel):
       except ValueError as exc:
         raise ValueError(_("experiment.form.err_invalid_train_seed")) from exc
 
-    return ExperimentTrainConfig(version=1, n_episodes=n_episodes, seed=seed)
+    try:
+      watch_last = int(self.watch_last_var.get().strip())
+    except ValueError as exc:
+      raise ValueError(_("experiment.form.err_invalid_watch_last")) from exc
+
+    try:
+      watch_delay = int(self.watch_delay_var.get().strip())
+    except ValueError as exc:
+      raise ValueError(_("experiment.form.err_invalid_watch_delay")) from exc
+
+    return ExperimentTrainConfig(
+      version=1,
+      n_episodes=n_episodes,
+      seed=seed,
+      watch_during=bool(self.watch_during_var.get()),
+      watch_last_episodes=watch_last,
+      watch_delay_ms=watch_delay,
+    )
 
   def _handle_save(self) -> None:
     is_rl = self.source_mode.get() == SOURCE_ENVIRONMENT

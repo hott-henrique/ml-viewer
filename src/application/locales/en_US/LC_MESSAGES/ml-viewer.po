@@ -160,6 +160,9 @@ msgstr "No file selected"
 msgid "common.output_results"
 msgstr "Output / Results"
 
+msgid "common.save"
+msgstr "Save"
+
 msgid "common.select_csv"
 msgstr "Select CSV"
 
@@ -409,6 +412,9 @@ msgstr "Semi-Supervised Classification"
 msgid "enum.problem_type.semi_supervised_regression"
 msgstr "Semi-Supervised Regression"
 
+msgid "environment.err.compat_need_one"
+msgstr "Select at least one compatible environment."
+
 msgid "environment.err.import_none_added"
 msgstr "No environments were imported from the file."
 
@@ -483,6 +489,12 @@ msgstr "Number of episodes must be an integer >= 1."
 
 msgid "experiment.err.invalid_test_size"
 msgstr "Test size must be a number between 0 and 1 (exclusive)."
+
+msgid "experiment.err.invalid_watch_delay_ms"
+msgstr "Watch delay must be an integer >= 0 (milliseconds)."
+
+msgid "experiment.err.invalid_watch_last_episodes"
+msgstr "Last episodes to show must be an integer >= 0."
 
 msgid "experiment.err.logs_integrity"
 msgstr "Logs for experiment #{id} are corrupted or were modified externally (MD5 mismatch)."
@@ -571,6 +583,12 @@ msgstr "Test size must be a number between 0 and 1 (exclusive)."
 msgid "experiment.form.err_invalid_train_seed"
 msgstr "Seed must be an integer or empty."
 
+msgid "experiment.form.err_invalid_watch_delay"
+msgstr "Delay must be an integer >= 0 (milliseconds)."
+
+msgid "experiment.form.err_invalid_watch_last"
+msgstr "Last N episodes must be an integer >= 0."
+
 msgid "experiment.form.err_need_analysis"
 msgstr "Add at least one analysis."
 
@@ -652,6 +670,15 @@ msgstr "Training"
 msgid "experiment.form.train_seed"
 msgstr "Seed (optional)"
 
+msgid "experiment.form.watch_delay_ms"
+msgstr "Delay (ms)"
+
+msgid "experiment.form.watch_during"
+msgstr "Watch during training"
+
+msgid "experiment.form.watch_last_episodes"
+msgstr "Last N episodes to show"
+
 msgid "experiment.logs.load_failed"
 msgstr "(Failed to load logs: {error})"
 
@@ -709,8 +736,44 @@ msgstr "⏳ Pending"
 msgid "experiment.view.title"
 msgstr "🧪 Experiments"
 
+msgid "experiment.watch.done"
+msgstr "Training finished."
+
+msgid "experiment.watch.status"
+msgstr "Episode {episode} · step {step} · reward {reward:.2f}"
+
+msgid "experiment.watch.title"
+msgstr "Agent watch"
+
+msgid "experiment.watch.waiting"
+msgstr "Waiting for training…"
+
 msgid "model.col.problem_type"
 msgstr "Problem Type"
+
+msgid "model.compat.err_need_one"
+msgstr "Select at least one compatible environment."
+
+msgid "model.compat.hint"
+msgstr "Choose which environments agent \"{agent}\" may train on. An agent can be specific to a game or context."
+
+msgid "model.compat.no_environments"
+msgstr "No environments registered yet."
+
+msgid "model.compat.panel_title"
+msgstr "Compatible environments"
+
+msgid "model.compat.save"
+msgstr "Save environments"
+
+msgid "model.compat.saved"
+msgstr "Compatible environments saved."
+
+msgid "model.compat.skipped"
+msgstr "No environments selected for \"{agent}\". Set them in the model panel when ready."
+
+msgid "model.compat.title"
+msgstr "Compatible environments — {agent}"
 
 msgid "model.err.native_cannot_delete"
 msgstr "Native models cannot be deleted."
