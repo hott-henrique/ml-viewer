@@ -13,7 +13,8 @@ from application.enums import (
   ProblemType,
 )
 
-HyperParamValue = int | float | bool | str
+FileRef = dict[str, t.Any]
+HyperParamValue = int | float | bool | str | FileRef | list[FileRef]
 
 def _str_enum(enum_cls: type) -> SAEnum:
   """Maps a StrEnum to its `.value` (not `.name`) when stored in SQLite."""
@@ -50,6 +51,7 @@ class DatasetFile(Base):
   storage_filename: Mapped[str]
   md5_hash: Mapped[str]
   size_bytes: Mapped[int]
+  logical_key: Mapped[t.Optional[str]] = mapped_column(default=None)
 
   dataset: Mapped["Dataset"] = relationship(back_populates="files")
 
@@ -70,6 +72,7 @@ class Environment(Base):
   original_filename: Mapped[t.Optional[str]] = mapped_column(default=None)
   md5_hash: Mapped[t.Optional[str]] = mapped_column(default=None)
   size_bytes: Mapped[t.Optional[int]] = mapped_column(default=None)
+  logical_key: Mapped[t.Optional[str]] = mapped_column(default=None)
   is_native: Mapped[bool] = mapped_column(default=False)
   created_at: Mapped[str]
 
@@ -103,6 +106,7 @@ class Experiment(Base):
   model_pickle_filename: Mapped[t.Optional[str]] = mapped_column(default=None)
   model_pickle_md5: Mapped[t.Optional[str]] = mapped_column(default=None)
   model_pickle_size: Mapped[t.Optional[int]] = mapped_column(default=None)
+  model_pickle_key: Mapped[t.Optional[str]] = mapped_column(default=None)
   created_at: Mapped[str]
 
   dataset: Mapped[t.Optional["Dataset"]] = relationship(back_populates="experiments")
@@ -122,6 +126,7 @@ class Model(Base):
   original_filename: Mapped[t.Optional[str]] = mapped_column(default=None)
   md5_hash: Mapped[t.Optional[str]] = mapped_column(default=None)
   size_bytes: Mapped[t.Optional[int]] = mapped_column(default=None)
+  logical_key: Mapped[t.Optional[str]] = mapped_column(default=None)
   is_native: Mapped[bool] = mapped_column(default=False)
   created_at: Mapped[str]
 
@@ -141,5 +146,24 @@ class Analysis(Base):
   original_filename: Mapped[t.Optional[str]] = mapped_column(default=None)
   md5_hash: Mapped[t.Optional[str]] = mapped_column(default=None)
   size_bytes: Mapped[t.Optional[int]] = mapped_column(default=None)
+  logical_key: Mapped[t.Optional[str]] = mapped_column(default=None)
   is_native: Mapped[bool] = mapped_column(default=False)
+  created_at: Mapped[str]
+
+class StoredFileRecord(Base):
+  """Versioned catalog of files copied into the application data directory."""
+
+  __tablename__ = "stored_files"
+  __table_args__ = (
+    UniqueConstraint("logical_key", "version", name="uq_stored_file_key_version"),
+  )
+
+  id: Mapped[int] = mapped_column(primary_key=True)
+  logical_key: Mapped[str]
+  version: Mapped[int]
+  storage_filename: Mapped[str]
+  original_filename: Mapped[str]
+  md5_hash: Mapped[str]
+  size_bytes: Mapped[int]
+  scope: Mapped[str]
   created_at: Mapped[str]

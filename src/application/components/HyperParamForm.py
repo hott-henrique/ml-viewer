@@ -1,10 +1,68 @@
+import ast
+import json
 import typing as t
 import tkinter as tk
-from tkinter import ttk
+from tkinter import filedialog, ttk
 
 from application.enums import ParamType
 from application.i18n import _, resolve_text
 from application.api.params import HyperParamConfig
+from application.db.storage import load_file, save_file
+
+def _initial_param_text(default: t.Any) -> str:
+  if default is None:
+    return ""
+
+  if isinstance(default, (dict, list)):
+    return json.dumps(default)
+
+  return str(default)
+
+def _decode_structured(raw_value: str) -> t.Any:
+  try:
+    return json.loads(raw_value)
+  except json.JSONDecodeError:
+    return ast.literal_eval(raw_value)
+
+def _file_display(raw_value: str) -> str:
+  if not raw_value:
+    return _("common.no_file_selected")
+
+  try:
+    parsed = _decode_structured(raw_value)
+  except (json.JSONDecodeError, SyntaxError, ValueError):
+    return raw_value
+
+  refs = parsed if isinstance(parsed, list) else [parsed]
+  names: list[str] = []
+
+  for ref in refs:
+    if not isinstance(ref, dict) or "key" not in ref:
+      continue
+
+    try:
+      names.append(load_file(str(ref["key"]), ref.get("version")).original_filename)
+    except FileNotFoundError:
+      names.append(str(ref["key"]))
+
+  return ", ".join(names) if names else _("common.no_file_selected")
+
+def _parse_file_value(raw_value: str, label: str, ptype: ParamType) -> dict[str, t.Any] | list[dict[str, t.Any]]:
+  try:
+    parsed = _decode_structured(raw_value)
+  except (json.JSONDecodeError, SyntaxError, ValueError):
+    raise ValueError(_("model.hyperparams.invalid_value").format(label=label, type=ptype))
+
+  if ptype == ParamType.FILES:
+    if not isinstance(parsed, list) or not all(isinstance(item, dict) and "key" in item and "version" in item for item in parsed):
+      raise ValueError(_("model.hyperparams.invalid_value").format(label=label, type=ptype))
+
+    return parsed
+
+  if not isinstance(parsed, dict) or "key" not in parsed or "version" not in parsed:
+    raise ValueError(_("model.hyperparams.invalid_value").format(label=label, type=ptype))
+
+  return parsed
 
 def create_tooltip(widget: tk.Widget, text: str) -> None:
   tooltip_window: t.Optional[tk.Toplevel] = None
@@ -76,6 +134,32 @@ class HyperParamForm(ttk.Frame):
   def _on_canvas_configure(self, event: tk.Event) -> None:
     self.canvas.itemconfig(self.canvas_window, width=event.width)
 
+  def _render_file_input(self, row: ttk.Frame, var: tk.StringVar, *, multiple: bool) -> None:
+    display = tk.StringVar(value=_file_display(var.get()))
+    var.trace_add("write", lambda *_args: display.set(_file_display(var.get())))
+    ttk.Label(row, textvariable=display, foreground="gray").pack(side=tk.RIGHT, padx=(5, 0))
+
+    if self.is_readonly:
+      return
+
+    def pick() -> None:
+      if multiple:
+        selected = filedialog.askopenfilenames(title=_("common.select_file"))
+        paths = list(selected)
+      else:
+        selected = filedialog.askopenfilename(title=_("common.select_file"))
+        paths = [selected] if selected else []
+
+      if not paths:
+        return
+
+      saved = [save_file(path) for path in paths]
+      refs = [{"key": item.key, "version": item.version} for item in saved]
+      var.set(json.dumps(refs if multiple else refs[0]))
+      display.set(_file_display(var.get()))
+
+    ttk.Button(row, text=_("common.select_file"), command=pick).pack(side=tk.RIGHT)
+
   def clear_form(self) -> None:
     for widget in self.inner_frame.winfo_children():
       widget.destroy()
@@ -97,7 +181,7 @@ class HyperParamForm(ttk.Frame):
       label = resolve_text(param.label)
       ttk.Label(row, text=label + ":").pack(side=tk.LEFT)
 
-      var = tk.StringVar(value=str(param.default if param.default is not None else ""))
+      var = tk.StringVar(value=_initial_param_text(param.default))
       
       if not self.is_readonly:
         var.trace_add("write", self._trigger_change)
@@ -110,17 +194,20 @@ class HyperParamForm(ttk.Frame):
 
       create_tooltip(info_icon, desc)
 
-      if param.type == ParamType.CATEGORICAL.value:
+      if param.type == ParamType.FILE or param.type == ParamType.FILES:
+        self._render_file_input(row, var, multiple=param.type == ParamType.FILES)
+      elif param.type == ParamType.CATEGORICAL.value:
         cbox_state = "disabled" if self.is_readonly else "readonly"
         input_widget = ttk.Combobox(row, textvariable=var, values=param.options, state=cbox_state, width=15)
+        input_widget.pack(side=tk.RIGHT)
       elif param.type == ParamType.BOOL.value:
         cbox_state = "disabled" if self.is_readonly else "readonly"
         input_widget = ttk.Combobox(row, textvariable=var, values=["True", "False"], state=cbox_state, width=15)
+        input_widget.pack(side=tk.RIGHT)
       else: # ParamType.INT | FLOAT | STRING.value
         entry_state = "readonly" if self.is_readonly else "normal"
         input_widget = ttk.Entry(row, textvariable=var, state=entry_state, width=15)
-
-      input_widget.pack(side=tk.RIGHT)
+        input_widget.pack(side=tk.RIGHT)
 
     if not self.is_readonly:
       self._trigger_change()
@@ -142,6 +229,10 @@ class HyperParamForm(ttk.Frame):
       ptype = param.type
 
       if raw_value == "None" or raw_value == "":
+        continue
+
+      if ptype == ParamType.FILE or ptype == ParamType.FILES:
+        parsed_kwargs[name] = _parse_file_value(raw_value, resolve_text(param.label), ptype)
         continue
 
       if raw_value == "True":

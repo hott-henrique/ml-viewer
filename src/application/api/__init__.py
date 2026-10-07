@@ -45,11 +45,18 @@ from application.api.models import (
 )
 from application.api.params import HyperParamConfig, ParamType
 from application.api.types import StepResult, Transition
+from application.db.storage import SavedFile, delete_file, discard_file, load_file, save_file
 
 __all__ = [
   # Types
   "StepResult",
   "Transition",
+  # Files
+  "SavedFile",
+  "save_file",
+  "load_file",
+  "delete_file",
+  "discard_file",
   # Environment
   "EnvironmentAPI",
   # Models / agents

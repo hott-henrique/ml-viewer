@@ -11,7 +11,7 @@ from application.db.database import SessionLocal
 from application.db.models import Dataset as DatasetRow
 from application.db.models import DatasetFile as DatasetFileRow
 from application.db.paths import get_datasets_dir
-from application.db.storage import FileIntegrityError, FileStore, StoredFile
+from application.db.storage import FileIntegrityError, FileStore, SavedFile, delete_file, save_file
 from application.enums import DatasetFileRole, DatasetLayout, ProblemType
 from application.i18n import _
 
@@ -96,6 +96,7 @@ class DatasetFileMeta(BaseModel):
   storage_filename: str
   md5_hash: str
   size_bytes: int
+  logical_key: t.Optional[str] = None
 
   @property
   def path(self) -> str:
@@ -115,6 +116,7 @@ class DatasetFileMeta(BaseModel):
       storage_filename=row.storage_filename,
       md5_hash=row.md5_hash,
       size_bytes=row.size_bytes,
+      logical_key=row.logical_key,
     )
 
 class DatasetMetadata(BaseModel):
@@ -239,10 +241,15 @@ def _validate_layout_and_files(
       )
 
 def _store_files(
-  store: FileStore,
   file_specs: list[tuple[DatasetFileRole, int, Path]],
-) -> list[tuple[DatasetFileRole, int, StoredFile]]:
-  return [(role, ordinal, store.save(path)) for role, ordinal, path in file_specs]
+  keys: dict[tuple[DatasetFileRole, int], str | None] | None = None,
+) -> list[tuple[DatasetFileRole, int, SavedFile]]:
+  keys = keys or {}
+
+  return [
+    (role, ordinal, save_file(path, key=keys.get((role, ordinal)), scope="datasets"))
+    for role, ordinal, path in file_specs
+  ]
 
 BASE_QUERY = select(DatasetRow).options(selectinload(DatasetRow.files))
 
@@ -286,8 +293,7 @@ class DatasetManager:
       if normalized_target >= ncols:
         raise ValueError(_("dataset.err.target_out_of_range").format(index=normalized_target, ncols=ncols))
 
-    store = FileStore(get_datasets_dir())
-    stored_files = _store_files(store, file_specs)
+    stored_files = _store_files(file_specs)
 
     with SessionLocal() as session:
       row = DatasetRow(
@@ -310,6 +316,7 @@ class DatasetManager:
           storage_filename=stored.storage_filename,
           md5_hash=stored.md5_hash,
           size_bytes=stored.size_bytes,
+          logical_key=stored.key,
         ))
 
       session.commit()
@@ -353,7 +360,6 @@ class DatasetManager:
 
       files_payload = payload.get("files")
       filepath = payload.get("path") or payload.get("filepath")
-      old_storage = [f.storage_filename for f in row.files]
 
       if files_payload is not None or filepath is not None:
         file_specs = cls._build_file_specs(layout, files=files_payload, filepath=filepath)
@@ -365,7 +371,10 @@ class DatasetManager:
           if row.target >= ncols:
             raise ValueError(_("dataset.err.target_out_of_range").format(index=row.target, ncols=ncols))
 
-        stored_files = _store_files(store, file_specs)
+        stored_files = _store_files(
+          file_specs,
+          {(f.role, f.ordinal): f.logical_key for f in row.files},
+        )
 
         for existing in list(row.files):
           session.delete(existing)
@@ -381,6 +390,7 @@ class DatasetManager:
             storage_filename=stored.storage_filename,
             md5_hash=stored.md5_hash,
             size_bytes=stored.size_bytes,
+            logical_key=stored.key,
           ))
       else:
         _validate_layout_and_files(
@@ -389,15 +399,11 @@ class DatasetManager:
           [(f.role, f.ordinal, store.resolve_path(f.storage_filename)) for f in row.files],
           row.has_header,
         )
-        old_storage = []
 
       session.commit()
 
       row = session.scalars(BASE_QUERY.where(DatasetRow.id == target_id)).one()
       metadata = DatasetMetadata.from_row(row)
-
-    for storage_filename in old_storage:
-      store.delete(storage_filename)
 
     return metadata
 
@@ -411,11 +417,15 @@ class DatasetManager:
       if row is None:
         return
 
-      storage_filenames = [f.storage_filename for f in row.files]
+      logical_keys = [f.logical_key for f in row.files if f.logical_key]
+      legacy_filenames = [f.storage_filename for f in row.files if not f.logical_key]
       session.delete(row)
       session.commit()
 
-    for storage_filename in storage_filenames:
+    for logical_key in logical_keys:
+      delete_file(logical_key)
+
+    for storage_filename in legacy_filenames:
       store.delete(storage_filename)
 
   @staticmethod

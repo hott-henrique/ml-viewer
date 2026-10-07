@@ -13,7 +13,7 @@ from application.db.database import SessionLocal
 from application.db.models import Dataset as DatasetRow
 from application.db.models import Experiment as ExperimentRow
 from application.db.paths import get_experiment_dir, get_experiments_dir
-from application.db.storage import FileIntegrityError, FileStore, StoredFile
+from application.db.storage import FileIntegrityError, FileStore, SavedFile, save_file
 from application.enums import ExperimentStatus, ProblemType
 from application.i18n import _, display_title
 from application.managers.DatasetManager import DatasetMetadata
@@ -28,7 +28,7 @@ from application.managers.results import (
   fallback_result_label,
 )
 
-HyperParamValue = int | float | bool | str
+HyperParamValue = int | float | bool | str | dict[str, t.Any] | list[dict[str, t.Any]]
 
 ArtifactKind = t.Literal["log", "text", "image", "scalar"]
 
@@ -95,6 +95,8 @@ class ResultArtifact(BaseModel):
   storage_filename: str
   md5_hash: str
   label: t.Optional[str] = None
+  logical_key: t.Optional[str] = None
+  version: t.Optional[int] = None
 
 class ExperimentMetadata(BaseModel):
   id: int
@@ -297,24 +299,24 @@ class ExperimentManager:
       return ExperimentMetadata.from_row(row)
 
   @classmethod
-  def _store_text_file(cls, store: FileStore, name: str, content: str) -> StoredFile:
+  def _store_text_file(cls, exp_id: int, name: str, content: str) -> SavedFile:
     with tempfile.NamedTemporaryFile(suffix=Path(name).suffix or ".txt", delete=False, mode="w", encoding="utf-8") as tmp_file:
       tmp_file.write(content)
       tmp_path = Path(tmp_file.name)
 
     try:
-      return store.save(tmp_path)
+      return save_file(tmp_path, scope=f"experiments/{exp_id}")
     finally:
       tmp_path.unlink(missing_ok=True)
 
   @classmethod
-  def _store_image_result(cls, store: FileStore, image: ImageResult) -> StoredFile:
+  def _store_image_result(cls, exp_id: int, image: ImageResult) -> SavedFile:
     with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_file:
       tmp_path = Path(tmp_file.name)
 
     try:
       image.figure.savefig(tmp_path, format="png", dpi=150)
-      return store.save(tmp_path)
+      return save_file(tmp_path, scope=f"experiments/{exp_id}")
     finally:
       tmp_path.unlink(missing_ok=True)
 
@@ -339,14 +341,15 @@ class ExperimentManager:
   @classmethod
   def save_logs(cls, exp_id: int, content: str) -> ExperimentMetadata:
     """Persists execution logs as a file in the experiment's subfolder."""
-    store = FileStore(get_experiment_dir(exp_id))
-    stored = cls._store_text_file(store, "logs.txt", content)
+    stored = cls._store_text_file(exp_id, "logs.txt", content)
 
     return cls._append_artifacts(exp_id, [ResultArtifact(
       name="logs.txt",
       kind="log",
       storage_filename=stored.storage_filename,
       md5_hash=stored.md5_hash,
+      logical_key=stored.key,
+      version=stored.version,
     )])
 
   @classmethod
@@ -375,36 +378,41 @@ class ExperimentManager:
   @classmethod
   def save_results(cls, exp_id: int, results: list[ExportResult]) -> ExperimentMetadata:
     """Persists analysis results (scalar + text + images) to the experiment's subfolder."""
-    store = FileStore(get_experiment_dir(exp_id))
     artifacts: list[ResultArtifact] = []
 
     for result in results:
       if isinstance(result, TextResult):
-        stored = cls._store_text_file(store, result.name, result.content)
+        stored = cls._store_text_file(exp_id, result.name, result.content)
         artifacts.append(ResultArtifact(
           name=result.name,
           kind="text",
           storage_filename=stored.storage_filename,
           md5_hash=stored.md5_hash,
           label=result.label,
+          logical_key=stored.key,
+          version=stored.version,
         ))
       elif isinstance(result, ScalarResult):
-        stored = cls._store_text_file(store, result.name, result.to_json())
+        stored = cls._store_text_file(exp_id, result.name, result.to_json())
         artifacts.append(ResultArtifact(
           name=result.name,
           kind="scalar",
           storage_filename=stored.storage_filename,
           md5_hash=stored.md5_hash,
           label=result.label,
+          logical_key=stored.key,
+          version=stored.version,
         ))
       elif isinstance(result, ImageResult):
-        stored = cls._store_image_result(store, result)
+        stored = cls._store_image_result(exp_id, result)
         artifacts.append(ResultArtifact(
           name=result.name,
           kind="image",
           storage_filename=stored.storage_filename,
           md5_hash=stored.md5_hash,
           label=result.label,
+          logical_key=stored.key,
+          version=stored.version,
         ))
       else:
         raise TypeError(f"Unsupported result type for persistence: {type(result)!r}")
@@ -451,14 +459,16 @@ class ExperimentManager:
   @classmethod
   def save_trained_model(cls, exp_id: int, trained_model: ModelAPI) -> ExperimentMetadata:
     """Persists a trained model's pickle to the experiment's own subfolder and records its metadata."""
-    store = FileStore(get_experiment_dir(exp_id))
+    with SessionLocal() as session:
+      existing = session.get(ExperimentRow, exp_id)
+      existing_key = existing.model_pickle_key if existing is not None else None
 
     with tempfile.NamedTemporaryFile(suffix=".pkl", delete=False) as tmp_file:
       pickle.dump(trained_model, tmp_file)
       tmp_path = Path(tmp_file.name)
 
     try:
-      stored = store.save(tmp_path)
+      stored = save_file(tmp_path, key=existing_key, scope=f"experiments/{exp_id}")
     finally:
       tmp_path.unlink(missing_ok=True)
 
@@ -471,6 +481,7 @@ class ExperimentManager:
       row.model_pickle_filename = stored.storage_filename
       row.model_pickle_md5 = stored.md5_hash
       row.model_pickle_size = stored.size_bytes
+      row.model_pickle_key = stored.key
 
       session.commit()
 

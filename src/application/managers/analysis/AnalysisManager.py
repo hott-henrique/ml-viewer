@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from application.db.database import SessionLocal
 from application.db.models import Analysis as AnalysisRow
 from application.db.paths import get_analyses_dir
-from application.db.storage import FileStore
+from application.db.storage import FileStore, delete_file, discard_file, save_file
 from application.enums import AnalysisOutputKind, ProblemType
 from application.i18n import TranslatableStr, _
 from application.api.params import HyperParamConfig
@@ -196,9 +196,8 @@ class AnalysisManager:
 
   @classmethod
   def import_from_file(cls, filepath: str) -> list[str]:
-    store = FileStore(ANALYSES_DIR)
-    stored = store.save(Path(filepath))
-    destination = str(store.resolve_path(stored.storage_filename))
+    stored = save_file(filepath, scope="analyses")
+    destination = str(stored.path)
 
     try:
       module = cls._load_module_from_path(destination)
@@ -211,7 +210,7 @@ class AnalysisManager:
       if not isinstance(custom_config, dict):
         raise ValueError("'ANALYSIS_CONFIG' must be a dictionary.")
     except Exception:
-      store.delete(stored.storage_filename)
+      discard_file(stored)
       raise
 
     added: list[str] = []
@@ -245,6 +244,7 @@ class AnalysisManager:
             original_filename=stored.original_filename,
             md5_hash=stored.md5_hash,
             size_bytes=stored.size_bytes,
+            logical_key=stored.key,
             is_native=False,
             created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
           ))
@@ -275,11 +275,21 @@ class AnalysisManager:
         raise ValueError(_("analysis.err.native_cannot_delete"))
 
       storage_filename = row.storage_filename
+      logical_key = row.logical_key
 
       session.delete(row)
       session.commit()
 
-    if storage_filename:
+      still_used = False
+
+      if logical_key:
+        still_used = session.scalar(
+          select(AnalysisRow.id).where(AnalysisRow.logical_key == logical_key)
+        ) is not None
+
+    if logical_key and not still_used:
+      delete_file(logical_key)
+    elif storage_filename and not logical_key:
       FileStore(ANALYSES_DIR).delete(storage_filename)
 
     cls.boot_analyses()

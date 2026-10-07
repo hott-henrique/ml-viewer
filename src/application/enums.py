@@ -22,6 +22,8 @@ class ParamType(StrEnum):
   BOOL = "bool"
   CATEGORICAL = "categorical"
   STRING = "string"
+  FILE = "file"
+  FILES = "files"
 
 class ExperimentStatus(StrEnum):
   PENDING = "Pending"

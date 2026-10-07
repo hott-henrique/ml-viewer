@@ -15,7 +15,7 @@ from application.db.database import SessionLocal
 from application.db.models import AgentEnvironmentCompat as CompatRow
 from application.db.models import Environment as EnvironmentRow
 from application.db.paths import get_environments_dir
-from application.db.storage import FileStore
+from application.db.storage import FileStore, delete_file, discard_file, save_file
 from application.i18n import TranslatableStr, _
 from application.api.params import HyperParamConfig
 from application.managers.environment.base import EnvironmentAPI
@@ -163,9 +163,8 @@ class EnvironmentManager:
 
   @classmethod
   def import_from_file(cls, filepath: str) -> list[str]:
-    store = FileStore(ENVIRONMENTS_DIR)
-    stored = store.save(Path(filepath))
-    destination = str(store.resolve_path(stored.storage_filename))
+    stored = save_file(filepath, scope="environments")
+    destination = str(stored.path)
 
     try:
       module = cls._load_module_from_path(destination)
@@ -175,7 +174,7 @@ class EnvironmentManager:
       if not isinstance(custom_config, dict):
         raise ValueError("'ENV_CONFIG' must be a dictionary.")
     except Exception:
-      store.delete(stored.storage_filename)
+      discard_file(stored)
       raise
 
     added: list[str] = []
@@ -204,6 +203,7 @@ class EnvironmentManager:
             original_filename=stored.original_filename,
             md5_hash=stored.md5_hash,
             size_bytes=stored.size_bytes,
+            logical_key=stored.key,
             is_native=False,
             created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
           ))
@@ -215,7 +215,7 @@ class EnvironmentManager:
       session.commit()
 
     if not added:
-      store.delete(stored.storage_filename)
+      discard_file(stored)
       raise ValueError(_("environment.err.import_none_added"))
 
     cls.boot_environments()
@@ -231,11 +231,14 @@ class EnvironmentManager:
         raise ValueError(_("environment.err.native_cannot_delete"))
 
       storage_filename = row.storage_filename
+      logical_key = row.logical_key
       session.execute(delete(CompatRow).where(CompatRow.env == name))
       session.delete(row)
       session.commit()
 
-    if storage_filename:
+    if logical_key:
+      delete_file(logical_key)
+    elif storage_filename:
       FileStore(ENVIRONMENTS_DIR).delete(storage_filename)
 
     cls.boot_environments()
