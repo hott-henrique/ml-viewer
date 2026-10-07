@@ -6,7 +6,7 @@ import typing as t
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from application.managers.environment.types import StepResult
+from application.api.types import StepResult
 
 _FRAME_SIZE = 300
 

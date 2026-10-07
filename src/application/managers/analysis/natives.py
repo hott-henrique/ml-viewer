@@ -14,7 +14,7 @@ from sklearn.metrics import (
 import numpy as np
 
 from application.enums import AnalysisOutputKind, ParamType, ProblemType
-from application.managers.results.base import (
+from application.api.analysis import (
   AssociationRulesAnalyzer,
   ClusteringAnalyzer,
   DimensionalityReductionAnalyzer,

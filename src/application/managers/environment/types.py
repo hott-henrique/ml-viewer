@@ -1,23 +1,5 @@
-from __future__ import annotations
+"""Re-exports from application.api (stable plugin surface)."""
 
-import typing as t
-from dataclasses import dataclass, field
+from application.api.types import StepResult, Transition
 
-
-@dataclass(frozen=True)
-class StepResult:
-  state: t.Any
-  reward: float
-  terminated: bool
-  truncated: bool
-  info: dict = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class Transition:
-  state: t.Any
-  action: t.Any
-  reward: float
-  next_state: t.Any
-  terminated: bool
-  truncated: bool
+__all__ = ["StepResult", "Transition"]

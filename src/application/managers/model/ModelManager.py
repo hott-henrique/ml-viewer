@@ -13,9 +13,10 @@ from application.db.database import SessionLocal
 from application.db.models import Model as ModelRow
 from application.db.paths import get_models_dir
 from application.db.storage import FileStore
-from application.enums import ParamType, ProblemType
+from application.enums import ProblemType
 from application.i18n import TranslatableStr, _
-from application.managers.model.base import ModelAPI
+from application.api.params import HyperParamConfig
+from application.api.models import ModelAPI
 from application.managers.model.definitions import (
   ASSOCIATION_REGISTRY,
   CLASSIFICATION_REGISTRY,
@@ -27,17 +28,6 @@ from application.managers.model.definitions import (
   SEMI_SUPERVISED_REGRESSION_REGISTRY,
 )
 
-class HyperParamConfig(BaseModel):
-  model_config = ConfigDict(arbitrary_types_allowed=True)
-
-  name: str
-  label: TranslatableStr
-  type: ParamType
-  default: t.Any = None
-  options: list[t.Any] = Field(default_factory=list)
-  description: TranslatableStr = ""
-
-  field_validation: t.Optional[t.Callable[[t.Any, dict], t.Optional[str]]] = None
 
 class ModelConfig(BaseModel):
   model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True)
@@ -218,6 +208,11 @@ class ModelManager:
       for model_name, model_data in custom_config.items():
         try:
           config = ModelConfig.model_validate(model_data)
+
+          if not hasattr(module, config.class_name):
+            raise ValueError(
+              f"Model class '{config.class_name}' not found in the imported file."
+            )
 
           session.add(ModelRow(
             name=model_name,

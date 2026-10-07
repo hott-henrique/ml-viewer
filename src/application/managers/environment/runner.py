@@ -4,9 +4,9 @@ import time
 import typing as t
 from dataclasses import dataclass, field
 
-from application.managers.environment.base import EnvironmentAPI
-from application.managers.environment.types import Transition
-from application.managers.model.base import AgentAPI
+from application.api.environment import EnvironmentAPI
+from application.api.models import AgentAPI
+from application.api.types import Transition
 
 
 @dataclass
@@ -26,7 +26,7 @@ class TrainResult:
 
 StepCallback = t.Callable[
   [int, int, t.Any, t.Any, t.Any, t.Any | None],
-  t.Any,
+  bool | None,
 ]
 
 
@@ -61,7 +61,14 @@ class TrainingRunner:
         space = getattr(env, "action_space", None)
         a = agent.select_action(s, legal_actions=legal, explore=True, action_space=space)
         step = env.step(a)
-        agent.update(s, a, step.reward, step.state, terminated=step.terminated)
+        agent.update(
+          s,
+          a,
+          step.reward,
+          step.state,
+          terminated=step.terminated,
+          truncated=step.truncated,
+        )
         transitions.append(
           Transition(
             state=s,

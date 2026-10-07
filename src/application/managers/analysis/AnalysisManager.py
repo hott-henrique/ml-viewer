@@ -15,9 +15,8 @@ from application.db.paths import get_analyses_dir
 from application.db.storage import FileStore
 from application.enums import AnalysisOutputKind, ProblemType
 from application.i18n import TranslatableStr, _
-from application.managers.analysis.natives import NATIVE_ANALYSIS_REGISTRY
-from application.managers.model.ModelManager import HyperParamConfig
-from application.managers.results.base import (
+from application.api.params import HyperParamConfig
+from application.api.analysis import (
   AssociationRulesAnalyzer,
   ClusteringAnalyzer,
   DimensionalityReductionAnalyzer,
@@ -25,6 +24,7 @@ from application.managers.results.base import (
   ResultAnalyzer,
   SupervisedAnalyzer,
 )
+from application.managers.analysis.natives import NATIVE_ANALYSIS_REGISTRY
 
 _ANALYZER_BASES = (
   SupervisedAnalyzer,

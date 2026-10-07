@@ -54,7 +54,16 @@ class MonteCarlo:
 
     return best[int(self._rng.integers(0, len(best)))]
 
-  def update(self, state: t.Any, action: t.Any, reward: float, next_state: t.Any, *, terminated: bool) -> None:
+  def update(
+    self,
+    state: t.Any,
+    action: t.Any,
+    reward: float,
+    next_state: t.Any,
+    *,
+    terminated: bool,
+    truncated: bool = False,
+  ) -> None:
     self._q.setdefault(state, {}).setdefault(action, 0.0)
     self._counts.setdefault(state, {}).setdefault(action, 0)
     self._episode.append((state, action, float(reward)))

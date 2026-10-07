@@ -17,9 +17,9 @@ from application.db.models import Environment as EnvironmentRow
 from application.db.paths import get_environments_dir
 from application.db.storage import FileStore
 from application.i18n import TranslatableStr, _
+from application.api.params import HyperParamConfig
 from application.managers.environment.base import EnvironmentAPI
 from application.managers.environment.definitions import ENV_KIND_REGISTRY
-from application.managers.model.ModelManager import HyperParamConfig
 
 # Seed pairs: (agent model name, env kind)
 NATIVE_COMPAT_SEED: list[tuple[str, str]] = [

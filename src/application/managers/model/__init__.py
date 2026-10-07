@@ -5,6 +5,7 @@ from application.managers.model.base import (
   ClusteringModelAPI,
   DimensionalityReductionModelAPI,
   ModelAPI,
+  SemiSupervisedModelAPI,
   SupervisedModelAPI,
 )
 
@@ -17,5 +18,6 @@ __all__ = [
   "ClusteringModelAPI",
   "DimensionalityReductionModelAPI",
   "AssociationRulesModelAPI",
+  "SemiSupervisedModelAPI",
   "AgentAPI",
 ]

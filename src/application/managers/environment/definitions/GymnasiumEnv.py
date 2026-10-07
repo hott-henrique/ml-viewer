@@ -4,7 +4,7 @@ import typing as t
 
 import numpy as np
 
-from application.managers.environment.types import StepResult
+from application.api.types import StepResult
 
 try:
   import gymnasium as gym

@@ -4,7 +4,7 @@ from tkinter import ttk
 
 from application.enums import ParamType
 from application.i18n import _, resolve_text
-from application.managers.model.ModelManager import HyperParamConfig
+from application.api.params import HyperParamConfig
 
 def create_tooltip(widget: tk.Widget, text: str) -> None:
   tooltip_window: t.Optional[tk.Toplevel] = None

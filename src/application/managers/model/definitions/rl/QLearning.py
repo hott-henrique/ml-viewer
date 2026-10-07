@@ -51,7 +51,16 @@ class QLearning:
 
     return best[int(self._rng.integers(0, len(best)))]
 
-  def update(self, state: t.Any, action: t.Any, reward: float, next_state: t.Any, *, terminated: bool) -> None:
+  def update(
+    self,
+    state: t.Any,
+    action: t.Any,
+    reward: float,
+    next_state: t.Any,
+    *,
+    terminated: bool,
+    truncated: bool = False,
+  ) -> None:
     row = self._q.setdefault(state, {})
     row.setdefault(action, 0.0)
 

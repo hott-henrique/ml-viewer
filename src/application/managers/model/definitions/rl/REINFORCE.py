@@ -120,7 +120,16 @@ class REINFORCE:
     self._pending = (feat, action, log_prob)
     return action
 
-  def update(self, state: t.Any, action: t.Any, reward: float, next_state: t.Any, *, terminated: bool) -> None:
+  def update(
+    self,
+    state: t.Any,
+    action: t.Any,
+    reward: float,
+    next_state: t.Any,
+    *,
+    terminated: bool,
+    truncated: bool = False,
+  ) -> None:
     pending = getattr(self, "_pending", None)
     if pending is None:
       feat = _features(state)
