@@ -2,6 +2,7 @@ import importlib
 import importlib.util
 import sys
 import typing as t
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -12,7 +13,7 @@ from sqlalchemy.orm import Session
 from application.db.database import SessionLocal
 from application.db.models import Analysis as AnalysisRow
 from application.db.paths import get_analyses_dir
-from application.db.storage import FileStore, delete_file, discard_file, save_file
+from application.db.storage import FileStore, delete_file, save_file_groups
 from application.enums import AnalysisOutputKind, ProblemType
 from application.i18n import TranslatableStr, _
 from application.api.params import HyperParamConfig
@@ -47,6 +48,19 @@ class AnalysisConfig(BaseModel):
   custom_module: t.Optional[t.Any] = None
   plugin_path: t.Optional[str] = None
   is_native: bool = False
+
+@dataclass(frozen=True)
+class AnalysisVersion:
+  id: int
+  name: str
+  problem_type: ProblemType
+  output_kind: AnalysisOutputKind
+  version: int
+  md5_hash: t.Optional[str]
+  is_native: bool
+  title: t.Optional[TranslatableStr]
+  description: TranslatableStr
+  params: list[HyperParamConfig]
 
 ANALYSES_DIR = get_analyses_dir()
 
@@ -135,6 +149,7 @@ class AnalysisManager:
           description=config.description,
           params=[p.model_dump(mode="json") for p in config.params],
           is_native=True,
+          version=1,
           created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         ))
 
@@ -189,31 +204,58 @@ class AnalysisManager:
     with SessionLocal() as session:
       cls._seed_native_analyses(session)
 
-      rows = session.scalars(select(AnalysisRow)).all()
+      rows = session.scalars(select(AnalysisRow).order_by(AnalysisRow.version)).all()
 
       for row in rows:
         cls._register_row_in_memory(row)
 
   @classmethod
+  def list_versions(cls) -> list[AnalysisVersion]:
+    with SessionLocal() as session:
+      rows = session.scalars(select(AnalysisRow).order_by(AnalysisRow.name, AnalysisRow.version)).all()
+      versions: list[AnalysisVersion] = []
+
+      for row in rows:
+        title: t.Optional[TranslatableStr] = row.title
+        description: TranslatableStr = row.description or ""
+        params = [HyperParamConfig.model_validate(p) for p in (row.params or [])]
+
+        if row.is_native:
+          native_data = NATIVE_ANALYSIS_REGISTRY.get(row.problem_type, {}).get(row.name)
+
+          if native_data is not None:
+            title = native_data.get("title", title)
+            description = native_data.get("description", description)
+            params = [HyperParamConfig.model_validate(p) for p in native_data.get("params", [])]
+
+        versions.append(AnalysisVersion(
+          id=row.id,
+          name=row.name,
+          problem_type=row.problem_type,
+          output_kind=row.output_kind,
+          version=row.version,
+          md5_hash=row.md5_hash,
+          is_native=row.is_native,
+          title=title,
+          description=description,
+          params=params,
+        ))
+
+      return versions
+
+  @classmethod
   def import_from_file(cls, filepath: str) -> list[str]:
-    stored = save_file(filepath, scope="analyses")
-    destination = str(stored.path)
+    module = cls._load_module_from_path(filepath)
 
-    try:
-      module = cls._load_module_from_path(destination)
+    if not hasattr(module, "ANALYSIS_CONFIG"):
+      raise ValueError("The imported file must contain an 'ANALYSIS_CONFIG' dictionary.")
 
-      if not hasattr(module, "ANALYSIS_CONFIG"):
-        raise ValueError("The imported file must contain an 'ANALYSIS_CONFIG' dictionary.")
+    custom_config = getattr(module, "ANALYSIS_CONFIG")
 
-      custom_config = getattr(module, "ANALYSIS_CONFIG")
+    if not isinstance(custom_config, dict):
+      raise ValueError("'ANALYSIS_CONFIG' must be a dictionary.")
 
-      if not isinstance(custom_config, dict):
-        raise ValueError("'ANALYSIS_CONFIG' must be a dictionary.")
-    except Exception:
-      discard_file(stored)
-      raise
-
-    added: list[str] = []
+    pending: list[tuple[str, AnalysisConfig, int, str | None]] = []
 
     with SessionLocal() as session:
       for analysis_name, analysis_data in custom_config.items():
@@ -231,27 +273,46 @@ class AnalysisManager:
               "or ReinforcementLearningAnalyzer."
             )
 
-          session.add(AnalysisRow(
-            name=analysis_name,
-            problem_type=config.type,
-            class_name=config.class_name,
-            module=None,
-            output_kind=config.output_kind,
-            title=config.title,
-            description=config.description,
-            params=[p.model_dump(mode="json") for p in config.params],
-            storage_filename=stored.storage_filename,
-            original_filename=stored.original_filename,
-            md5_hash=stored.md5_hash,
-            size_bytes=stored.size_bytes,
-            logical_key=stored.key,
-            is_native=False,
-            created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-          ))
-
-          added.append(analysis_name)
+          latest = session.scalar(
+            select(AnalysisRow)
+            .where(AnalysisRow.name == analysis_name, AnalysisRow.problem_type == config.type)
+            .order_by(AnalysisRow.version.desc())
+            .limit(1)
+          )
+          version = 1 if latest is None else latest.version + 1
+          previous_key = None if latest is None else latest.logical_key
+          pending.append((analysis_name, config, version, previous_key))
         except Exception as e:
           print(f"Warning: Custom analysis '{analysis_name}' rejected due to validation error: {e}")
+
+    if not pending:
+      raise ValueError("No analyses were added from the imported file.")
+
+    saved_by_key = save_file_groups(filepath, [item[3] for item in pending], "analyses")
+    added: list[str] = []
+
+    with SessionLocal() as session:
+      for analysis_name, config, version, previous_key in pending:
+        stored = saved_by_key[previous_key]
+        session.add(AnalysisRow(
+          name=analysis_name,
+          problem_type=config.type,
+          class_name=config.class_name,
+          module=None,
+          output_kind=config.output_kind,
+          title=config.title,
+          description=config.description,
+          params=[p.model_dump(mode="json") for p in config.params],
+          storage_filename=stored.storage_filename,
+          original_filename=stored.original_filename,
+          md5_hash=stored.md5_hash,
+          size_bytes=stored.size_bytes,
+          logical_key=stored.key,
+          version=version,
+          is_native=False,
+          created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        ))
+        added.append(analysis_name)
 
       session.commit()
 
@@ -260,13 +321,9 @@ class AnalysisManager:
     return added
 
   @classmethod
-  def delete_analysis(cls, problem_type: ProblemType | str, name: str) -> None:
-    problem_type = ProblemType(problem_type)
-
+  def delete_analysis(cls, analysis_id: int) -> None:
     with SessionLocal() as session:
-      row = session.scalar(
-        select(AnalysisRow).where(AnalysisRow.problem_type == problem_type, AnalysisRow.name == name)
-      )
+      row = session.get(AnalysisRow, analysis_id)
 
       if row is None:
         return

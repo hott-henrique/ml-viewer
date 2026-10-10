@@ -8,8 +8,9 @@ from application.views.settings import SettingsModal
 class Application(tk.Tk):
   def __init__(self):
     super().__init__()
+
     self.title(_("app.title"))
-    self.geometry("900x600")
+    self.geometry("1200x600")
 
     self.bg_sidebar = "#2c3e50"
     self._active_page = DatasetView.__name__

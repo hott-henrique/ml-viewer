@@ -4,6 +4,7 @@ import importlib
 import importlib.util
 import sys
 import typing as t
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -15,7 +16,7 @@ from application.db.database import SessionLocal
 from application.db.models import AgentEnvironmentCompat as CompatRow
 from application.db.models import Environment as EnvironmentRow
 from application.db.paths import get_environments_dir
-from application.db.storage import FileStore, delete_file, discard_file, save_file
+from application.db.storage import FileStore, delete_file, save_file_groups
 from application.i18n import TranslatableStr, _
 from application.api.params import HyperParamConfig
 from application.managers.environment.base import EnvironmentAPI
@@ -46,6 +47,15 @@ class EnvironmentKindConfig(BaseModel):
   plugin_path: t.Optional[str] = None
   is_native: bool = False
 
+@dataclass(frozen=True)
+class EnvironmentVersion:
+  id: int
+  name: str
+  version: int
+  md5_hash: t.Optional[str]
+  is_native: bool
+  title: t.Optional[TranslatableStr]
+  params: list[HyperParamConfig]
 
 class EnvironmentManager:
   BASE_ENV_REGISTRY: dict[str, EnvironmentKindConfig] = {}
@@ -98,6 +108,7 @@ class EnvironmentManager:
         description=config.description,
         params=[p.model_dump(mode="json") for p in config.params],
         is_native=True,
+        version=1,
         created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
       ))
 
@@ -157,33 +168,58 @@ class EnvironmentManager:
     with SessionLocal() as session:
       cls._seed_native_environments(session)
       cls._seed_compat(session)
-      rows = session.scalars(select(EnvironmentRow)).all()
+      rows = session.scalars(select(EnvironmentRow).order_by(EnvironmentRow.version)).all()
       for row in rows:
         cls._register_row_in_memory(row)
 
   @classmethod
+  def list_versions(cls) -> list[EnvironmentVersion]:
+    with SessionLocal() as session:
+      rows = session.scalars(select(EnvironmentRow).order_by(EnvironmentRow.name, EnvironmentRow.version)).all()
+
+      versions: list[EnvironmentVersion] = []
+
+      for row in rows:
+        title: t.Optional[TranslatableStr] = row.title
+        params = [HyperParamConfig.model_validate(p) for p in (row.params or [])]
+
+        if row.is_native:
+          native_data = ENV_KIND_REGISTRY.get(row.name)
+
+          if native_data is not None:
+            title = native_data.get("title", title)
+            params = [HyperParamConfig.model_validate(p) for p in native_data.get("params", [])]
+
+        versions.append(EnvironmentVersion(
+          id=row.id,
+          name=row.name,
+          version=row.version,
+          md5_hash=row.md5_hash,
+          is_native=row.is_native,
+          title=title,
+          params=params,
+        ))
+
+      return versions
+
+  @classmethod
   def import_from_file(cls, filepath: str) -> list[str]:
-    stored = save_file(filepath, scope="environments")
-    destination = str(stored.path)
+    module = cls._load_module_from_path(filepath)
 
-    try:
-      module = cls._load_module_from_path(destination)
-      if not hasattr(module, "ENV_CONFIG"):
-        raise ValueError("The imported file must contain an 'ENV_CONFIG' dictionary.")
-      custom_config = getattr(module, "ENV_CONFIG")
-      if not isinstance(custom_config, dict):
-        raise ValueError("'ENV_CONFIG' must be a dictionary.")
-    except Exception:
-      discard_file(stored)
-      raise
+    if not hasattr(module, "ENV_CONFIG"):
+      raise ValueError("The imported file must contain an 'ENV_CONFIG' dictionary.")
 
-    added: list[str] = []
+    custom_config = getattr(module, "ENV_CONFIG")
+
+    if not isinstance(custom_config, dict):
+      raise ValueError("'ENV_CONFIG' must be a dictionary.")
+
+    pending: list[tuple[str, EnvironmentKindConfig, int, str | None]] = []
 
     with SessionLocal() as session:
       for env_name, env_data in custom_config.items():
         try:
           raw = dict(env_data)
-          # Legacy plugin key; associations are owned by agents in the UI.
           raw.pop("compatible_agents", None)
           config = EnvironmentKindConfig.model_validate(raw)
 
@@ -192,53 +228,85 @@ class EnvironmentManager:
               f"Environment class '{config.class_name}' not found in the imported file."
             )
 
-          session.add(EnvironmentRow(
-            name=env_name,
-            class_name=config.class_name,
-            module=None,
-            title=config.title,
-            description=config.description,
-            params=[p.model_dump(mode="json") for p in config.params],
-            storage_filename=stored.storage_filename,
-            original_filename=stored.original_filename,
-            md5_hash=stored.md5_hash,
-            size_bytes=stored.size_bytes,
-            logical_key=stored.key,
-            is_native=False,
-            created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-          ))
-
-          added.append(env_name)
+          latest = session.scalar(
+            select(EnvironmentRow)
+            .where(EnvironmentRow.name == env_name)
+            .order_by(EnvironmentRow.version.desc())
+            .limit(1)
+          )
+          version = 1 if latest is None else latest.version + 1
+          previous_key = None if latest is None else latest.logical_key
+          pending.append((env_name, config, version, previous_key))
         except Exception as e:
           print(f"Warning: Custom environment '{env_name}' rejected due to validation error: {e}")
 
-      session.commit()
-
-    if not added:
-      discard_file(stored)
+    if not pending:
       raise ValueError(_("environment.err.import_none_added"))
+
+    saved_by_key = save_file_groups(filepath, [item[3] for item in pending], "environments")
+    added: list[str] = []
+
+    with SessionLocal() as session:
+      for env_name, config, version, previous_key in pending:
+        stored = saved_by_key[previous_key]
+        session.add(EnvironmentRow(
+          name=env_name,
+          class_name=config.class_name,
+          module=None,
+          title=config.title,
+          description=config.description,
+          params=[p.model_dump(mode="json") for p in config.params],
+          storage_filename=stored.storage_filename,
+          original_filename=stored.original_filename,
+          md5_hash=stored.md5_hash,
+          size_bytes=stored.size_bytes,
+          logical_key=stored.key,
+          version=version,
+          is_native=False,
+          created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        ))
+        added.append(env_name)
+
+      session.commit()
 
     cls.boot_environments()
     return added
 
   @classmethod
-  def delete_environment(cls, name: str) -> None:
+  def delete_environment(cls, environment_id: int) -> None:
     with SessionLocal() as session:
-      row = session.scalar(select(EnvironmentRow).where(EnvironmentRow.name == name))
+      row = session.get(EnvironmentRow, environment_id)
+
       if row is None:
         return
+
       if row.is_native:
         raise ValueError(_("environment.err.native_cannot_delete"))
 
       storage_filename = row.storage_filename
       logical_key = row.logical_key
-      session.execute(delete(CompatRow).where(CompatRow.env == name))
+      name = row.name
       session.delete(row)
       session.commit()
 
-    if logical_key:
+      still_used = False
+
+      if logical_key:
+        still_used = session.scalar(
+          select(EnvironmentRow.id).where(EnvironmentRow.logical_key == logical_key)
+        ) is not None
+
+      name_remains = session.scalar(
+        select(EnvironmentRow.id).where(EnvironmentRow.name == name)
+      ) is not None
+
+      if not name_remains:
+        session.execute(delete(CompatRow).where(CompatRow.env == name))
+        session.commit()
+
+    if logical_key and not still_used:
       delete_file(logical_key)
-    elif storage_filename:
+    elif storage_filename and not logical_key:
       FileStore(ENVIRONMENTS_DIR).delete(storage_filename)
 
     cls.boot_environments()

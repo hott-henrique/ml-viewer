@@ -2,6 +2,7 @@ import importlib
 import importlib.util
 import sys
 import typing as t
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -12,7 +13,7 @@ from sqlalchemy.orm import Session
 from application.db.database import SessionLocal
 from application.db.models import Model as ModelRow
 from application.db.paths import get_models_dir
-from application.db.storage import FileStore, delete_file, discard_file, save_file
+from application.db.storage import FileStore, delete_file, save_file_groups
 from application.enums import ProblemType
 from application.i18n import TranslatableStr, _
 from application.api.params import HyperParamConfig
@@ -41,6 +42,17 @@ class ModelConfig(BaseModel):
   custom_module: t.Optional[t.Any] = None
   plugin_path: t.Optional[str] = None
   is_native: bool = False
+
+@dataclass(frozen=True)
+class ModelVersion:
+  id: int
+  name: str
+  problem_type: ProblemType
+  version: int
+  md5_hash: t.Optional[str]
+  is_native: bool
+  title: t.Optional[TranslatableStr]
+  params: list[HyperParamConfig]
 
 MODELS_DIR = get_models_dir()
 
@@ -124,6 +136,7 @@ class ModelManager:
           description=config.description,
           params=[p.model_dump(mode="json") for p in config.params],
           is_native=True,
+          version=1,
           created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         ))
 
@@ -177,31 +190,54 @@ class ModelManager:
     with SessionLocal() as session:
       cls._seed_native_models(session)
 
-      rows = session.scalars(select(ModelRow)).all()
+      rows = session.scalars(select(ModelRow).order_by(ModelRow.version)).all()
 
       for row in rows:
         cls._register_row_in_memory(row)
 
   @classmethod
+  def list_versions(cls) -> list[ModelVersion]:
+    with SessionLocal() as session:
+      rows = session.scalars(select(ModelRow).order_by(ModelRow.name, ModelRow.version)).all()
+
+      return [cls._version_from_row(row) for row in rows]
+
+  @classmethod
+  def _version_from_row(cls, row: ModelRow) -> ModelVersion:
+    title: t.Optional[TranslatableStr] = row.title
+    params = [HyperParamConfig.model_validate(p) for p in (row.params or [])]
+
+    if row.is_native:
+      native_data = NATIVE_MODEL_REGISTRIES.get(row.problem_type, {}).get(row.name)
+
+      if native_data is not None:
+        title = native_data.get("title", title)
+        params = [HyperParamConfig.model_validate(p) for p in native_data.get("params", [])]
+
+    return ModelVersion(
+      id=row.id,
+      name=row.name,
+      problem_type=row.problem_type,
+      version=row.version,
+      md5_hash=row.md5_hash,
+      is_native=row.is_native,
+      title=title,
+      params=params,
+    )
+
+  @classmethod
   def import_from_file(cls, filepath: str) -> list[str]:
-    stored = save_file(filepath, scope="models")
-    destination = str(stored.path)
+    module = cls._load_module_from_path(filepath)
 
-    try:
-      module = cls._load_module_from_path(destination)
+    if not hasattr(module, "MODEL_CONFIG"):
+      raise ValueError("The imported file must contain a 'MODEL_CONFIG' dictionary.")
 
-      if not hasattr(module, 'MODEL_CONFIG'):
-        raise ValueError("The imported file must contain a 'MODEL_CONFIG' dictionary.")
+    custom_config: dict[str, dict[str, t.Any]] = getattr(module, "MODEL_CONFIG")
 
-      custom_config: dict[str, dict[str, t.Any]] = getattr(module, 'MODEL_CONFIG')
+    if not isinstance(custom_config, dict):
+      raise ValueError("'MODEL_CONFIG' must be a dictionary.")
 
-      if not isinstance(custom_config, dict):
-        raise ValueError("'MODEL_CONFIG' must be a dictionary.")
-    except Exception:
-      discard_file(stored)
-      raise
-
-    added_models: list[str] = []
+    pending: list[tuple[str, ModelConfig, int, str | None]] = []
 
     with SessionLocal() as session:
       for model_name, model_data in custom_config.items():
@@ -213,26 +249,46 @@ class ModelManager:
               f"Model class '{config.class_name}' not found in the imported file."
             )
 
-          session.add(ModelRow(
-            name=model_name,
-            problem_type=config.type,
-            class_name=config.class_name,
-            module=None,
-            title=config.title,
-            description=config.description,
-            params=[p.model_dump(mode="json") for p in config.params],
-            storage_filename=stored.storage_filename,
-            original_filename=stored.original_filename,
-            md5_hash=stored.md5_hash,
-            size_bytes=stored.size_bytes,
-            logical_key=stored.key,
-            is_native=False,
-            created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-          ))
-
-          added_models.append(model_name)
+          latest = session.scalar(
+            select(ModelRow)
+            .where(ModelRow.name == model_name, ModelRow.problem_type == config.type)
+            .order_by(ModelRow.version.desc())
+            .limit(1)
+          )
+          version = 1 if latest is None else latest.version + 1
+          previous_key = None if latest is None else latest.logical_key
+          pending.append((model_name, config, version, previous_key))
         except Exception as e:
           print(f"Warning: Custom plugin '{model_name}' rejected due to validation error: {e}")
+
+    if not pending:
+      raise ValueError("No models were added from the imported file.")
+
+    saved_by_key = save_file_groups(filepath, [item[3] for item in pending], "models")
+
+    added_models: list[str] = []
+
+    with SessionLocal() as session:
+      for model_name, config, version, previous_key in pending:
+        stored = saved_by_key[previous_key]
+        session.add(ModelRow(
+          name=model_name,
+          problem_type=config.type,
+          class_name=config.class_name,
+          module=None,
+          title=config.title,
+          description=config.description,
+          params=[p.model_dump(mode="json") for p in config.params],
+          storage_filename=stored.storage_filename,
+          original_filename=stored.original_filename,
+          md5_hash=stored.md5_hash,
+          size_bytes=stored.size_bytes,
+          logical_key=stored.key,
+          version=version,
+          is_native=False,
+          created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        ))
+        added_models.append(model_name)
 
       session.commit()
 
@@ -241,11 +297,9 @@ class ModelManager:
     return added_models
 
   @classmethod
-  def delete_model(cls, problem_type: ProblemType, name: str) -> None:
+  def delete_model(cls, model_id: int) -> None:
     with SessionLocal() as session:
-      row = session.scalar(
-        select(ModelRow).where(ModelRow.problem_type == problem_type, ModelRow.name == name)
-      )
+      row = session.get(ModelRow, model_id)
 
       if row is None:
         return
@@ -255,6 +309,8 @@ class ModelManager:
 
       storage_filename = row.storage_filename
       logical_key = row.logical_key
+      name = row.name
+      problem_type = row.problem_type
 
       session.delete(row)
       session.commit()
@@ -266,12 +322,16 @@ class ModelManager:
           select(ModelRow.id).where(ModelRow.logical_key == logical_key)
         ) is not None
 
+      name_remains = session.scalar(
+        select(ModelRow.id).where(ModelRow.name == name, ModelRow.problem_type == problem_type)
+      ) is not None
+
     if logical_key and not still_used:
       delete_file(logical_key)
     elif storage_filename and not logical_key:
       FileStore(MODELS_DIR).delete(storage_filename)
 
-    if problem_type == ProblemType.REINFORCEMENT_LEARNING:
+    if problem_type == ProblemType.REINFORCEMENT_LEARNING and not name_remains:
       from application.managers.environment.EnvironmentManager import EnvironmentManager
 
       EnvironmentManager.clear_compat_for_agent(name)

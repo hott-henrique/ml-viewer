@@ -216,7 +216,7 @@ class ExperimentFormModal(tk.Toplevel):
     self._update_source_visibility()
 
   def _dataset_display(self, ds: DatasetMetadata) -> str:
-    return f"{ds.name} ({localize_enum(ds.type)})"
+    return f"{ds.name} v{ds.version} ({localize_enum(ds.type)})"
 
   def _environment_kind_display(self, kind: str) -> str:
     try:
@@ -428,7 +428,7 @@ class ExperimentFormModal(tk.Toplevel):
       ttk.Label(row, text=spec.label).pack(side=tk.LEFT, fill=tk.X, expand=True)
       ttk.Button(
         row,
-        text=_("common.edit"),
+        text=_("common.update"),
         width=8,
         command=lambda i=index: self._open_edit_analysis(i),
       ).pack(side=tk.RIGHT, padx=(4, 0))

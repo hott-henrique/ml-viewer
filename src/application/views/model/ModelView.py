@@ -27,24 +27,28 @@ class ModelView(ttk.Frame):
     table_frame = ttk.Frame(self)
     table_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
-    columns = ("key", "name", "type", "source")
+    columns = ("id", "name", "type", "source", "version", "md5")
     self.tree = SortableTreeview(
       table_frame,
       columns=columns,
-      display_columns=("name", "type", "source"),
+      display_columns=("name", "type", "source", "version", "md5"),
       height=8,
     )
 
-    self.tree.set_heading("key", _("common.id"), sortable=False)
-    self.tree.column("key", width=0, stretch=tk.NO)
+    self.tree.set_heading("id", _("common.id"), sortable=False)
+    self.tree.column("id", width=0, stretch=tk.NO)
 
     self.tree.set_heading("name", _("common.name"))
     self.tree.set_heading("type", _("model.col.problem_type"))
     self.tree.set_heading("source", _("common.source"))
+    self.tree.set_heading("version", _("common.version"))
+    self.tree.set_heading("md5", _("common.md5"))
 
     self.tree.column("name", width=250)
     self.tree.column("type", width=120)
     self.tree.column("source", width=100)
+    self.tree.column("version", width=70)
+    self.tree.column("md5", width=220)
 
     scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
     self.tree.configure(yscrollcommand=scrollbar.set)
@@ -70,34 +74,30 @@ class ModelView(ttk.Frame):
     )
     self.compat_save_btn.pack(anchor=tk.E, padx=10, pady=(0, 8))
 
+    self._versions: dict[int, object] = {}
     self.load_table_data()
 
   def load_table_data(self) -> None:
     for item in self.tree.get_children():
       self.tree.delete(item)
 
-    for problem_type in (
-      ProblemType.CLASSIFICATION,
-      ProblemType.REGRESSION,
-      ProblemType.CLUSTERING,
-      ProblemType.DIMENSIONALITY_REDUCTION,
-      ProblemType.ASSOCIATION_RULES,
-      ProblemType.SEMI_SUPERVISED_CLASSIFICATION,
-      ProblemType.SEMI_SUPERVISED_REGRESSION,
-      ProblemType.REINFORCEMENT_LEARNING,
-    ):
-      for name, model_config in ModelManager.registry(problem_type).items():
-        source = _("common.custom") if model_config.plugin_path else _("common.native")
-        self.tree.insert(
-          "",
-          tk.END,
-          values=(
-            name,
-            display_title(model_config.title, name),
-            localize_enum(problem_type),
-            source,
-          ),
-        )
+    self._versions = {}
+
+    for version in ModelManager.list_versions():
+      self._versions[version.id] = version
+      source = _("common.native") if version.is_native else _("common.custom")
+      self.tree.insert(
+        "",
+        tk.END,
+        values=(
+          version.id,
+          display_title(version.title, version.name),
+          localize_enum(version.problem_type),
+          source,
+          version.version,
+          version.md5_hash or "",
+        ),
+      )
 
   def _selected_rows(self) -> list[tuple]:
     return [self.tree.item(iid)["values"] for iid in self.tree.selection()]
@@ -195,16 +195,15 @@ class ModelView(ttk.Frame):
       self._clear_compat_panel()
       return
 
-    key, _title, _prob_type_label, _source = rows[0]
-    problem_type, model_config = self._find_model(str(key))
+    version = self._versions.get(int(rows[0][0]))
 
-    if model_config:
-      self.hyperparam_form.render_form(model_config.params)
+    if version:
+      self.hyperparam_form.render_form(version.params)
     else:
       self.hyperparam_form.render_form([])
 
-    if problem_type == ProblemType.REINFORCEMENT_LEARNING:
-      self._render_compat_panel(str(key))
+    if version and version.problem_type == ProblemType.REINFORCEMENT_LEARNING:
+      self._render_compat_panel(version.name)
     else:
       self._clear_compat_panel()
 
@@ -229,14 +228,15 @@ class ModelView(ttk.Frame):
       messagebox.showwarning(_("common.warning"), _("model.msg.select_one_update"))
       return
 
-    key, _title, _prob_type_label, source = rows[0]
+    version = self._versions.get(int(rows[0][0]))
+    source = rows[0][3]
 
-    if self._is_native_source(str(source)):
+    if version is None or self._is_native_source(str(source)):
       messagebox.showwarning(_("common.warning"), _("model.msg.cannot_update_native"))
       return
 
     filepath = filedialog.askopenfilename(
-      title=_("model.msg.select_updated_py").format(name=key),
+      title=_("model.msg.select_updated_py").format(name=version.name),
       filetypes=[(_("common.filetypes.python"), "*.py")],
     )
 
@@ -265,7 +265,7 @@ class ModelView(ttk.Frame):
       messagebox.showerror(_("common.error"), _("model.err.native_cannot_delete"))
       return
 
-    names = [str(row[0]) for row in custom_rows]
+    names = [str(row[1]) for row in custom_rows]
     if len(names) == 1:
       label = names[0]
     else:
@@ -286,27 +286,12 @@ class ModelView(ttk.Frame):
 
     errors: list[str] = []
 
-    for key, _title, _prob_type_label, _source in custom_rows:
-      deleted = False
-      for problem_type in (
-        ProblemType.CLASSIFICATION,
-        ProblemType.REGRESSION,
-        ProblemType.CLUSTERING,
-        ProblemType.DIMENSIONALITY_REDUCTION,
-        ProblemType.ASSOCIATION_RULES,
-        ProblemType.SEMI_SUPERVISED_CLASSIFICATION,
-        ProblemType.SEMI_SUPERVISED_REGRESSION,
-        ProblemType.REINFORCEMENT_LEARNING,
-      ):
-        if str(key) in ModelManager.registry(problem_type):
-          try:
-            ModelManager.delete_model(problem_type, str(key))
-            deleted = True
-          except Exception as e:
-            errors.append(f"{key}: {e}")
-          break
-      if not deleted:
-        errors.append(f"{key}: not found")
+    for row in custom_rows:
+      label = str(row[1])
+      try:
+        ModelManager.delete_model(int(row[0]))
+      except Exception as e:
+        errors.append(f"{label}: {e}")
 
     self.hyperparam_form.render_form([])
     self._clear_compat_panel()

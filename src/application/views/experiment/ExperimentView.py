@@ -163,10 +163,16 @@ class ExperimentView(ttk.Frame):
       disk_bytes = dir_size_bytes(get_experiments_dir() / str(exp.id))
 
       model_config = ModelManager.registry(exp.problem_type).get(exp.model_name)
-      model_display = display_title(model_config.title, exp.model_name) if model_config else exp.model_name
+      model_title = display_title(model_config.title, exp.model_name) if model_config else exp.model_name
+      model_display = f"{model_title} v{exp.model_version}"
+
+      if exp.dataset is not None:
+        dataset_display = f"{exp.dataset.name} v{exp.dataset.version}"
+      else:
+        dataset_display = exp.dataset_name
 
       self.tree.insert("", tk.END, values=(
-        exp.id, exp.name, exp.dataset_name,
+        exp.id, exp.name, dataset_display,
         model_display, status_icon, exp.date,
         format_bytes(disk_bytes), disk_bytes,
       ))

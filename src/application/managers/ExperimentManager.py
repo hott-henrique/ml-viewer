@@ -6,12 +6,13 @@ from datetime import datetime
 from pathlib import Path
 
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from application.db.database import SessionLocal
 from application.db.models import Dataset as DatasetRow
 from application.db.models import Experiment as ExperimentRow
+from application.db.models import Model as ModelRow
 from application.db.paths import get_experiment_dir, get_experiments_dir
 from application.db.storage import FileIntegrityError, FileStore, SavedFile, save_file
 from application.enums import ExperimentStatus, ProblemType
@@ -107,6 +108,7 @@ class ExperimentMetadata(BaseModel):
   dataset_name: str
   problem_type: ProblemType
   model_name: str
+  model_version: int = 1
   hyperparameters: dict[str, HyperParamValue]
   status: ExperimentStatus
   date: str
@@ -177,6 +179,7 @@ class ExperimentMetadata(BaseModel):
       dataset_name=source_name,
       problem_type=problem_type,
       model_name=row.model_name,
+      model_version=row.model_version,
       hyperparameters=row.hyperparameters,
       status=row.status,
       date=row.created_at,
@@ -248,13 +251,22 @@ class ExperimentManager:
       for a in (analyses or [])
     ]
 
+    problem_type = dataset.type if dataset is not None else ProblemType.REINFORCEMENT_LEARNING
+
     with SessionLocal() as session:
+      current_model_version = session.scalar(
+        select(func.max(ModelRow.version)).where(
+          ModelRow.name == model_name,
+          ModelRow.problem_type == problem_type,
+        )
+      )
       row = ExperimentRow(
         name=name,
         dataset_id=dataset.id if dataset is not None else None,
         environment_kind=environment_kind,
         environment_params=dict(environment_params or {}) if environment_kind else None,
         model_name=model_name,
+        model_version=1 if current_model_version is None else int(current_model_version),
         hyperparameters=hyperparams,
         status=status,
         analyses=parsed_analyses,

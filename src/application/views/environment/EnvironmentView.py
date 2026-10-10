@@ -22,22 +22,26 @@ class EnvironmentView(ttk.Frame):
     table_frame = ttk.Frame(self)
     table_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
-    columns = ("key", "name", "source")
+    columns = ("id", "name", "source", "version", "md5")
     self.tree = SortableTreeview(
       table_frame,
       columns=columns,
-      display_columns=("name", "source"),
+      display_columns=("name", "source", "version", "md5"),
       height=8,
     )
 
-    self.tree.set_heading("key", _("common.id"), sortable=False)
-    self.tree.column("key", width=0, stretch=tk.NO)
+    self.tree.set_heading("id", _("common.id"), sortable=False)
+    self.tree.column("id", width=0, stretch=tk.NO)
 
     self.tree.set_heading("name", _("common.name"))
     self.tree.set_heading("source", _("common.source"))
+    self.tree.set_heading("version", _("common.version"))
+    self.tree.set_heading("md5", _("common.md5"))
 
     self.tree.column("name", width=280)
     self.tree.column("source", width=100)
+    self.tree.column("version", width=70)
+    self.tree.column("md5", width=220)
 
     scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
     self.tree.configure(yscrollcommand=scrollbar.set)
@@ -53,18 +57,28 @@ class EnvironmentView(ttk.Frame):
     self.hyperparam_form = HyperParamForm(param_frame, is_readonly=True)
     self.hyperparam_form.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
+    self._versions: dict[int, object] = {}
     self.load_table_data()
 
   def load_table_data(self) -> None:
     for item in self.tree.get_children():
       self.tree.delete(item)
 
-    for name, config in EnvironmentManager.registry().items():
-      source = _("common.custom") if config.plugin_path else _("common.native")
+    self._versions = {}
+
+    for version in EnvironmentManager.list_versions():
+      self._versions[version.id] = version
+      source = _("common.native") if version.is_native else _("common.custom")
       self.tree.insert(
         "",
         tk.END,
-        values=(name, display_title(config.title, name), source),
+        values=(
+          version.id,
+          display_title(version.title, version.name),
+          source,
+          version.version,
+          version.md5_hash or "",
+        ),
       )
 
   def _selected_rows(self) -> list[tuple]:
@@ -89,10 +103,9 @@ class EnvironmentView(ttk.Frame):
       self.hyperparam_form.render_form([])
       return
 
-    key = str(rows[0][0])
-    config = EnvironmentManager.registry().get(key)
-    if config:
-      self.hyperparam_form.render_form(config.params)
+    version = self._versions.get(int(rows[0][0]))
+    if version:
+      self.hyperparam_form.render_form(version.params)
 
   def import_environment(self) -> None:
     filepath = filedialog.askopenfilename(filetypes=[(_("common.filetypes.python"), "*.py")])
@@ -117,14 +130,15 @@ class EnvironmentView(ttk.Frame):
       messagebox.showwarning(_("common.warning"), _("environment.msg.select_one_update"))
       return
 
-    key, _title, source = rows[0]
+    version = self._versions.get(int(rows[0][0]))
+    source = rows[0][2]
 
-    if self._is_native_source(str(source)):
+    if version is None or self._is_native_source(str(source)):
       messagebox.showwarning(_("common.warning"), _("environment.msg.cannot_update_native"))
       return
 
     filepath = filedialog.askopenfilename(
-      title=_("environment.msg.select_updated_py").format(name=key),
+      title=_("environment.msg.select_updated_py").format(name=version.name),
       filetypes=[(_("common.filetypes.python"), "*.py")],
     )
 
@@ -132,7 +146,6 @@ class EnvironmentView(ttk.Frame):
       return
 
     try:
-      EnvironmentManager.delete_environment(str(key))
       added = EnvironmentManager.import_from_file(filepath)
       messagebox.showinfo(
         _("common.success"),
@@ -157,7 +170,7 @@ class EnvironmentView(ttk.Frame):
       messagebox.showerror(_("common.error"), _("environment.err.native_cannot_delete"))
       return
 
-    names = [str(row[0]) for row in custom_rows]
+    names = [str(row[1]) for row in custom_rows]
     extra = ""
     if skipped_native:
       extra = "\n" + _("environment.msg.skip_native").format(n=skipped_native)
@@ -169,11 +182,12 @@ class EnvironmentView(ttk.Frame):
       return
 
     errors: list[str] = []
-    for name in names:
+    for row in custom_rows:
+      label = str(row[1])
       try:
-        EnvironmentManager.delete_environment(name)
+        EnvironmentManager.delete_environment(int(row[0]))
       except Exception as e:
-        errors.append(f"{name}: {e}")
+        errors.append(f"{label}: {e}")
 
     if errors:
       messagebox.showerror(_("common.error"), "\n".join(errors))

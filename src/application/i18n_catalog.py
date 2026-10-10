@@ -214,6 +214,10 @@ MESSAGES: dict[str, dict[str, str]] = {
     "en_US": 'Select a File',
     "pt_BR": 'Selecionar um arquivo',
   },
+  'common.md5': {
+    "en_US": 'MD5',
+    "pt_BR": 'MD5',
+  },
   'common.source': {
     "en_US": 'Source',
     "pt_BR": 'Origem',
@@ -225,6 +229,10 @@ MESSAGES: dict[str, dict[str, str]] = {
   'common.success': {
     "en_US": 'Success',
     "pt_BR": 'Sucesso',
+  },
+  'common.version': {
+    "en_US": 'Version',
+    "pt_BR": 'Versão',
   },
   'common.type': {
     "en_US": 'Type',

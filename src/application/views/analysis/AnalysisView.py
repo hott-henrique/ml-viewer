@@ -21,26 +21,30 @@ class AnalysisView(ttk.Frame):
     table_frame = ttk.Frame(self)
     table_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
-    columns = ("key", "name", "type", "output", "source")
+    columns = ("id", "name", "type", "output", "source", "version", "md5")
     self.tree = SortableTreeview(
       table_frame,
       columns=columns,
-      display_columns=("name", "type", "output", "source"),
+      display_columns=("name", "type", "output", "source", "version", "md5"),
       height=10,
     )
 
-    self.tree.set_heading("key", _("common.id"), sortable=False)
-    self.tree.column("key", width=0, stretch=tk.NO)
+    self.tree.set_heading("id", _("common.id"), sortable=False)
+    self.tree.column("id", width=0, stretch=tk.NO)
 
     self.tree.set_heading("name", _("common.name"))
     self.tree.set_heading("type", _("model.col.problem_type"))
     self.tree.set_heading("output", _("analysis.col.output_kind"))
     self.tree.set_heading("source", _("common.source"))
+    self.tree.set_heading("version", _("common.version"))
+    self.tree.set_heading("md5", _("common.md5"))
 
     self.tree.column("name", width=220)
     self.tree.column("type", width=120)
     self.tree.column("output", width=100)
     self.tree.column("source", width=90)
+    self.tree.column("version", width=70)
+    self.tree.column("md5", width=220)
 
     scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
     self.tree.configure(yscrollcommand=scrollbar.set)
@@ -69,35 +73,31 @@ class AnalysisView(ttk.Frame):
     self.desc_text = tk.Text(desc_frame, wrap=tk.WORD, state=tk.DISABLED, bg="#f5f5f5", height=6)
     self.desc_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
+    self._versions: dict[int, object] = {}
     self.load_table_data()
 
   def load_table_data(self) -> None:
     for item in self.tree.get_children():
       self.tree.delete(item)
 
-    for problem_type in (
-      ProblemType.CLASSIFICATION,
-      ProblemType.REGRESSION,
-      ProblemType.CLUSTERING,
-      ProblemType.DIMENSIONALITY_REDUCTION,
-      ProblemType.ASSOCIATION_RULES,
-      ProblemType.SEMI_SUPERVISED_CLASSIFICATION,
-      ProblemType.SEMI_SUPERVISED_REGRESSION,
-      ProblemType.REINFORCEMENT_LEARNING,
-    ):
-      for name, config in AnalysisManager.registry(problem_type).items():
-        source = _("common.native") if config.is_native else _("common.custom")
-        self.tree.insert(
-          "",
-          tk.END,
-          values=(
-            name,
-            display_title(config.title, name),
-            localize_enum(problem_type),
-            localize_enum(config.output_kind),
-            source,
-          ),
-        )
+    self._versions = {}
+
+    for version in AnalysisManager.list_versions():
+      self._versions[version.id] = version
+      source = _("common.native") if version.is_native else _("common.custom")
+      self.tree.insert(
+        "",
+        tk.END,
+        values=(
+          version.id,
+          display_title(version.title, version.name),
+          localize_enum(version.problem_type),
+          localize_enum(version.output_kind),
+          source,
+          version.version,
+          version.md5_hash or "",
+        ),
+      )
 
   def _selected_rows(self) -> list[tuple]:
     return [self.tree.item(iid)["values"] for iid in self.tree.selection()]
@@ -126,32 +126,18 @@ class AnalysisView(ttk.Frame):
       self._clear_description()
       return
 
-    key = str(rows[0][0])
-    config = None
-    for problem_type in (
-      ProblemType.CLASSIFICATION,
-      ProblemType.REGRESSION,
-      ProblemType.CLUSTERING,
-      ProblemType.DIMENSIONALITY_REDUCTION,
-      ProblemType.ASSOCIATION_RULES,
-      ProblemType.SEMI_SUPERVISED_CLASSIFICATION,
-      ProblemType.SEMI_SUPERVISED_REGRESSION,
-      ProblemType.REINFORCEMENT_LEARNING,
-    ):
-      config = AnalysisManager.registry(problem_type).get(key)
-      if config:
-        break
+    version = self._versions.get(int(rows[0][0]))
 
-    if config:
-      self.param_form.render_form(config.params)
+    if version:
+      self.param_form.render_form(version.params)
     else:
       self.param_form.render_form([])
 
     self.desc_text.config(state=tk.NORMAL)
     self.desc_text.delete(1.0, tk.END)
 
-    if config:
-      text = resolve_text(config.description) or _("common.no_description")
+    if version:
+      text = resolve_text(version.description) or _("common.no_description")
       self.desc_text.insert(tk.END, text)
 
     self.desc_text.config(state=tk.DISABLED)
@@ -183,7 +169,7 @@ class AnalysisView(ttk.Frame):
       messagebox.showerror(_("common.error"), _("analysis.err.native_cannot_delete"))
       return
 
-    names = [str(row[0]) for row in custom_rows]
+    names = [str(row[1]) for row in custom_rows]
     if len(names) == 1:
       label = names[0]
     else:
@@ -201,27 +187,12 @@ class AnalysisView(ttk.Frame):
 
     errors: list[str] = []
 
-    for key, _title, _type, _output, _source in custom_rows:
-      deleted = False
-      for problem_type in (
-        ProblemType.CLASSIFICATION,
-        ProblemType.REGRESSION,
-        ProblemType.CLUSTERING,
-        ProblemType.DIMENSIONALITY_REDUCTION,
-        ProblemType.ASSOCIATION_RULES,
-        ProblemType.SEMI_SUPERVISED_CLASSIFICATION,
-        ProblemType.SEMI_SUPERVISED_REGRESSION,
-        ProblemType.REINFORCEMENT_LEARNING,
-      ):
-        if str(key) in AnalysisManager.registry(problem_type):
-          try:
-            AnalysisManager.delete_analysis(problem_type, str(key))
-            deleted = True
-          except Exception as e:
-            errors.append(f"{key}: {e}")
-          break
-      if not deleted:
-        errors.append(f"{key}: not found")
+    for row in custom_rows:
+      label = str(row[1])
+      try:
+        AnalysisManager.delete_analysis(int(row[0]))
+      except Exception as e:
+        errors.append(f"{label}: {e}")
 
     self.param_form.render_form([])
     self._clear_description()

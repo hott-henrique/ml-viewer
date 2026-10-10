@@ -18,13 +18,13 @@ class DatasetView(ttk.Frame):
     ttk.Label(header_frame, text=_("dataset.view.title"), font=("", 16, "bold")).pack(side=tk.LEFT)
 
     ttk.Button(header_frame, text=_("action.delete"), command=self.delete_dataset).pack(side=tk.RIGHT, padx=(5, 0))
-    ttk.Button(header_frame, text=_("action.edit"), command=self.open_edit_modal).pack(side=tk.RIGHT, padx=(5, 0))
+    ttk.Button(header_frame, text=_("action.update"), command=self.open_edit_modal).pack(side=tk.RIGHT, padx=(5, 0))
     ttk.Button(header_frame, text=_("action.add"), command=self.open_add_modal).pack(side=tk.RIGHT)
 
     table_frame = ttk.Frame(self)
     table_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
-    columns = ("id", "name", "type", "layout", "target", "date")
+    columns = ("id", "name", "type", "layout", "target", "date", "version", "md5")
     self.tree = SortableTreeview(table_frame, columns=columns, height=12)
 
     self.tree.set_heading("id", _("common.id"), sortable=False)
@@ -35,12 +35,16 @@ class DatasetView(ttk.Frame):
     self.tree.set_heading("layout", _("dataset.col.layout"))
     self.tree.set_heading("target", _("dataset.col.target"))
     self.tree.set_heading("date", _("dataset.col.added_on"))
+    self.tree.set_heading("version", _("common.version"))
+    self.tree.set_heading("md5", _("common.md5"))
 
     self.tree.column("name", width=110)
     self.tree.column("type", width=90)
     self.tree.column("layout", width=110)
     self.tree.column("target", width=120)
     self.tree.column("date", width=120)
+    self.tree.column("version", width=70)
+    self.tree.column("md5", width=220)
 
     scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
     self.tree.configure(yscrollcommand=scrollbar.set)
@@ -80,6 +84,8 @@ class DatasetView(ttk.Frame):
           localize_enum(ds.layout),
           self._format_target_cell(ds),
           ds.date,
+          ds.version,
+          ds.md5_hash,
         ),
       )
 
@@ -91,7 +97,7 @@ class DatasetView(ttk.Frame):
       return None
 
     menu = tk.Menu(self, tearoff=0)
-    menu.add_command(label=_("common.edit"), command=self.open_edit_modal)
+    menu.add_command(label=_("common.update"), command=self.open_edit_modal)
     menu.add_command(label=_("common.delete"), command=self.delete_dataset)
     return menu
 

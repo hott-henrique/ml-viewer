@@ -22,6 +22,7 @@ def _str_enum(enum_cls: type) -> SAEnum:
 
 class Dataset(Base):
   __tablename__ = "datasets"
+  __table_args__ = (UniqueConstraint("name", "version", name="uq_dataset_name_version"),)
 
   id: Mapped[int] = mapped_column(primary_key=True)
   name: Mapped[str]
@@ -29,6 +30,8 @@ class Dataset(Base):
   target: Mapped[t.Optional[int]] = mapped_column(default=None)
   has_header: Mapped[bool] = mapped_column(default=True)
   layout: Mapped[DatasetLayout] = mapped_column(_str_enum(DatasetLayout), default=DatasetLayout.NO_SPLIT)
+  version: Mapped[int] = mapped_column(default=1)
+  md5_hash: Mapped[str] = mapped_column(default="")
   created_at: Mapped[str]
 
   files: Mapped[list["DatasetFile"]] = relationship(
@@ -59,7 +62,7 @@ class Environment(Base):
   """Catalog of environment kinds (native + imported plugins), analogous to Model."""
 
   __tablename__ = "environments"
-  __table_args__ = (UniqueConstraint("name", name="uq_environment_name"),)
+  __table_args__ = (UniqueConstraint("name", "version", name="uq_environment_name_version"),)
 
   id: Mapped[int] = mapped_column(primary_key=True)
   name: Mapped[str]
@@ -73,6 +76,7 @@ class Environment(Base):
   md5_hash: Mapped[t.Optional[str]] = mapped_column(default=None)
   size_bytes: Mapped[t.Optional[int]] = mapped_column(default=None)
   logical_key: Mapped[t.Optional[str]] = mapped_column(default=None)
+  version: Mapped[int] = mapped_column(default=1)
   is_native: Mapped[bool] = mapped_column(default=False)
   created_at: Mapped[str]
 
@@ -97,6 +101,7 @@ class Experiment(Base):
   environment_kind: Mapped[t.Optional[str]] = mapped_column(nullable=True, default=None)
   environment_params: Mapped[t.Optional[dict[str, t.Any]]] = mapped_column(JSON, default=None)
   model_name: Mapped[str]
+  model_version: Mapped[int] = mapped_column(default=1)
   hyperparameters: Mapped[dict[str, HyperParamValue]] = mapped_column(JSON)
   status: Mapped[ExperimentStatus] = mapped_column(_str_enum(ExperimentStatus))
   analyses: Mapped[list[dict[str, t.Any]]] = mapped_column(JSON, default=list)
@@ -113,6 +118,9 @@ class Experiment(Base):
 
 class Model(Base):
   __tablename__ = "models"
+  __table_args__ = (
+    UniqueConstraint("name", "problem_type", "version", name="uq_model_name_type_version"),
+  )
 
   id: Mapped[int] = mapped_column(primary_key=True)
   name: Mapped[str]
@@ -127,11 +135,15 @@ class Model(Base):
   md5_hash: Mapped[t.Optional[str]] = mapped_column(default=None)
   size_bytes: Mapped[t.Optional[int]] = mapped_column(default=None)
   logical_key: Mapped[t.Optional[str]] = mapped_column(default=None)
+  version: Mapped[int] = mapped_column(default=1)
   is_native: Mapped[bool] = mapped_column(default=False)
   created_at: Mapped[str]
 
 class Analysis(Base):
   __tablename__ = "analyses"
+  __table_args__ = (
+    UniqueConstraint("name", "problem_type", "version", name="uq_analysis_name_type_version"),
+  )
 
   id: Mapped[int] = mapped_column(primary_key=True)
   name: Mapped[str]
@@ -147,6 +159,7 @@ class Analysis(Base):
   md5_hash: Mapped[t.Optional[str]] = mapped_column(default=None)
   size_bytes: Mapped[t.Optional[int]] = mapped_column(default=None)
   logical_key: Mapped[t.Optional[str]] = mapped_column(default=None)
+  version: Mapped[int] = mapped_column(default=1)
   is_native: Mapped[bool] = mapped_column(default=False)
   created_at: Mapped[str]
 

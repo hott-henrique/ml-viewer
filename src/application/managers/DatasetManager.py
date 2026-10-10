@@ -4,14 +4,14 @@ from pathlib import Path
 
 import pandas as pd
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from application.db.database import SessionLocal
 from application.db.models import Dataset as DatasetRow
 from application.db.models import DatasetFile as DatasetFileRow
 from application.db.paths import get_datasets_dir
-from application.db.storage import FileIntegrityError, FileStore, SavedFile, delete_file, save_file
+from application.db.storage import FileIntegrityError, FileStore, SavedFile, combine_file_md5, delete_file, save_file
 from application.enums import DatasetFileRole, DatasetLayout, ProblemType
 from application.i18n import _
 
@@ -127,6 +127,8 @@ class DatasetMetadata(BaseModel):
   has_header: bool = True
   layout: DatasetLayout = DatasetLayout.NO_SPLIT
   files: list[DatasetFileMeta] = Field(default_factory=list)
+  version: int = 1
+  md5_hash: str = ""
   date: str
 
   def file_for(self, role: DatasetFileRole, ordinal: int = 0) -> DatasetFileMeta:
@@ -180,6 +182,8 @@ class DatasetMetadata(BaseModel):
       has_header=bool(row.has_header),
       layout=row.layout,
       files=[DatasetFileMeta.from_row(f) for f in (row.files or [])],
+      version=row.version,
+      md5_hash=row.md5_hash,
       date=row.created_at,
     )
 
@@ -302,6 +306,10 @@ class DatasetManager:
         target=normalized_target,
         has_header=has_header,
         layout=layout_enum,
+        version=1,
+        md5_hash=combine_file_md5([
+          (role.value, ordinal, stored.md5_hash) for role, ordinal, stored in stored_files
+        ]),
         created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
       )
       session.add(row)
@@ -331,56 +339,69 @@ class DatasetManager:
     store = FileStore(get_datasets_dir())
 
     with SessionLocal() as session:
-      row = session.scalars(BASE_QUERY.where(DatasetRow.id == target_id)).one_or_none()
+      source = session.scalars(BASE_QUERY.where(DatasetRow.id == target_id)).one_or_none()
 
-      if row is None:
+      if source is None:
         raise ValueError(_("dataset.err.not_found").format(id=target_id))
 
-      if payload.get("name") is not None:
-        row.name = payload["name"]
-
-      problem = row.problem_type
-
-      if payload.get("type") is not None:
-        problem = ProblemType(payload["type"])
-        row.problem_type = problem
-
-      if "has_header" in payload and payload["has_header"] is not None:
-        row.has_header = bool(payload["has_header"])
-
-      layout = row.layout
-
-      if payload.get("layout") is not None:
-        layout = DatasetLayout(payload["layout"])
-        row.layout = layout
-
-      if "target" in payload or payload.get("type") is not None:
-        incoming_target = payload["target"] if "target" in payload else row.target
-        row.target = validate_problem_target(problem, incoming_target)
+      name = payload["name"] if payload.get("name") is not None else source.name
+      problem = ProblemType(payload["type"]) if payload.get("type") is not None else source.problem_type
+      has_header = bool(payload["has_header"]) if payload.get("has_header") is not None else source.has_header
+      layout = DatasetLayout(payload["layout"]) if payload.get("layout") is not None else source.layout
+      incoming_target = payload["target"] if "target" in payload else source.target
+      target = validate_problem_target(problem, incoming_target)
 
       files_payload = payload.get("files")
       filepath = payload.get("path") or payload.get("filepath")
+      copied_files: list[DatasetFileRow] = []
+      stored_files: list[tuple[DatasetFileRole, int, SavedFile]] = []
 
       if files_payload is not None or filepath is not None:
         file_specs = cls._build_file_specs(layout, files=files_payload, filepath=filepath)
-        _validate_layout_and_files(problem, layout, file_specs, row.has_header)
+        _validate_layout_and_files(problem, layout, file_specs, has_header)
 
-        if row.target is not None:
-          ncols = peek_ncols(cls._primary_path_from_specs(layout, file_specs), row.has_header)
+        if target is not None:
+          ncols = peek_ncols(cls._primary_path_from_specs(layout, file_specs), has_header)
 
-          if row.target >= ncols:
-            raise ValueError(_("dataset.err.target_out_of_range").format(index=row.target, ncols=ncols))
+          if target >= ncols:
+            raise ValueError(_("dataset.err.target_out_of_range").format(index=target, ncols=ncols))
 
         stored_files = _store_files(
           file_specs,
-          {(f.role, f.ordinal): f.logical_key for f in row.files},
+          {(f.role, f.ordinal): f.logical_key for f in source.files},
         )
+        md5_hash = combine_file_md5([
+          (role.value, ordinal, stored.md5_hash) for role, ordinal, stored in stored_files
+        ])
+      else:
+        _validate_layout_and_files(
+          problem,
+          layout,
+          [(f.role, f.ordinal, store.resolve_path(f.storage_filename)) for f in source.files],
+          has_header,
+        )
+        copied_files = list(source.files)
+        md5_hash = combine_file_md5([
+          (f.role.value, f.ordinal, f.md5_hash) for f in copied_files
+        ])
 
-        for existing in list(row.files):
-          session.delete(existing)
+      current = session.scalar(select(func.max(DatasetRow.version)).where(DatasetRow.name == name))
+      version = 1 if current is None else int(current) + 1
 
-        session.flush()
+      row = DatasetRow(
+        name=name,
+        problem_type=problem,
+        target=target,
+        has_header=has_header,
+        layout=layout,
+        version=version,
+        md5_hash=md5_hash,
+        created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+      )
+      session.add(row)
+      session.flush()
 
+      if stored_files:
         for role, ordinal, stored in stored_files:
           session.add(DatasetFileRow(
             dataset_id=row.id,
@@ -393,19 +414,22 @@ class DatasetManager:
             logical_key=stored.key,
           ))
       else:
-        _validate_layout_and_files(
-          problem,
-          layout,
-          [(f.role, f.ordinal, store.resolve_path(f.storage_filename)) for f in row.files],
-          row.has_header,
-        )
+        for existing in copied_files:
+          session.add(DatasetFileRow(
+            dataset_id=row.id,
+            role=existing.role,
+            ordinal=existing.ordinal,
+            original_filename=existing.original_filename,
+            storage_filename=existing.storage_filename,
+            md5_hash=existing.md5_hash,
+            size_bytes=existing.size_bytes,
+            logical_key=existing.logical_key,
+          ))
 
       session.commit()
 
-      row = session.scalars(BASE_QUERY.where(DatasetRow.id == target_id)).one()
-      metadata = DatasetMetadata.from_row(row)
-
-    return metadata
+      row = session.scalars(BASE_QUERY.where(DatasetRow.id == row.id)).one()
+      return DatasetMetadata.from_row(row)
 
   @classmethod
   def delete_dataset(cls, target_id: str | int) -> None:
@@ -417,15 +441,24 @@ class DatasetManager:
       if row is None:
         return
 
-      logical_keys = [f.logical_key for f in row.files if f.logical_key]
+      logical_keys = list({f.logical_key for f in row.files if f.logical_key})
       legacy_filenames = [f.storage_filename for f in row.files if not f.logical_key]
       session.delete(row)
       session.commit()
 
-    for logical_key in logical_keys:
+      unused_keys = [
+        key for key in logical_keys
+        if session.scalar(select(DatasetFileRow.id).where(DatasetFileRow.logical_key == key)) is None
+      ]
+      unused_legacy = [
+        name for name in legacy_filenames
+        if session.scalar(select(DatasetFileRow.id).where(DatasetFileRow.storage_filename == name)) is None
+      ]
+
+    for logical_key in unused_keys:
       delete_file(logical_key)
 
-    for storage_filename in legacy_filenames:
+    for storage_filename in unused_legacy:
       store.delete(storage_filename)
 
   @staticmethod

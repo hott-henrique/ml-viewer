@@ -23,6 +23,14 @@ def compute_md5(path: Path) -> str:
 
   return digest.hexdigest()
 
+def combine_file_md5(entries: list[tuple[str, int, str]]) -> str:
+  """MD5 of role:ordinal:file_md5 lines, sorted so file order does not matter."""
+  lines = [
+    f"{role}:{ordinal}:{digest}"
+    for role, ordinal, digest in sorted(entries, key=lambda item: (item[0], item[1]))
+  ]
+  return hashlib.md5("\n".join(lines).encode()).hexdigest()
+
 @dataclass(frozen=True)
 class StoredFile:
   storage_filename: str
@@ -103,6 +111,24 @@ def _to_saved(row: StoredFileRecord) -> SavedFile:
     path=path,
     scope=row.scope,
   )
+
+def save_file_groups(
+  path: str | Path,
+  keys: list[str | None],
+  scope: str,
+) -> dict[str | None, SavedFile]:
+  """Copy ``path`` once per distinct previous key. ``None`` starts a new logical file."""
+  saved: dict[str | None, SavedFile] = {}
+
+  try:
+    for key in dict.fromkeys(keys):
+      saved[key] = save_file(path, key=key, scope=scope)
+  except Exception:
+    for item in saved.values():
+      discard_file(item)
+    raise
+
+  return saved
 
 def save_file(path: str | Path, *, key: str | None = None, scope: str = "files") -> SavedFile:
   """Copy a file into the application store and record a new version.
