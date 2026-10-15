@@ -136,6 +136,9 @@ msgstr "Erro de importação"
 msgid "common.logs"
 msgstr "Logs"
 
+msgid "common.md5"
+msgstr "MD5"
+
 msgid "common.metric"
 msgstr "Métrica"
 
@@ -192,6 +195,9 @@ msgstr "Erro de validação"
 
 msgid "common.value"
 msgstr "Valor"
+
+msgid "common.version"
+msgstr "Versão"
 
 msgid "common.warning"
 msgstr "Aviso"
@@ -321,15 +327,6 @@ msgstr "Arquivo não rotulado (CSV):"
 
 msgid "dataset.form.update"
 msgstr "Atualizar Dataset"
-
-msgid "dataset.handler.problem_type"
-msgstr "Tipo de problema:"
-
-msgid "dataset.handler.title"
-msgstr "Configuração do dataset"
-
-msgid "dataset.handler.train_size"
-msgstr "Tamanho do treino (0 a 1):"
 
 msgid "dataset.msg.delete_confirm"
 msgstr "Excluir {label} permanentemente?\nEsta ação não pode ser desfeita."
@@ -487,9 +484,6 @@ msgstr "Informe exatamente um entre dataset ou ambiente."
 msgid "experiment.err.invalid_n_episodes"
 msgstr "O número de episódios deve ser um inteiro >= 1."
 
-msgid "experiment.err.invalid_test_size"
-msgstr "O tamanho do teste deve ser um número entre 0 e 1 (exclusive)."
-
 msgid "experiment.err.invalid_watch_delay_ms"
 msgstr "O atraso da visualização deve ser um inteiro >= 0 (milissegundos)."
 
@@ -577,9 +571,6 @@ msgstr "Já existe uma análise com o rótulo \"{label}\" na lista."
 msgid "experiment.form.err_invalid_n_episodes"
 msgstr "Episódios deve ser um inteiro >= 1."
 
-msgid "experiment.form.err_invalid_test_size"
-msgstr "O tamanho do teste deve ser um número entre 0 e 1 (exclusive)."
-
 msgid "experiment.form.err_invalid_train_seed"
 msgstr "Seed deve ser um inteiro ou vazio."
 
@@ -642,24 +633,6 @@ msgstr "Dataset"
 
 msgid "experiment.form.source_environment"
 msgstr "Ambiente (RL)"
-
-msgid "experiment.form.split"
-msgstr "Split treino/teste"
-
-msgid "experiment.form.split_hint_configure"
-msgstr "Este dataset tem um único arquivo. Configure como fazer o split para avaliação."
-
-msgid "experiment.form.split_hint_preset"
-msgstr "Este dataset já fornece arquivos de treino e teste."
-
-msgid "experiment.form.split_hint_semi_supervised"
-msgstr "Dados não rotulados entram só no treino. O arquivo de Teste é usado na avaliação."
-
-msgid "experiment.form.split_mode_train_test"
-msgstr "Modo: Treino/Teste"
-
-msgid "experiment.form.test_size"
-msgstr "Tamanho do teste (0–1):"
 
 msgid "experiment.form.title"
 msgstr "Novo experimento"

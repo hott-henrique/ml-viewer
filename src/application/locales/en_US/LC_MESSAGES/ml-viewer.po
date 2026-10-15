@@ -136,6 +136,9 @@ msgstr "Import Error"
 msgid "common.logs"
 msgstr "Logs"
 
+msgid "common.md5"
+msgstr "MD5"
+
 msgid "common.metric"
 msgstr "Metric"
 
@@ -192,6 +195,9 @@ msgstr "Validation Error"
 
 msgid "common.value"
 msgstr "Value"
+
+msgid "common.version"
+msgstr "Version"
 
 msgid "common.warning"
 msgstr "Warning"
@@ -321,15 +327,6 @@ msgstr "Unlabeled file (CSV):"
 
 msgid "dataset.form.update"
 msgstr "Update Dataset"
-
-msgid "dataset.handler.problem_type"
-msgstr "Problem Type:"
-
-msgid "dataset.handler.title"
-msgstr "Dataset Configuration"
-
-msgid "dataset.handler.train_size"
-msgstr "Train Size (0 to 1):"
 
 msgid "dataset.msg.delete_confirm"
 msgstr "Delete {label} permanently?\nThis action cannot be undone."
@@ -487,9 +484,6 @@ msgstr "Provide exactly one of dataset or environment."
 msgid "experiment.err.invalid_n_episodes"
 msgstr "Number of episodes must be an integer >= 1."
 
-msgid "experiment.err.invalid_test_size"
-msgstr "Test size must be a number between 0 and 1 (exclusive)."
-
 msgid "experiment.err.invalid_watch_delay_ms"
 msgstr "Watch delay must be an integer >= 0 (milliseconds)."
 
@@ -577,9 +571,6 @@ msgstr "An analysis with label \"{label}\" is already in the list."
 msgid "experiment.form.err_invalid_n_episodes"
 msgstr "Episodes must be an integer >= 1."
 
-msgid "experiment.form.err_invalid_test_size"
-msgstr "Test size must be a number between 0 and 1 (exclusive)."
-
 msgid "experiment.form.err_invalid_train_seed"
 msgstr "Seed must be an integer or empty."
 
@@ -642,24 +633,6 @@ msgstr "Dataset"
 
 msgid "experiment.form.source_environment"
 msgstr "Environment (RL)"
-
-msgid "experiment.form.split"
-msgstr "Train/Test Split"
-
-msgid "experiment.form.split_hint_configure"
-msgstr "This dataset has a single file. Configure how to split it for evaluation."
-
-msgid "experiment.form.split_hint_preset"
-msgstr "This dataset already provides train and test files."
-
-msgid "experiment.form.split_hint_semi_supervised"
-msgstr "Unlabeled data is used only for training. The Test file is used for evaluation."
-
-msgid "experiment.form.split_mode_train_test"
-msgstr "Mode: Train/Test"
-
-msgid "experiment.form.test_size"
-msgstr "Test size (0–1):"
 
 msgid "experiment.form.title"
 msgstr "New Experiment"

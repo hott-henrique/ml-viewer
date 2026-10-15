@@ -38,18 +38,6 @@ class AnalysisRunSpec(BaseModel):
   label: str
   params: dict[str, HyperParamValue] = Field(default_factory=dict)
 
-class ExperimentSplitConfig(BaseModel):
-  version: t.Literal[1] = 1
-  mode: t.Literal["TrainTest"] = "TrainTest"
-  test_size: float = 0.2
-
-  @field_validator("test_size")
-  @classmethod
-  def _validate_test_size(cls, value: float) -> float:
-    if not 0.0 < value < 1.0:
-      raise ValueError(_("experiment.err.invalid_test_size"))
-    return value
-
 class ExperimentTrainConfig(BaseModel):
   """Persisted RL training config (maps to TrainingRunner TrainConfig)."""
 
@@ -114,7 +102,6 @@ class ExperimentMetadata(BaseModel):
   date: str
   analyses: list[AnalysisRunSpec] = Field(default_factory=list)
   result_artifacts: list[ResultArtifact] = Field(default_factory=list)
-  split_config: t.Optional[ExperimentSplitConfig] = None
   train_config: t.Optional[ExperimentTrainConfig] = None
   model_pickle_filename: t.Optional[str] = None
   model_pickle_md5: t.Optional[str] = None
@@ -162,10 +149,6 @@ class ExperimentMetadata(BaseModel):
       except Exception:
         source_name = environment_kind
 
-    split_config = None
-    if row.split_config:
-      split_config = ExperimentSplitConfig.model_validate(row.split_config)
-
     train_config = None
     if row.train_config:
       train_config = ExperimentTrainConfig.model_validate(row.train_config)
@@ -185,7 +168,6 @@ class ExperimentMetadata(BaseModel):
       date=row.created_at,
       analyses=[AnalysisRunSpec.model_validate(a) for a in (row.analyses or [])],
       result_artifacts=[ResultArtifact.model_validate(a) for a in (row.result_artifacts or [])],
-      split_config=split_config,
       train_config=train_config,
       model_pickle_filename=row.model_pickle_filename,
       model_pickle_md5=row.model_pickle_md5,
@@ -214,7 +196,6 @@ class ExperimentManager:
     hyperparams: dict[str, HyperParamValue],
     status: ExperimentStatus = ExperimentStatus.PENDING,
     analyses: t.Optional[list[AnalysisRunSpec | dict[str, t.Any]]] = None,
-    split_config: t.Optional[ExperimentSplitConfig | dict[str, t.Any]] = None,
     train_config: t.Optional[ExperimentTrainConfig | dict[str, t.Any]] = None,
     dataset: t.Optional[DatasetMetadata] = None,
     environment_kind: t.Optional[str] = None,
@@ -231,13 +212,6 @@ class ExperimentManager:
 
     if environment_kind is not None:
       EnvironmentManager.kind_config(environment_kind)
-
-    parsed_split: t.Optional[dict[str, t.Any]] = None
-    if split_config is not None:
-      if isinstance(split_config, ExperimentSplitConfig):
-        parsed_split = split_config.model_dump(mode="json")
-      else:
-        parsed_split = ExperimentSplitConfig.model_validate(split_config).model_dump(mode="json")
 
     parsed_train: t.Optional[dict[str, t.Any]] = None
     if train_config is not None:
@@ -271,7 +245,6 @@ class ExperimentManager:
         status=status,
         analyses=parsed_analyses,
         result_artifacts=[],
-        split_config=parsed_split,
         train_config=parsed_train,
         created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
       )

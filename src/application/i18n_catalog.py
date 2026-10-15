@@ -426,18 +426,6 @@ MESSAGES: dict[str, dict[str, str]] = {
     "en_US": 'Update Dataset',
     "pt_BR": 'Atualizar Dataset',
   },
-  'dataset.handler.problem_type': {
-    "en_US": 'Problem Type:',
-    "pt_BR": 'Tipo de problema:',
-  },
-  'dataset.handler.title': {
-    "en_US": 'Dataset Configuration',
-    "pt_BR": 'Configuração do dataset',
-  },
-  'dataset.handler.train_size': {
-    "en_US": 'Train Size (0 to 1):',
-    "pt_BR": 'Tamanho do treino (0 a 1):',
-  },
   'dataset.msg.delete_confirm': {
     "en_US": 'Delete {label} permanently?\nThis action cannot be undone.',
     "pt_BR": 'Excluir {label} permanentemente?\nEsta ação não pode ser desfeita.',
@@ -656,10 +644,6 @@ MESSAGES: dict[str, dict[str, str]] = {
     "en_US": 'Supervised experiments require a dataset target column index.',
     "pt_BR": 'Experimentos supervisionados exigem um índice de coluna alvo no dataset.',
   },
-  'experiment.err.invalid_test_size': {
-    "en_US": 'Test size must be a number between 0 and 1 (exclusive).',
-    "pt_BR": 'O tamanho do teste deve ser um número entre 0 e 1 (exclusive).',
-  },
   'experiment.err.invalid_n_episodes': {
     "en_US": 'Number of episodes must be an integer >= 1.',
     "pt_BR": 'O número de episódios deve ser um inteiro >= 1.',
@@ -751,10 +735,6 @@ MESSAGES: dict[str, dict[str, str]] = {
   'experiment.form.err_duplicate_analysis_label': {
     "en_US": 'An analysis with label "{label}" is already in the list.',
     "pt_BR": 'Já existe uma análise com o rótulo "{label}" na lista.',
-  },
-  'experiment.form.err_invalid_test_size': {
-    "en_US": 'Test size must be a number between 0 and 1 (exclusive).',
-    "pt_BR": 'O tamanho do teste deve ser um número entre 0 e 1 (exclusive).',
   },
   'experiment.form.err_required': {
     "en_US": 'Name, Dataset, and Model are required.',
@@ -891,30 +871,6 @@ MESSAGES: dict[str, dict[str, str]] = {
   'experiment.form.analysis_params': {
     "en_US": 'Parameters',
     "pt_BR": 'Parâmetros',
-  },
-  'experiment.form.split': {
-    "en_US": 'Train/Test Split',
-    "pt_BR": 'Split treino/teste',
-  },
-  'experiment.form.split_hint_configure': {
-    "en_US": 'This dataset has a single file. Configure how to split it for evaluation.',
-    "pt_BR": 'Este dataset tem um único arquivo. Configure como fazer o split para avaliação.',
-  },
-  'experiment.form.split_hint_preset': {
-    "en_US": 'This dataset already provides train and test files.',
-    "pt_BR": 'Este dataset já fornece arquivos de treino e teste.',
-  },
-  'experiment.form.split_hint_semi_supervised': {
-    "en_US": 'Unlabeled data is used only for training. The Test file is used for evaluation.',
-    "pt_BR": 'Dados não rotulados entram só no treino. O arquivo de Teste é usado na avaliação.',
-  },
-  'experiment.form.split_mode_train_test': {
-    "en_US": 'Mode: Train/Test',
-    "pt_BR": 'Modo: Treino/Teste',
-  },
-  'experiment.form.test_size': {
-    "en_US": 'Test size (0–1):',
-    "pt_BR": 'Tamanho do teste (0–1):',
   },
   'experiment.form.title': {
     "en_US": 'New Experiment',

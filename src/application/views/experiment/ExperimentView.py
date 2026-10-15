@@ -29,7 +29,7 @@ from application.views.experiment.ExperimentExportModal import ExperimentExportD
 from application.views.experiment.WatchWindow import WatchWindow
 from application.managers import AnalysisManager, EnvironmentManager, ExperimentManager, ModelManager
 from application.managers.DatasetManager import SEMI_SUPERVISED_TYPES, SUPERVISED_TYPES
-from application.managers.ExperimentManager import AnalysisRunSpec, ExperimentSplitConfig, ExperimentTrainConfig
+from application.managers.ExperimentManager import AnalysisRunSpec, ExperimentTrainConfig
 from application.managers.environment import TrainingRunner
 
 class ExperimentView(ttk.Frame):
@@ -279,7 +279,6 @@ class ExperimentView(ttk.Frame):
     environment_params = payload.get("environment_params") or {}
     dataset_info = payload.get("dataset")
     analyses = [AnalysisRunSpec.model_validate(a) for a in (payload.get("analyses") or [])]
-    split_config: t.Optional[ExperimentSplitConfig] = payload.get("split_config")
     train_config: t.Optional[ExperimentTrainConfig] = payload.get("train_config")
 
     if environment_kind:
@@ -435,7 +434,6 @@ class ExperimentView(ttk.Frame):
       hyperparams=payload["hyperparams"],
       status=status,
       analyses=analyses,
-      split_config=split_config,
       train_config=train_config,
     )
 

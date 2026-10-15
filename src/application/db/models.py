@@ -106,7 +106,6 @@ class Experiment(Base):
   status: Mapped[ExperimentStatus] = mapped_column(_str_enum(ExperimentStatus))
   analyses: Mapped[list[dict[str, t.Any]]] = mapped_column(JSON, default=list)
   result_artifacts: Mapped[list[dict[str, t.Any]]] = mapped_column(JSON, default=list)
-  split_config: Mapped[t.Optional[dict[str, t.Any]]] = mapped_column(JSON, default=None)
   train_config: Mapped[t.Optional[dict[str, t.Any]]] = mapped_column(JSON, default=None)
   model_pickle_filename: Mapped[t.Optional[str]] = mapped_column(default=None)
   model_pickle_md5: Mapped[t.Optional[str]] = mapped_column(default=None)

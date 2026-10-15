@@ -5,9 +5,9 @@ from tkinter import ttk, messagebox
 from application.managers import AnalysisManager, DatasetManager, EnvironmentManager, ExperimentManager, ModelManager
 
 from application.components import HyperParamForm
-from application.enums import DatasetLayout, ProblemType
+from application.enums import ProblemType
 from application.i18n import _, display_title, localize_enum
-from application.managers.DatasetManager import SEMI_SUPERVISED_TYPES, DatasetMetadata
+from application.managers.DatasetManager import DatasetMetadata
 from application.managers.ExperimentManager import (
   AnalysisRunSpec,
   ExperimentMetadata,
@@ -285,12 +285,6 @@ class ExperimentFormModal(tk.Toplevel):
     self.env_param_form = HyperParamForm(self.env_param_frame, is_readonly=False, canvas_height=80)
     self.env_param_form.pack(fill=tk.X, padx=5, pady=5)
 
-    self.split_frame = ttk.LabelFrame(body, text=_("experiment.form.split"))
-    split_inner = ttk.Frame(self.split_frame, padding=(8, 6))
-    split_inner.pack(fill=tk.X)
-    self.split_hint = ttk.Label(split_inner, text="", foreground="#666666", wraplength=440)
-    self.split_hint.pack(anchor=tk.W)
-
     self.train_frame = ttk.LabelFrame(body, text=_("experiment.form.train_config"))
     train_inner = ttk.Frame(self.train_frame, padding=(8, 6))
     train_inner.pack(fill=tk.X)
@@ -369,7 +363,6 @@ class ExperimentFormModal(tk.Toplevel):
     if is_env:
       self.dataset_label.pack_forget()
       self.ds_combo.pack_forget()
-      self.split_frame.pack_forget()
       self.env_label.pack(anchor=tk.W, after=self.source_combo)
       self.env_combo.pack(fill=tk.X, pady=(0, 12), after=self.env_label)
       self.env_param_frame.pack(fill=tk.X, pady=(0, 12), after=self.env_combo)
@@ -381,26 +374,6 @@ class ExperimentFormModal(tk.Toplevel):
       self.train_frame.pack_forget()
       self.dataset_label.pack(anchor=tk.W, after=self.source_combo)
       self.ds_combo.pack(fill=tk.X, pady=(0, 12), after=self.dataset_label)
-      self._update_split_visibility()
-
-  def _update_split_visibility(self) -> None:
-    if self.source_mode.get() == SOURCE_ENVIRONMENT:
-      self.split_frame.pack_forget()
-      return
-
-    ds = self.selected_dataset
-    if ds is None:
-      self.split_frame.pack_forget()
-      return
-
-    if ds.type in SEMI_SUPERVISED_TYPES:
-      self.split_hint.config(text=_("experiment.form.split_hint_semi_supervised"))
-      self.split_frame.pack(fill=tk.X, pady=(0, 12), after=self.ds_combo)
-    elif ds.layout == DatasetLayout.TRAIN_TEST_SPLIT:
-      self.split_hint.config(text=_("experiment.form.split_hint_preset"))
-      self.split_frame.pack(fill=tk.X, pady=(0, 12), after=self.ds_combo)
-    else:
-      self.split_frame.pack_forget()
 
   def _render_analysis_list(self) -> None:
     for child in self.analyses_inner.winfo_children():
@@ -559,7 +532,6 @@ class ExperimentFormModal(tk.Toplevel):
     if not self.selected_dataset:
       return
 
-    self._update_split_visibility()
     self._refresh_models(self.selected_dataset.type)
 
     if restore_analyses is not None:
@@ -668,7 +640,6 @@ class ExperimentFormModal(tk.Toplevel):
     try:
       params = self.hyperparam_form.get_parsed_values()
       env_params = self.env_param_form.get_parsed_values() if is_rl else {}
-      split_config = None
       train_config = self._parse_train_config() if is_rl else None
     except ValueError as e:
       messagebox.showerror(_("common.validation_error"), str(e), parent=self)
@@ -682,7 +653,6 @@ class ExperimentFormModal(tk.Toplevel):
       "model_name": self.model_var.get(),
       "hyperparams": params,
       "analyses": [spec.model_dump(mode="json") for spec in self.analysis_instances],
-      "split_config": split_config,
       "train_config": train_config,
     }
 
