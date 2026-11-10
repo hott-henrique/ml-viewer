@@ -1,9 +1,0 @@
-{
-  "files.exclude": {
-    "**/__pycache__": true,
-    "**/*.pyc": {
-      "when": "$(basename).py"
-    }
-  },
-  "python-envs.defaultEnvManager": "ms-python.python:pyenv"
-}
