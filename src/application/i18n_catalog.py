@@ -952,6 +952,58 @@ MESSAGES: dict[str, dict[str, str]] = {
     "en_US": '🧪 Experiments',
     "pt_BR": '🧪 Experimentos',
   },
+  'home.body.analyses': {
+    "en_US": 'Lists what can be computed after a run, by problem type and by output kind (a value, text, or an image). Selecting one shows its parameters and description. Built-in analyses ship with the install; others are added as a Python module.',
+    "pt_BR": 'Lista o que pode ser calculado depois da execução, por tipo de problema e pelo tipo de saída (valor, texto ou imagem). A seleção mostra os parâmetros e a descrição. As análises nativas acompanham a instalação; outras entram por um módulo Python.',
+  },
+  'home.body.datasets': {
+    "en_US": 'Holds the datasets used for training. Each one has a name, a problem type and, when the problem uses a label, a target column. Files are CSV: train and test for supervised learning; labeled, unlabeled and test for semi-supervised learning; a single file otherwise. The list shows type, target, date and version, and each saved change opens a new version.',
+    "pt_BR": 'Reúne os conjuntos usados no treinamento. Cada um recebe um nome, um tipo de problema e, quando o problema usa rótulo, a coluna alvo. Os arquivos são CSV: treino e teste no supervisionado; rotulado, não rotulado e teste no semi-supervisionado; um único arquivo nos demais. A lista mostra tipo, alvo, data e versão, e cada alteração gravada abre uma nova versão.',
+  },
+  'home.body.environments': {
+    "en_US": 'Lists reinforcement learning environments, built-in or imported, with source and version. Selecting one shows that environment’s parameters. Imported environments can be updated or deleted; built-in ones stay.',
+    "pt_BR": 'Lista os ambientes de aprendizado por reforço, nativos ou importados, com origem e versão. Ao selecionar um, a tela mostra os parâmetros daquele ambiente. Os importados podem ser atualizados ou excluídos; os nativos permanecem.',
+  },
+  'home.body.experiments': {
+    "en_US": 'Builds a run from a dataset or an environment, a model and its hyperparameters, and the chosen analyses. The list shows name, source, model, status, date and disk use. Selecting a row shows the hyperparameters used and the log. You can view results, duplicate, export and delete.',
+    "pt_BR": 'Monta a execução com um conjunto ou um ambiente, um modelo e seus hiperparâmetros, e as análises escolhidas. A lista traz nome, origem, modelo, status, data e espaço em disco. Ao selecionar uma linha, aparecem os hiperparâmetros usados e o log. Dá para ver os resultados, duplicar, exportar e excluir.',
+  },
+  'home.body.models': {
+    "en_US": 'Lists algorithms by problem type, with source and version. The lower panel shows the selected model’s hyperparameters, for reference only. For reinforcement learning, it also shows which environments the algorithm is compatible with. A custom algorithm is added as a Python file.',
+    "pt_BR": 'Lista os algoritmos por tipo de problema, com origem e versão. A parte de baixo mostra os hiperparâmetros do modelo selecionado, só para consulta. Nos de reforço, a tela também indica com quais ambientes o algoritmo é compatível. Um algoritmo próprio entra por um arquivo Python.',
+  },
+  'home.body.settings': {
+    "en_US": 'Opens a dialog without changing the current screen. There you switch the language between Portuguese and English and check the local folder, the space used by datasets, models, analyses, experiments and the database, and disk usage.',
+    "pt_BR": 'Abre um diálogo sem trocar a tela. Nele se troca o idioma entre português e inglês e se consulta a pasta local, o espaço ocupado por conjuntos, modelos, análises, experimentos e pelo banco, e o uso do disco.',
+  },
+  'home.title.analyses': {
+    "en_US": 'Analyses',
+    "pt_BR": 'Análises',
+  },
+  'home.title.datasets': {
+    "en_US": 'Datasets',
+    "pt_BR": 'Datasets',
+  },
+  'home.title.environments': {
+    "en_US": 'Environments',
+    "pt_BR": 'Ambientes',
+  },
+  'home.title.experiments': {
+    "en_US": 'Experiments',
+    "pt_BR": 'Experimentos',
+  },
+  'home.title.models': {
+    "en_US": 'Models',
+    "pt_BR": 'Modelos',
+  },
+  'home.title.settings': {
+    "en_US": 'Settings',
+    "pt_BR": 'Configurações',
+  },
+  'home.view.title': {
+    "en_US": 'Welcome',
+    "pt_BR": 'Início',
+  },
   'model.col.problem_type': {
     "en_US": 'Problem Type',
     "pt_BR": 'Tipo de problema',

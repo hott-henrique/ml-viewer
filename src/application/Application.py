@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from application.i18n import _
-from application.views import DatasetView, EnvironmentView, ExperimentView, ModelView, AnalysisView
+from application.views import DatasetView, EnvironmentView, ExperimentView, HomeView, ModelView, AnalysisView
 from application.views.settings import SettingsModal
 
 class Application(tk.Tk):
@@ -13,7 +13,7 @@ class Application(tk.Tk):
     self.geometry("1200x600")
 
     self.bg_sidebar = "#2c3e50"
-    self._active_page = DatasetView.__name__
+    self._active_page = HomeView.__name__
     self._nav_buttons: list[tk.Button] = []
 
     self.sidebar = tk.Frame(self, bg=self.bg_sidebar, width=200)
@@ -70,7 +70,7 @@ class Application(tk.Tk):
 
     self.frames.clear()
 
-    for ViewClass in (DatasetView, EnvironmentView, ModelView, AnalysisView, ExperimentView):
+    for ViewClass in (HomeView, DatasetView, EnvironmentView, ModelView, AnalysisView, ExperimentView):
       page_name = ViewClass.__name__
       frame = ViewClass(parent=self.main_container)
       self.frames[page_name] = frame
@@ -100,11 +100,11 @@ class Application(tk.Tk):
     SettingsModal(self, on_locale_changed=self._rebuild_ui)
 
   def _rebuild_ui(self) -> None:
-    current = self._active_page if self._active_page in self.frames else DatasetView.__name__
+    current = self._active_page if self._active_page in self.frames else HomeView.__name__
     self.title(_("app.title"))
     self._build_sidebar()
     self._build_frames()
-    self.show_frame(current if current in self.frames else DatasetView.__name__)
+    self.show_frame(current if current in self.frames else HomeView.__name__)
 
 if __name__ == '__main__':
   app = Application()
