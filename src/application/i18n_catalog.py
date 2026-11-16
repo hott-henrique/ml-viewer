@@ -262,10 +262,6 @@ MESSAGES: dict[str, dict[str, str]] = {
     "en_US": 'Added On',
     "pt_BR": 'Adicionado em',
   },
-  'dataset.col.layout': {
-    "en_US": 'Layout',
-    "pt_BR": 'Layout',
-  },
   'dataset.col.target': {
     "en_US": 'Target',
     "pt_BR": 'Alvo',
@@ -381,10 +377,6 @@ MESSAGES: dict[str, dict[str, str]] = {
   'dataset.form.has_header': {
     "en_US": 'Header row present',
     "pt_BR": 'Cabeçalho presente',
-  },
-  'dataset.form.layout': {
-    "en_US": 'Dataset layout:',
-    "pt_BR": 'Layout do dataset:',
   },
   'dataset.form.labeled_file': {
     "en_US": 'Labeled file (CSV):',

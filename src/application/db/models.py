@@ -8,7 +8,6 @@ from application.db.database import Base
 from application.enums import (
   AnalysisOutputKind,
   DatasetFileRole,
-  DatasetLayout,
   ExperimentStatus,
   ProblemType,
 )
@@ -29,7 +28,6 @@ class Dataset(Base):
   problem_type: Mapped[ProblemType] = mapped_column(_str_enum(ProblemType))
   target: Mapped[t.Optional[int]] = mapped_column(default=None)
   has_header: Mapped[bool] = mapped_column(default=True)
-  layout: Mapped[DatasetLayout] = mapped_column(_str_enum(DatasetLayout), default=DatasetLayout.NO_SPLIT)
   version: Mapped[int] = mapped_column(default=1)
   md5_hash: Mapped[str] = mapped_column(default="")
   created_at: Mapped[str]

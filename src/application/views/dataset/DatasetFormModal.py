@@ -4,12 +4,13 @@ from tkinter import ttk, filedialog, messagebox
 
 from application.components import ProblemTypeSelector
 from application.enums import DatasetFileRole, DatasetLayout, ProblemType
-from application.i18n import _, localize_enum
+from application.i18n import _
 from application.managers.DatasetManager import (
   SEMI_SUPERVISED_TYPES,
   SUPERVISED_TYPES,
   UNSUPERVISED_TYPES,
   format_target_display,
+  layout_for_problem,
   parse_target_display,
   peek_column_names,
 )
@@ -22,7 +23,6 @@ class DatasetFormModal(tk.Toplevel):
     self.is_editing = dataset_data is not None
     self.title(_("dataset.form.edit_title") if self.is_editing else _("dataset.form.add_title"))
 
-    self.geometry("440x660")
     self.resizable(False, False)
     self.grab_set()
 
@@ -34,8 +34,6 @@ class DatasetFormModal(tk.Toplevel):
     self.name_var = tk.StringVar(value=data.get("name", ""))
     self.type_var = tk.StringVar(value=data.get("type", ProblemType.CLASSIFICATION.value))
     self.has_header_var = tk.BooleanVar(value=bool(data.get("has_header", True)))
-    default_layout = data.get("layout", DatasetLayout.TRAIN_TEST_SPLIT.value)
-    self.layout_var = tk.StringVar(value=default_layout)
     self.full_path_var = tk.StringVar(value=data.get("full_path", data.get("path", "")))
     self.train_path_var = tk.StringVar(value=data.get("train_path", ""))
     self.test_path_var = tk.StringVar(value=data.get("test_path", ""))
@@ -44,19 +42,6 @@ class DatasetFormModal(tk.Toplevel):
     initial_target = data.get("target")
     self.target_var = tk.StringVar(value="" if initial_target is None else str(initial_target))
 
-    self._layout_display_to_value = {
-      localize_enum(DatasetLayout.NO_SPLIT): DatasetLayout.NO_SPLIT.value,
-      localize_enum(DatasetLayout.TRAIN_TEST_SPLIT): DatasetLayout.TRAIN_TEST_SPLIT.value,
-      localize_enum(DatasetLayout.LABELED_UNLABELED): DatasetLayout.LABELED_UNLABELED.value,
-    }
-    self._layout_value_to_display = {v: k for k, v in self._layout_display_to_value.items()}
-    self._layout_display_var = tk.StringVar(
-      value=self._layout_value_to_display.get(
-        self.layout_var.get(),
-        localize_enum(DatasetLayout.TRAIN_TEST_SPLIT),
-      )
-    )
-
     self._build_ui()
 
     self.type_var.trace_add("write", self._on_type_changed)
@@ -64,7 +49,6 @@ class DatasetFormModal(tk.Toplevel):
     self.full_path_var.trace_add("write", self._on_header_or_path_changed)
     self.train_path_var.trace_add("write", self._on_header_or_path_changed)
     self.labeled_path_var.trace_add("write", self._on_header_or_path_changed)
-    self._layout_display_var.trace_add("write", self._on_layout_display_changed)
 
     self._on_type_changed()
     self._sync_file_widgets()
@@ -89,17 +73,6 @@ class DatasetFormModal(tk.Toplevel):
     row += 1
     selector = ProblemTypeSelector(form_frame, type_var=self.type_var, initial_value=self.type_var.get())
     selector.grid(row=row, column=0, sticky="ew", pady=(0, 12))
-    row += 1
-
-    ttk.Label(form_frame, text=_("dataset.form.layout"), foreground="#333333").grid(row=row, column=0, sticky="w", pady=(0, 2))
-    row += 1
-    self.layout_combo = ttk.Combobox(
-      form_frame,
-      textvariable=self._layout_display_var,
-      values=list(self._layout_display_to_value.keys()),
-      state="disabled",
-    )
-    self.layout_combo.grid(row=row, column=0, sticky="ew", pady=(0, 12))
     row += 1
 
     ttk.Checkbutton(
@@ -180,47 +153,30 @@ class DatasetFormModal(tk.Toplevel):
     return ProblemType(self.type_var.get())
 
   def _current_layout(self) -> DatasetLayout:
-    return DatasetLayout(self.layout_var.get())
+    return layout_for_problem(self._current_problem_type())
 
   def _needs_target(self) -> bool:
     problem = self._current_problem_type()
     return problem in SUPERVISED_TYPES or problem in SEMI_SUPERVISED_TYPES
 
-  def _on_layout_display_changed(self, *args) -> None:
-    display = self._layout_display_var.get()
-    value = self._layout_display_to_value.get(display, DatasetLayout.TRAIN_TEST_SPLIT.value)
-    self.layout_var.set(value)
-    self._sync_file_widgets()
-    self._load_csv_columns()
-
   def _on_type_changed(self, *args) -> None:
     problem = self._current_problem_type()
 
-    if problem in UNSUPERVISED_TYPES:
-      self.layout_var.set(DatasetLayout.NO_SPLIT.value)
-      self._layout_display_var.set(self._layout_value_to_display[DatasetLayout.NO_SPLIT.value])
+    if problem in UNSUPERVISED_TYPES or problem not in SUPERVISED_TYPES | SEMI_SUPERVISED_TYPES:
       self.target_label.config(text=_("dataset.form.target_unused"))
       self.target_var.set("")
       self.target_selector.config(state="disabled")
-    elif problem in SEMI_SUPERVISED_TYPES:
-      self.layout_var.set(DatasetLayout.LABELED_UNLABELED.value)
-      self._layout_display_var.set(self._layout_value_to_display[DatasetLayout.LABELED_UNLABELED.value])
-      self.target_label.config(text=_("dataset.form.target"))
-      self.target_selector.config(state="readonly")
-    elif problem in SUPERVISED_TYPES:
-      self.layout_var.set(DatasetLayout.TRAIN_TEST_SPLIT.value)
-      self._layout_display_var.set(self._layout_value_to_display[DatasetLayout.TRAIN_TEST_SPLIT.value])
-      self.target_label.config(text=_("dataset.form.target"))
-      self.target_selector.config(state="readonly")
     else:
-      self.layout_var.set(DatasetLayout.NO_SPLIT.value)
-      self._layout_display_var.set(self._layout_value_to_display[DatasetLayout.NO_SPLIT.value])
-      self.target_label.config(text=_("dataset.form.target_unused"))
-      self.target_selector.config(state="disabled")
+      self.target_label.config(text=_("dataset.form.target"))
+      self.target_selector.config(state="readonly")
 
-    self.layout_combo.config(state="disabled")
     self._sync_file_widgets()
     self._load_csv_columns()
+    self._fit_height()
+
+  def _fit_height(self) -> None:
+    self.update_idletasks()
+    self.geometry(f"440x{self.winfo_reqheight()}")
 
   def _on_header_or_path_changed(self, *args) -> None:
     self._load_csv_columns()
@@ -366,7 +322,6 @@ class DatasetFormModal(tk.Toplevel):
       "id": self.dataset_id,
       "name": self.name_var.get().strip(),
       "type": self.type_var.get(),
-      "layout": layout.value,
       "has_header": self.has_header_var.get(),
       "files": files,
       "target": target_value,

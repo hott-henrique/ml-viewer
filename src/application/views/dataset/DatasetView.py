@@ -24,7 +24,7 @@ class DatasetView(ttk.Frame):
     table_frame = ttk.Frame(self)
     table_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
-    columns = ("id", "name", "type", "layout", "target", "date", "version", "md5")
+    columns = ("id", "name", "type", "target", "date", "version", "md5")
     self.tree = SortableTreeview(table_frame, columns=columns, height=12)
 
     self.tree.set_heading("id", _("common.id"), sortable=False)
@@ -32,7 +32,6 @@ class DatasetView(ttk.Frame):
 
     self.tree.set_heading("name", _("common.name"))
     self.tree.set_heading("type", _("common.type"))
-    self.tree.set_heading("layout", _("dataset.col.layout"))
     self.tree.set_heading("target", _("dataset.col.target"))
     self.tree.set_heading("date", _("dataset.col.added_on"))
     self.tree.set_heading("version", _("common.version"))
@@ -40,7 +39,6 @@ class DatasetView(ttk.Frame):
 
     self.tree.column("name", width=110)
     self.tree.column("type", width=90)
-    self.tree.column("layout", width=110)
     self.tree.column("target", width=120)
     self.tree.column("date", width=120)
     self.tree.column("version", width=70)
@@ -81,7 +79,6 @@ class DatasetView(ttk.Frame):
           ds.id,
           ds.name,
           localize_enum(ds.type),
-          localize_enum(ds.layout),
           self._format_target_cell(ds),
           ds.date,
           ds.version,
@@ -130,7 +127,6 @@ class DatasetView(ttk.Frame):
       "type": dataset.type.value,
       "target": dataset.target,
       "has_header": dataset.has_header,
-      "layout": dataset.layout.value,
       "path": dataset.path,
       "full_path": dataset.path if dataset.layout == DatasetLayout.NO_SPLIT else "",
       "train_path": dataset.train_path if dataset.layout == DatasetLayout.TRAIN_TEST_SPLIT else "",
@@ -188,7 +184,6 @@ class DatasetView(ttk.Frame):
         DatasetManager.add_dataset(
           name=dataset_payload["name"],
           problem_type=dataset_payload["type"],
-          layout=dataset_payload["layout"],
           has_header=dataset_payload["has_header"],
           target=dataset_payload.get("target"),
           files=dataset_payload.get("files"),

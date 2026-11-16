@@ -39,6 +39,18 @@ LAYOUT_ROLES: dict[DatasetLayout, frozenset[tuple[DatasetFileRole, int]]] = {
   }),
 }
 
+def layout_for_problem(problem_type: ProblemType) -> DatasetLayout:
+  if problem_type in SUPERVISED_TYPES:
+    return DatasetLayout.TRAIN_TEST_SPLIT
+
+  if problem_type in SEMI_SUPERVISED_TYPES:
+    return DatasetLayout.LABELED_UNLABELED
+
+  if problem_type in UNSUPERVISED_TYPES or problem_type == ProblemType.REINFORCEMENT_LEARNING:
+    return DatasetLayout.NO_SPLIT
+
+  raise ValueError(_("dataset.err.unsupported_problem_type").format(problem_type=problem_type))
+
 def validate_problem_target(problem_type: ProblemType, target: int | None) -> int | None:
   if problem_type in SUPERVISED_TYPES or problem_type in SEMI_SUPERVISED_TYPES:
     if target is None:
@@ -125,7 +137,6 @@ class DatasetMetadata(BaseModel):
   type: ProblemType
   target: t.Optional[int] = None
   has_header: bool = True
-  layout: DatasetLayout = DatasetLayout.NO_SPLIT
   files: list[DatasetFileMeta] = Field(default_factory=list)
   version: int = 1
   md5_hash: str = ""
@@ -140,6 +151,10 @@ class DatasetMetadata(BaseModel):
 
   def path_for(self, role: DatasetFileRole, ordinal: int = 0) -> str:
     return self.file_for(role, ordinal).path
+
+  @property
+  def layout(self) -> DatasetLayout:
+    return layout_for_problem(self.type)
 
   @property
   def path(self) -> str:
@@ -180,7 +195,6 @@ class DatasetMetadata(BaseModel):
       type=row.problem_type,
       target=row.target,
       has_header=bool(row.has_header),
-      layout=row.layout,
       files=[DatasetFileMeta.from_row(f) for f in (row.files or [])],
       version=row.version,
       md5_hash=row.md5_hash,
@@ -189,28 +203,10 @@ class DatasetMetadata(BaseModel):
 
 def _validate_layout_and_files(
   problem_type: ProblemType,
-  layout: DatasetLayout,
   file_specs: list[tuple[DatasetFileRole, int, Path]],
   has_header: bool,
 ) -> None:
-  if problem_type in UNSUPERVISED_TYPES and layout != DatasetLayout.NO_SPLIT:
-    raise ValueError(_("dataset.err.unsupervised_requires_nosplit"))
-
-  if problem_type in SUPERVISED_TYPES and layout != DatasetLayout.TRAIN_TEST_SPLIT:
-    raise ValueError(_("dataset.err.supervised_requires_train_test_split"))
-
-  if problem_type in SEMI_SUPERVISED_TYPES and layout != DatasetLayout.LABELED_UNLABELED:
-    raise ValueError(_("dataset.err.semi_supervised_requires_labeled_unlabeled"))
-
-  if layout == DatasetLayout.NO_SPLIT and problem_type not in UNSUPERVISED_TYPES:
-    raise ValueError(_("dataset.err.nosplit_layout_restricted"))
-
-  if layout == DatasetLayout.TRAIN_TEST_SPLIT and problem_type not in SUPERVISED_TYPES:
-    raise ValueError(_("dataset.err.train_test_layout_restricted"))
-
-  if layout == DatasetLayout.LABELED_UNLABELED and problem_type not in SEMI_SUPERVISED_TYPES:
-    raise ValueError(_("dataset.err.labeled_unlabeled_layout_restricted"))
-
+  layout = layout_for_problem(problem_type)
   expected = LAYOUT_ROLES.get(layout)
 
   if expected is None:
@@ -272,7 +268,6 @@ class DatasetManager:
     name: str,
     problem_type: str | ProblemType,
     *,
-    layout: DatasetLayout | str = DatasetLayout.NO_SPLIT,
     has_header: bool = True,
     target: int | None = None,
     files: dict[str, str] | None = None,
@@ -284,11 +279,11 @@ class DatasetManager:
     ``{"Train": "...", "Test": "..."}``. Legacy ``filepath`` is treated as Full.
     """
     problem = ProblemType(problem_type)
-    layout_enum = DatasetLayout(layout)
+    layout_enum = layout_for_problem(problem)
     normalized_target = validate_problem_target(problem, target)
 
     file_specs = cls._build_file_specs(layout_enum, files=files, filepath=filepath)
-    _validate_layout_and_files(problem, layout_enum, file_specs, has_header)
+    _validate_layout_and_files(problem, file_specs, has_header)
 
     if normalized_target is not None:
       primary = cls._primary_path_from_specs(layout_enum, file_specs)
@@ -305,7 +300,6 @@ class DatasetManager:
         problem_type=problem,
         target=normalized_target,
         has_header=has_header,
-        layout=layout_enum,
         version=1,
         md5_hash=combine_file_md5([
           (role.value, ordinal, stored.md5_hash) for role, ordinal, stored in stored_files
@@ -347,7 +341,7 @@ class DatasetManager:
       name = payload["name"] if payload.get("name") is not None else source.name
       problem = ProblemType(payload["type"]) if payload.get("type") is not None else source.problem_type
       has_header = bool(payload["has_header"]) if payload.get("has_header") is not None else source.has_header
-      layout = DatasetLayout(payload["layout"]) if payload.get("layout") is not None else source.layout
+      layout = layout_for_problem(problem)
       incoming_target = payload["target"] if "target" in payload else source.target
       target = validate_problem_target(problem, incoming_target)
 
@@ -358,7 +352,7 @@ class DatasetManager:
 
       if files_payload is not None or filepath is not None:
         file_specs = cls._build_file_specs(layout, files=files_payload, filepath=filepath)
-        _validate_layout_and_files(problem, layout, file_specs, has_header)
+        _validate_layout_and_files(problem, file_specs, has_header)
 
         if target is not None:
           ncols = peek_ncols(cls._primary_path_from_specs(layout, file_specs), has_header)
@@ -376,7 +370,6 @@ class DatasetManager:
       else:
         _validate_layout_and_files(
           problem,
-          layout,
           [(f.role, f.ordinal, store.resolve_path(f.storage_filename)) for f in source.files],
           has_header,
         )
@@ -393,7 +386,6 @@ class DatasetManager:
         problem_type=problem,
         target=target,
         has_header=has_header,
-        layout=layout,
         version=version,
         md5_hash=md5_hash,
         created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
