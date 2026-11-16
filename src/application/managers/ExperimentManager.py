@@ -149,6 +149,11 @@ class ExperimentMetadata(BaseModel):
       except Exception:
         source_name = environment_kind
 
+      if environment_kind == "gymnasium":
+        env_id = environment_params.get("env_id")
+        if env_id:
+          source_name = f"{source_name} - {env_id}"
+
     train_config = None
     if row.train_config:
       train_config = ExperimentTrainConfig.model_validate(row.train_config)
