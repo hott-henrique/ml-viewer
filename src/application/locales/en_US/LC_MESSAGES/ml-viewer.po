@@ -62,7 +62,7 @@ msgid "analysis.view.title"
 msgstr "Analyses Library"
 
 msgid "app.brand"
-msgstr "ML STUDIO"
+msgstr "ML Viewer"
 
 msgid "app.title"
 msgstr "ML Viewer"

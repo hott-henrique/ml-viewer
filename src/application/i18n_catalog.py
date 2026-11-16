@@ -75,8 +75,8 @@ MESSAGES: dict[str, dict[str, str]] = {
     "pt_BR": 'Biblioteca de Análises',
   },
   'app.brand': {
-    "en_US": 'ML STUDIO',
-    "pt_BR": 'ML STUDIO',
+    "en_US": 'ML Viewer',
+    "pt_BR": 'ML Viewer',
   },
   'app.title': {
     "en_US": 'ML Viewer',
