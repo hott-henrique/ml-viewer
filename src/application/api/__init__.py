@@ -2,8 +2,8 @@
 
 Plugin authors should import contracts from this package only::
 
-    from application.api import AgentAPI, EnvironmentAPI, StepResult
-    from application.api import SupervisedAnalyzer, ScalarResult, HyperParamConfig
+    from mlviewer.api import AgentAPI, EnvironmentAPI, StepResult
+    from mlviewer.api import SupervisedAnalyzer, ScalarResult, HyperParamConfig
 
 Declare one of:
 

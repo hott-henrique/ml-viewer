@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from application.enums import ParamType
 from application.i18n import TranslatableStr
 
-# Re-export for plugin authors: `from application.api import ParamType`
+# Re-export for plugin authors: `from mlviewer.api import ParamType`
 __all__ = ["ParamType", "HyperParamConfig"]
 
 
