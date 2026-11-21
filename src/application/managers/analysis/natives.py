@@ -1,6 +1,7 @@
 import typing as t
 
 from matplotlib.figure import Figure
+from matplotlib import pyplot as plt
 from sklearn.decomposition import PCA
 from sklearn.metrics import (
   ConfusionMatrixDisplay,
@@ -14,6 +15,7 @@ from sklearn.metrics import (
 import numpy as np
 
 from application.enums import AnalysisOutputKind, ParamType, ProblemType
+from application.i18n import get_locale
 from application.api.analysis import (
   AssociationRulesAnalyzer,
   ClusteringAnalyzer,
@@ -166,11 +168,30 @@ class Clusters2DScatterAnalysis(ClusteringAnalyzer):
 
     fig = Figure(figsize=(5, 4), dpi=100)
     ax = fig.add_subplot(111)
-    scatter = ax.scatter(coords[:, 0], coords[:, 1], c=labels, cmap="tab10", alpha=0.8, edgecolors="k")
+    labels_arr = np.asarray(labels)
+    cmap = plt.colormaps["tab10"]
+    word = "Grupo" if get_locale() == "pt_BR" else "Group"
+
+    try:
+      ordered = sorted(np.unique(labels_arr), key=float)
+    except (TypeError, ValueError):
+      ordered = list(np.unique(labels_arr))
+
+    for index, group in enumerate(ordered):
+      mask = labels_arr == group
+      ax.scatter(
+        coords[mask, 0],
+        coords[mask, 1],
+        color=cmap(index % 10),
+        alpha=0.8,
+        edgecolors="k",
+        label=f"{word} {group}",
+      )
+
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.set_title("Clusters (2D)")
-    fig.colorbar(scatter, ax=ax, label="Cluster")
+    ax.legend(loc="center left", bbox_to_anchor=(1.02, 0.5), frameon=False)
     fig.tight_layout()
     return ImageResult("clusters_2d.png", fig, label="Clusters 2D Scatter")
 
