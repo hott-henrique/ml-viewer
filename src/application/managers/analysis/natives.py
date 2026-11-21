@@ -67,6 +67,13 @@ class ConfusionMatrixAnalysis(SupervisedAnalyzer):
       normalize=self.normalize,
     )
     ax.set_title("Confusion Matrix")
+    tick_labels = [tick.get_text() for tick in ax.get_xticklabels()]
+
+    if any(len(text) > 2 for text in tick_labels):
+      for tick in ax.get_xticklabels():
+        tick.set_rotation(25)
+        tick.set_ha("right")
+
     fig.tight_layout()
     return ImageResult("confusion_matrix.png", fig, label="Confusion Matrix")
 
